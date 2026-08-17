@@ -50,8 +50,12 @@ uses a bare HTTP client outside Xray, and there is no TCP segment loss, ICMP or 
   is a minimal text patch, so protocol settings, TLS, Reality, `mux`, comments and
   formatting survive untouched. Individual nodes can also be edited as raw JSON.
   Nodes are banded by group — the same tag-prefix split the rail and the RTT legend use
-  — and a spacing control spreads the diagram out, because with sixteen outbounds fed by
-  one balancer only distance separates the edges.
+  — on an unbounded pan-and-zoom canvas: a diagram sized to its content forces a choice
+  between labels too small to read and a mostly-empty page to scroll. Any group can be
+  dragged where its reader wants it; the automatic layout is a starting point, not a
+  claim about what matters in a particular config. The one spacing control widens the
+  gap between COLUMNS, which is the only dimension where more room buys legibility —
+  every edge crosses it.
 - **Reference / Protocols** — 311 documented parameters and the generated
   `settings` schema for every protocol in the registry.
 - **What-if** — runs the real strategy against a frozen observation and reports the

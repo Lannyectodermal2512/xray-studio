@@ -907,16 +907,42 @@ button.ghost.on { border-color: var(--bad); color: var(--bad); }
 
 /* ── graph grouping and density ────────────────────────────────────────────── */
 
-.graph-density { align-items: center; display: flex; gap: 6px; }
-.graph-density input[type='range'] { accent-color: var(--accent); width: 110px; }
+/* The canvas fills the panel and never grows to fit content: an unbounded diagram is
+   navigated, not scrolled past. Height is viewport-relative so it stays usable in the
+   Build tab's narrower column too. */
+.graph-canvas {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: grab;
+  display: block;
+  height: min(72vh, 780px);
+  touch-action: none;      /* we handle pan/zoom ourselves */
+  user-select: none;
+  width: 100%;
+}
+
+.graph-canvas:active { cursor: grabbing; }
+
+/* The head carries a title, a usage hint, a slider and two buttons. Let the hint be the
+   only thing that wraps, and stop the controls collapsing into a column. */
+.graph-density { align-items: center; display: flex; flex: none; gap: 6px; white-space: nowrap; }
+.graph-hint { flex: 1 1 auto; min-width: 120px; }
+.graph-panel .panel-head > button { flex: none; }
+.graph-density input[type='range'] { accent-color: var(--accent); width: 96px; }
 
 /* Bands sit behind everything. Filled rather than outlined: an outline reads as another
    node, which is the opposite of what a background grouping should do. */
+.graph-band { cursor: move; }
+
 .graph-band rect {
   fill: rgb(255 255 255 / 3%);
   stroke: rgb(255 255 255 / 6%);
   stroke-width: 1;
 }
+
+.graph-band:hover rect { fill: rgb(255 255 255 / 6%); stroke: rgb(76 154 255 / 45%); }
+.graph-band:hover .graph-band-label { fill: var(--accent); }
 
 .graph-band-label {
   fill: var(--fg-faint);
