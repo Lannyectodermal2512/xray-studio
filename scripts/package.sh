@@ -40,5 +40,35 @@ info "packaging"
 # every relative path inside it against cwd.
 (cd app && ./node_modules/.bin/electron-builder --mac --config electron-builder.yml)
 
+info "archiving sources"
+# Built with `git archive` rather than `tar --exclude`, deliberately.
+#
+# git archive emits exactly the tracked files, so it cannot pick up node_modules, the
+# patched core, an editor's swap file or a previous release artefact. The hand-rolled
+# tarball this replaced did: it came out at 194 MB because a stale exclude let
+# node_modules and .build in, and nobody would notice until someone downloaded it.
+#
+# It also archives HEAD, not the working tree — which is what makes the file honest.
+# The binaries above were built from the working tree, so if that has drifted from HEAD
+# the two artefacts describe different code. Say so rather than shipping the mismatch
+# silently.
+VERSION="$(node -p "require('./package.json').version")"
+SRC=".build/dist/XrayStudio-${VERSION}-src.tar.gz"
+
+if git rev-parse --git-dir >/dev/null 2>&1 && git rev-parse HEAD >/dev/null 2>&1; then
+  if [[ -n "$(git status --porcelain)" ]]; then
+    printf '\033[33mwarning:\033[0m working tree is dirty — the source archive is HEAD,\n'
+    printf '         but the binaries were built from your uncommitted changes.\n'
+    git status --short | sed 's/^/         /'
+  fi
+  git archive --format=tar.gz \
+    --prefix="xray-studio-${VERSION}/" \
+    -o "$SRC" HEAD
+else
+  die "not a git repository with a commit — the source archive needs one.
+     Reproducibility is the point: an archive of whatever happened to be on disk
+     cannot be checked against anything."
+fi
+
 printf '\033[32m✓\033[0m artifacts in .build/dist/\n'
-ls -lh .build/dist/*.dmg .build/dist/*.zip 2>/dev/null | sed 's/^/  /' || true
+ls -lh .build/dist/*.dmg .build/dist/*.zip .build/dist/*-src.tar.gz 2>/dev/null | sed 's/^/  /' || true

@@ -52,6 +52,7 @@ jobs:
           path: |
             .build/dist/*.dmg
             .build/dist/*.zip
+            .build/dist/*-src.tar.gz
 
       - name: Draft release
         if: startsWith(github.ref, 'refs/tags/')
@@ -63,4 +64,4 @@ jobs:
             --title "${GITHUB_REF_NAME}" \
             --notes-file CHANGELOG.md \
             --prerelease \
-            .build/dist/*.dmg .build/dist/*.zip
+            .build/dist/*.dmg .build/dist/*.zip .build/dist/*-src.tar.gz

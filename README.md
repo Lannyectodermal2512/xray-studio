@@ -267,8 +267,14 @@ npm run package
 ```
 
 Verifies the pinned core, builds the sidecar, **runs the sidecar tests and refuses to
-package if they fail**, builds the renderer, and writes a `.dmg` and `.zip` to
-`.build/dist/`. The Go binary and the generated `data/` bundles ship as
+package if they fail**, builds the renderer, and writes a `.dmg`, a `.zip` and a
+source archive to `.build/dist/`.
+
+The source archive comes from `git archive` at HEAD, not from the working tree. That
+means it contains exactly the tracked files — it cannot pick up `node_modules`, the
+patched core or a previous release artefact — and if the working tree has drifted from
+HEAD the script says so, because the binaries would then have been built from something
+the archive does not describe. The Go binary and the generated `data/` bundles ship as
 `extraResources` outside the asar — the sidecar has to be a real file on disk to be
 spawned, and the data files are looked up by path.
 
