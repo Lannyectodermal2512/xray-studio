@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    Xray Studio.
+
+    The picture is the product: one inbound fanning out to three outbounds, one of them
+    picked (bright, thick), one healthy but not chosen (dim green), one deliberately
+    broken (red, with the path severed). Balancing and fault injection are the two things
+    the app does, and they are the two things the icon says.
+
+    Deliberately flat — no gradients, filters or text. It has to survive being drawn at
+    16px in a Dock and in a GitHub list, where anything finer turns to mush, and flat
+    shapes rasterise identically in every renderer.
+  -->
+  <defs>
+    <clipPath id="squircle">
+      <rect x="64" y="64" width="896" height="896" rx="208" ry="208"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#squircle)">
+    <!-- Flat, single fill. A lighter band across the top read as a seam rather than
+         as lighting, and a gradient would band at small sizes. -->
+    <rect x="64" y="64" width="896" height="896" fill="#111720"/>
+  </g>
+  <rect x="64" y="64" width="896" height="896" rx="208" ry="208"
+        fill="none" stroke="#28313f" stroke-width="8"/>
+
+  <g fill="none" stroke-linecap="round" stroke-width="34">
+    <!-- not chosen, but alive -->
+    <path d="M336 512 C 470 512, 500 316, 636 316" stroke="#2f6b3c"/>
+    <!-- chosen -->
+    <path d="M336 512 L 636 512" stroke="#4c9aff"/>
+    <!-- faulted: the break in the line IS the fault -->
+    <path d="M336 512 C 430 512, 460 708, 552 708" stroke="#6b2b28"/>
+  </g>
+
+  <!-- inbound -->
+  <circle cx="300" cy="512" r="62" fill="#4c9aff"/>
+  <circle cx="300" cy="512" r="26" fill="#111720"/>
+
+  <!-- outbounds -->
+  <circle cx="688" cy="316" r="52" fill="#3fb950"/>
+  <circle cx="688" cy="512" r="66" fill="#4c9aff"/>
+  <circle cx="688" cy="512" r="28" fill="#111720"/>
+  <circle cx="726" cy="708" r="48" fill="none" stroke="#f85149" stroke-width="26"/>
+
+  <!-- the severed span, marked. Kept clear of both the path end and the ring: at 32px
+       an X touching either turns into an unreadable blob. -->
+  <g stroke="#f85149" stroke-width="26" stroke-linecap="round">
+    <path d="M596 686 L 632 730"/>
+    <path d="M632 686 L 596 730"/>
+  </g>
+</svg>

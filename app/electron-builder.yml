@@ -1,0 +1,53 @@
+appId: dev.xraystudio.app
+productName: Xray Studio
+copyright: Copyright © 2026 Xray Studio contributors
+
+directories:
+  output: ../.build/dist
+  buildResources: ../assets
+
+# Only the compiled output. src/ is TypeScript the packaged app never reads, and
+# node_modules is resolved by electron-builder from package.json dependencies.
+files:
+  - out/**/*
+  - package.json
+
+# The Go sidecar and the generated reference data live OUTSIDE the asar, because the
+# sidecar is an executable — it has to be a real file on disk to be spawned — and the
+# data files are looked up by path. Both destinations match what src/main resolves
+# against process.resourcesPath.
+extraResources:
+  - from: ../.build/bin/xray-studio-sidecar
+    to: xray-studio-sidecar
+  - from: ../data/docs-en
+    to: docs-en
+  - from: ../data/schema
+    to: schema
+  - from: ../examples
+    to: examples
+
+mac:
+  icon: ../assets/icon.icns
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch: [arm64]
+    - target: zip
+      arch: [arm64]
+  # Alpha builds are unsigned: signing needs a paid Apple Developer identity, and
+  # shipping an ad-hoc signature would only make Gatekeeper's refusal more confusing.
+  # The README documents the one-time quarantine removal this requires.
+  identity: null
+  # Nothing here talks to the camera, microphone or the user's files beyond configs the
+  # user picks, so the hardened runtime buys nothing without notarisation.
+  hardenedRuntime: false
+
+dmg:
+  title: Xray Studio ${version}
+  artifactName: XrayStudio-${version}-arm64.dmg
+
+# The zip is what the auto-updater and CI would consume, and it is also the smaller
+# download for anyone who just wants the .app.
+artifactName: XrayStudio-${version}-arm64.${ext}
+
+publish: null

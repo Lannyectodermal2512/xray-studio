@@ -1,0 +1,204 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: xray-studio <xray-studio@localhost>
+Date: Fri, 14 Aug 2026 22:37:07 +0300
+Subject: [PATCH 9/9] app/router: add a seam for offline what-if analysis
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Lets a host program run a REAL strategy against a frozen observation, which is
+what makes a what-if simulator worth trusting: leastLoad's settings (costs,
+baselines, expected, maxRTT, tolerance) interact in ways a reimplementation gets
+subtly wrong, and a simulator that disagreed with the engine would be worse than
+none at all.
+
+Two pieces:
+
+  - InjectObservatoryForSimulation supplies an observatory directly, since the
+    normal RequireFeatures wiring needs a live core.Instance. Each strategy
+    applies the SAME gate it would apply in InjectContext, so random and
+    roundRobin still ignore the observatory unless fallbackTag is set — the
+    simulation reproduces that surprise rather than papering over it.
+
+  - PickOutboundSimulated returns the trace instead of publishing it. The hook is
+    a package-level var read on the per-connection data path, so swapping it to
+    capture a simulated decision would race with live traffic, and a thousand
+    Monte-Carlo trials would swamp the event stream with decisions that never
+    happened.
+---
+ app/router/simulation.go | 136 +++++++++++++++++++++++++++++++++++++++
+ xraytrace/trace.go       |  18 ++++++
+ 2 files changed, 154 insertions(+)
+ create mode 100644 app/router/simulation.go
+
+diff --git a/app/router/simulation.go b/app/router/simulation.go
+new file mode 100644
+index 0000000..00e6f2e
+--- /dev/null
++++ b/app/router/simulation.go
+@@ -0,0 +1,136 @@
++package router
++
++import (
++	"context"
++
++	"github.com/xtls/xray-core/common/errors"
++	"github.com/xtls/xray-core/features/extension"
++	"github.com/xtls/xray-core/features/outbound"
++	"github.com/xtls/xray-core/xraytrace"
++)
++
++// Support for what-if analysis: run a REAL strategy against a captured observation.
++//
++// The alternative — reimplementing the algorithms in the tool — was rejected for the
++// same reason the decision trace is threaded through the real code rather than
++// duplicated beside it. A simulator that answers "what would leastLoad do if maxRTT
++// were 200ms" is only worth trusting if it runs the code that will actually run.
++//
++// Normally a strategy receives its observatory through core.RequireFeatures during
++// InjectContext, which requires a live core.Instance. A simulation has no instance and
++// wants a frozen, synthetic observation instead, so this provides the one seam needed
++// to supply it directly. Nothing here is used on the live path.
++
++// observatoryReceiver is implemented by every strategy that consults an observatory.
++type observatoryReceiver interface {
++	injectObservatory(ctx context.Context, obs extension.Observatory)
++}
++
++// Random and roundRobin bind an observatory ONLY when fallbackTag is set — see the
++// gate in their InjectContext. Reproducing that here is the whole point: without a
++// fallbackTag these strategies pick dead outbounds as readily as live ones, and a
++// simulator that quietly supplied an observatory anyway would hide exactly the
++// behaviour a user is most likely to be caught out by.
++func (s *RandomStrategy) injectObservatory(ctx context.Context, obs extension.Observatory) {
++	s.ctx = ctx
++	if len(s.FallbackTag) > 0 {
++		s.observatory = obs
++	}
++}
++
++func (s *RoundRobinStrategy) injectObservatory(ctx context.Context, obs extension.Observatory) {
++	s.ctx = ctx
++	if len(s.FallbackTag) > 0 {
++		s.observatory = obs
++	}
++}
++
++func (l *LeastPingStrategy) injectObservatory(ctx context.Context, obs extension.Observatory) {
++	l.ctx, l.observatory = ctx, obs
++}
++
++func (s *LeastLoadStrategy) injectObservatory(ctx context.Context, obs extension.Observatory) {
++	s.ctx, s.observer = ctx, obs
++}
++
++// InjectObservatoryForSimulation supplies an observatory directly, bypassing the
++// RequireFeatures wiring that normally needs a live core.Instance. Intended for
++// offline what-if analysis only.
++//
++// Each strategy applies the same gate it would apply during InjectContext, so a
++// simulation reproduces the real binding rules rather than papering over them.
++func (b *Balancer) InjectObservatoryForSimulation(ctx context.Context, obs extension.Observatory) {
++	if r, ok := b.strategy.(observatoryReceiver); ok {
++		r.injectObservatory(ctx, obs)
++	}
++}
++
++// PickOutboundSimulated runs the balancer and RETURNS the decision trace instead of
++// publishing it to the global hook.
++//
++// Simulations must not touch the live event stream: the hook is a package-level var
++// read on the per-connection data path, so temporarily swapping it to capture a
++// simulated decision would race with real traffic. A thousand Monte-Carlo trials would
++// also swamp the stream with events describing decisions that never happened.
++func (b *Balancer) PickOutboundSimulated() (string, *xraytrace.Trace, error) {
++	tr := xraytrace.NewTraceForced(b.tag, b.strategyName, b.fallbackTag, 0)
++
++	candidates, err := b.SelectOutbounds()
++	if err != nil {
++		tr.Finish("", xraytrace.SourceError, err.Error())
++		return "", tr, err
++	}
++	tr.SetCandidates(b.selectors, candidates)
++
++	if o := b.override.Get(); o != "" {
++		st := tr.Begin(xraytrace.StageSelect, "choose", candidates)
++		st.Keep(o)
++		st.Note("override_pinned")
++		st.End(tr)
++		tr.Finish(o, xraytrace.SourceOverride, "")
++		return o, tr, nil
++	}
++
++	tag := pickWithTrace(b.strategy, candidates, tr)
++	if tag == "" {
++		if b.fallbackTag != "" {
++			tr.Finish(b.fallbackTag, xraytrace.SourceFallback, "")
++			return b.fallbackTag, tr, nil
++		}
++		e := errors.New("balancing strategy returns empty tag")
++		tr.Finish("", xraytrace.SourceError, e.Error())
++		return "", tr, e
++	}
++	tr.Finish(tag, xraytrace.SourceStrategy, "")
++	return tag, tr, nil
++}
++
++// NewSimulationBalancer builds a Balancer over a fixed candidate list, for what-if
++// analysis. The strategy is constructed by the same BalancingRule.Build switch the
++// live path uses, so simulated behaviour is the real behaviour.
++func NewSimulationBalancer(rule *BalancingRule, candidates []string) (*Balancer, error) {
++	b, err := rule.Build(fixedSelector(candidates), nil)
++	if err != nil {
++		return nil, err
++	}
++	b.tag, b.strategyName = rule.Tag, rule.Strategy
++	return b, nil
++}
++
++// fixedSelector is an outbound.Manager that reports a fixed tag list. Only Select is
++// ever called on a balancer's manager; the rest panic rather than silently returning
++// zero values, so a future change that starts using them is impossible to miss.
++type fixedSelector []string
++
++func (f fixedSelector) Select([]string) []string { return f }
++func (f fixedSelector) Type() interface{}        { return outbound.ManagerType() }
++func (f fixedSelector) Start() error             { return nil }
++func (f fixedSelector) Close() error             { return nil }
++
++func (f fixedSelector) GetHandler(string) outbound.Handler  { panic("simulation: unused") }
++func (f fixedSelector) GetDefaultHandler() outbound.Handler { panic("simulation: unused") }
++func (f fixedSelector) AddHandler(context.Context, outbound.Handler) error {
++	panic("simulation: unused")
++}
++func (f fixedSelector) RemoveHandler(context.Context, string) error     { panic("simulation: unused") }
++func (f fixedSelector) ListHandlers(context.Context) []outbound.Handler { panic("simulation: unused") }
+diff --git a/xraytrace/trace.go b/xraytrace/trace.go
+index a043992..688167e 100644
+--- a/xraytrace/trace.go
++++ b/xraytrace/trace.go
+@@ -79,6 +79,24 @@ type Trace struct {
+ 	start time.Time
+ }
+ 
++// NewTraceForced starts a trace regardless of whether the global hook is set.
++//
++// For offline analysis, which needs a trace but must NOT publish to the live event
++// stream: the hook is global, so swapping it to capture a simulation would race with
++// real connections being dispatched concurrently — a live decision could be swallowed
++// by the simulation's callback, or a simulated one emitted as if it were real.
++func NewTraceForced(balancerTag, strategy, fallbackTag string, connID uint32) *Trace {
++	now := time.Now()
++	return &Trace{
++		ConnID:      connID,
++		BalancerTag: balancerTag,
++		Strategy:    strategy,
++		FallbackTag: fallbackTag,
++		UnixNs:      now.UnixNano(),
++		start:       now,
++	}
++}
++
+ // NewTrace starts a trace. Returns nil when tracing is disabled, so callers can pass
+ // the result straight through without checking.
+ //

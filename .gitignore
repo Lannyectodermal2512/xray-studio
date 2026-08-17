@@ -1,0 +1,18 @@
+# Patched Xray-core checkout + built binaries. Reproduced by scripts/bootstrap-xray.sh
+# from xray/PIN + xray/patches/. Never commit this.
+/.build/
+
+node_modules/
+out/
+dist/
+*.log
+
+.DS_Store
+.vscode/
+.idea/
+
+# Release artefacts and source archives. Built by scripts/package.sh into .build/dist,
+# or made by hand for sharing — either way they are outputs, not sources.
+*.zip
+*.tar.gz
+*.dmg

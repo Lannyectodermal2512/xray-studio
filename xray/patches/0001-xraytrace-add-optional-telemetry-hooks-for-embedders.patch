@@ -1,0 +1,494 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: xray-studio <xray-studio@localhost>
+Date: Fri, 14 Aug 2026 05:03:34 +0300
+Subject: [PATCH 1/9] xraytrace: add optional telemetry hooks for embedders
+
+New stdlib-only package so any Xray package can import it without a cycle.
+Provides nil-by-default hook vars for probe events, balancer decisions and
+routing rule matches, plus a nil-safe Trace accumulator and a context marker
+that identifies probe-originated dials.
+
+Unset hooks cost one nil compare and change no behaviour.
+---
+ xraytrace/hooks.go    |  88 +++++++++++++++++
+ xraytrace/probectx.go |  27 ++++++
+ xraytrace/reasons.go  | 119 +++++++++++++++++++++++
+ xraytrace/trace.go    | 214 ++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 448 insertions(+)
+ create mode 100644 xraytrace/hooks.go
+ create mode 100644 xraytrace/probectx.go
+ create mode 100644 xraytrace/reasons.go
+ create mode 100644 xraytrace/trace.go
+
+diff --git a/xraytrace/hooks.go b/xraytrace/hooks.go
+new file mode 100644
+index 0000000..c9a0103
+--- /dev/null
++++ b/xraytrace/hooks.go
+@@ -0,0 +1,88 @@
++// Package xraytrace exposes optional telemetry hooks for embedders of Xray-core.
++//
++// It exists so that a host program can observe things the gRPC API does not expose:
++// individual probe results, the reasoning behind a balancer's choice, and which
++// routing rule matched a given connection.
++//
++// Contract for every hook in this package:
++//
++//   - It is a package-level func var, nil by default, and copied into a local before
++//     being called so a concurrent write cannot cause a torn read.
++//   - When nil, the cost is a single nil comparison and behaviour is identical to
++//     unpatched upstream.
++//   - It is set once, before core.New(), and never changed while an instance runs.
++//   - IT MUST NOT BLOCK. OnBalancerEval in particular fires on the synchronous
++//     per-connection dispatch path; a slow handler adds latency to every connection.
++//     Handlers should hand off to a buffered channel and drop on overflow.
++//
++// This package deliberately depends on nothing but the standard library, so any
++// Xray package can import it without creating a cycle.
++package xraytrace
++
++import "time"
++
++// ProbeEvent reports one observatory probe attempt against one outbound.
++type ProbeEvent struct {
++	Phase  string `json:"phase"`          // "start" | "end"
++	Kind   string `json:"kind"`           // "burst" | "observer"
++	Tag    string `json:"tag"`            // outbound tag being probed
++	Dest   string `json:"dest,omitempty"` // probe destination URL
++	Round  uint64 `json:"round"`          // burst round id; 0 for the plain observer
++	RTTNs  int64  `json:"rtt_ns"`         // measured RTT on a successful "end"
++	Err    string `json:"err,omitempty"`  // error text on a failed "end"
++	Class  string `json:"class"`          // "ok" | "fail" | "net_down"
++	UnixNs int64  `json:"unix_ns"`
++}
++
++// RuleMatch reports the routing decision for one connection.
++//
++// RuleIdx is -1 when no rule matched, which is the case that is otherwise invisible:
++// the dispatcher silently falls back to the default handler (the FIRST outbound in
++// the config) and logs almost nothing.
++type RuleMatch struct {
++	ConnID   uint32 `json:"conn_id"`
++	Pass     int    `json:"pass"` // 1, or 2 on the second IpOnDemand/IpIfNonMatch pass
++	RuleIdx  int    `json:"rule_idx"`
++	RuleTag  string `json:"rule_tag,omitempty"`
++	OutTag   string `json:"out_tag,omitempty"`
++	Balancer string `json:"balancer,omitempty"` // balancer tag, if the rule uses one
++	UnixNs   int64  `json:"unix_ns"`
++}
++
++// Hooks. See the package contract above before setting any of these.
++var (
++	OnProbe        func(ProbeEvent)
++	OnBalancerEval func(*Trace)
++	OnRuleMatch    func(RuleMatch)
++)
++
++// Probe fires OnProbe if set.
++func Probe(e ProbeEvent) {
++	if f := OnProbe; f != nil {
++		if e.UnixNs == 0 {
++			e.UnixNs = time.Now().UnixNano()
++		}
++		f(e)
++	}
++}
++
++// Rule fires OnRuleMatch if set.
++func Rule(e RuleMatch) {
++	if f := OnRuleMatch; f != nil {
++		if e.UnixNs == 0 {
++			e.UnixNs = time.Now().UnixNano()
++		}
++		f(e)
++	}
++}
++
++// BalancerEvalEnabled reports whether balancer decisions should be traced. Callers
++// use it to skip building a Trace at all on the hot path.
++func BalancerEvalEnabled() bool { return OnBalancerEval != nil }
++
++// Eval fires OnBalancerEval if set.
++func Eval(t *Trace) {
++	if f := OnBalancerEval; f != nil && t != nil {
++		f(t)
++	}
++}
+diff --git a/xraytrace/probectx.go b/xraytrace/probectx.go
+new file mode 100644
+index 0000000..80e7a4b
+--- /dev/null
++++ b/xraytrace/probectx.go
+@@ -0,0 +1,27 @@
++package xraytrace
++
++import "context"
++
++// Observatory probes dial through exactly the same path as user traffic — that is
++// what makes dialer-level fault injection faithful. The flip side is that a fault
++// dialer cannot tell the two apart, and "is this RTT spike a probe or a download?"
++// is a question the UI has to answer.
++//
++// MarkProbe tags a context as probe-originated so the dialer can label the dial.
++
++type probeCtxKey struct{}
++
++// MarkProbe returns a context marked as belonging to a probe of the given outbound.
++func MarkProbe(ctx context.Context, tag string) context.Context {
++	return context.WithValue(ctx, probeCtxKey{}, tag)
++}
++
++// ProbeTagFrom reports whether ctx originates from an observatory probe, and for
++// which outbound tag.
++func ProbeTagFrom(ctx context.Context) (string, bool) {
++	if ctx == nil {
++		return "", false
++	}
++	tag, ok := ctx.Value(probeCtxKey{}).(string)
++	return tag, ok
++}
+diff --git a/xraytrace/reasons.go b/xraytrace/reasons.go
+new file mode 100644
+index 0000000..323a9ac
+--- /dev/null
++++ b/xraytrace/reasons.go
+@@ -0,0 +1,119 @@
++package xraytrace
++
++// Stable machine codes. These are contract with the UI: never localise them, never
++// reword them, only add. The UI owns the human phrasing.
++const (
++	// Rejection reasons.
++
++	// ReasonNotInObservation: the tag is a valid candidate but the observatory has no
++	// record of it. Synthesized, not produced by upstream — leastPing and leastLoad
++	// iterate the observation rather than the candidate list, so an outbound that has
++	// never been probed is simply invisible to them. This is the single most common
++	// cause of "why didn't it pick my server".
++	ReasonNotInObservation = "not_in_observation"
++
++	// ReasonNotAlive: observatory reports the outbound as down. Under the burst
++	// observatory "alive" means at least one success in the current sampling window
++	// (All != Fail), not "the last probe succeeded".
++	ReasonNotAlive = "not_alive"
++
++	// ReasonMaxRTT: Delay >= maxRTT. Note the comparison is against Delay (an integer
++	// number of milliseconds), not against HealthPing.Average.
++	ReasonMaxRTT = "maxrtt_exceeded"
++
++	// ReasonTolerance: Fail/All > tolerance. Only active with the burst observatory
++	// (needs HealthPing), All > 0 and tolerance > 0 — so it is a no-op under the plain
++	// observatory even though the setting parses fine.
++	ReasonTolerance = "tolerance_exceeded"
++
++	// ReasonNotCandidate: present in the observation but outside this balancer's
++	// selector set.
++	ReasonNotCandidate = "not_in_candidates"
++
++	// ReasonOutranked: viable, but another candidate ranked strictly better.
++	ReasonOutranked = "outranked"
++
++	// ReasonAboveBaseline: score >= every baseline that was walked.
++	ReasonAboveBaseline = "above_baseline"
++
++	// ReasonBeyondExpected: ranked below the truncation point.
++	ReasonBeyondExpected = "beyond_expected"
++
++	// ReasonNotChosenByDice: survived to the final draw but lost it. Not a defect —
++	// the last step of random and leastLoad is a uniform random pick.
++	ReasonNotChosenByDice = "not_chosen_by_dice"
++
++	// ReasonNotCurrentIndex: round-robin selected a different slot this time.
++	ReasonNotCurrentIndex = "not_current_index"
++)
++
++const (
++	// Stage identifiers.
++
++	StageSelect      = "select"       // selector prefix-match over tagged outbounds
++	StageObservation = "observation"  // reading the observatory
++	StageAliveFilter = "alive_filter" // random / roundRobin liveness filter
++	StageNodeFilter  = "node_filter"  // leastLoad's four-way filter
++	StageScore       = "score"        // deviation x sqrt(cost)
++	StageSort        = "sort"         // the five-key comparator
++	StageBaseline    = "baseline"     // baseline walk
++	StageExpected    = "expected"     // Expected floor / truncation
++	StageMinScan     = "min_scan"     // leastPing's linear minimum
++	StageRRIndex     = "rr_index"     // round-robin rotation
++	StageDice        = "dice"         // uniform random over survivors
++)
++
++const (
++	// Stage notes — conditions worth surfacing that are not rejections.
++
++	// NoteObservatoryIgnored: random and roundRobin only consult the observatory when
++	// fallbackTag is set. Without it they pick from ALL selected tags, dead ones
++	// included. This gate surprises people constantly.
++	NoteObservatoryIgnored = "observatory_ignored_no_fallback"
++
++	// NoteObservatoryNil: the strategy needs an observatory and has none. leastPing and
++	// leastLoad then return "" for every request. Note this does NOT panic: RequireFeatures
++	// parks the callback in pendingResolutions and returns nil, so core.New fails later
++	// with the opaque "not all dependencies are resolved."
++	NoteObservatoryNil = "observatory_nil"
++
++	// NoteObservationError: GetObservation failed. random and roundRobin silently skip
++	// the whole liveness filter in that case and use the unfiltered list.
++	NoteObservationError = "observation_error"
++
++	// NoteNoHealthPing: no HealthPing data, i.e. the plain observatory rather than
++	// burstObservatory. leastLoad then uses raw Delay as the deviation and degenerates
++	// into leastPing with a cost multiplier.
++	NoteNoHealthPing = "no_health_ping"
++
++	// NoteUnfoundAssumedAlive: a candidate missing from the observation was kept, because
++	// random/roundRobin treat "not found" as alive.
++	NoteUnfoundAssumedAlive = "unfound_assumed_alive"
++
++	// NoteBaselineApplied: a baseline produced enough survivors and broke the walk.
++	NoteBaselineApplied = "baseline_applied"
++
++	// NoteBaselineNoneQualified: speed-priority mode (baselines set, Expected <= 0) with
++	// nothing under any baseline. Legitimately selects nothing and defers to fallbackTag.
++	NoteBaselineNoneQualified = "baseline_none_qualified"
++
++	// NoteBaselinesUnsorted: baselines are walked in config order, not sorted. A
++	// non-ascending list silently wastes iterations.
++	NoteBaselinesUnsorted = "baselines_unsorted"
++
++	// NoteExpectedFloor: the Expected floor widened the selection past what baselines
++	// qualified.
++	NoteExpectedFloor = "expected_floor_applied"
++
++	// NoteTie: two or more candidates tied on the deciding key. Under the burst
++	// observatory leastPing's tie order comes from Go map iteration, so it is
++	// re-randomised on every call.
++	NoteTie = "tie"
++
++	// NoteRRIndexJumped: the post-filter candidate list changed length, so the modulo
++	// rotation jumped rather than advancing by one.
++	NoteRRIndexJumped = "rr_index_jumped"
++
++	// NoteEmpty: nothing survived; the caller falls back or errors.
++	NoteEmpty = "empty"
++)
+diff --git a/xraytrace/trace.go b/xraytrace/trace.go
+new file mode 100644
+index 0000000..a043992
+--- /dev/null
++++ b/xraytrace/trace.go
+@@ -0,0 +1,214 @@
++package xraytrace
++
++import "time"
++
++// Rejection records why one candidate was dropped at a stage.
++//
++// Reason is a stable machine code from reasons.go — never a human sentence, so the
++// UI owns the wording. Values carries the numbers that justify the decision, so the
++// UI can render "delay 412ms >= maxRTT 300ms" rather than just naming the rule.
++type Rejection struct {
++	Tag    string           `json:"tag"`
++	Reason string           `json:"reason"`
++	Values map[string]int64 `json:"values,omitempty"`
++}
++
++// Stage is one step of a balancer's decision pipeline.
++//
++// In is what entered, Out is what survived (ordered, where order is meaningful), and
++// Rejected explains every difference between them. Scores is populated by ranking
++// stages only.
++type Stage struct {
++	ID       string           `json:"id"`
++	Kind     string           `json:"kind"` // filter | rank | truncate | choose | note
++	In       []string         `json:"in"`
++	Out      []string         `json:"out"`
++	Rejected []Rejection      `json:"rejected,omitempty"`
++	Scores   map[string]int64 `json:"scores,omitempty"` // tag -> score, nanoseconds
++	Params   map[string]int64 `json:"params,omitempty"` // the settings that governed this stage
++	Note     string           `json:"note,omitempty"`   // stable code, not prose; see reasons.go
++}
++
++// ObsRow is a flattened observatory record, copied at the instant the strategy read
++// it. Copying matters: the observatory mutates its results continuously, so a
++// reference would not describe the decision that was actually made.
++type ObsRow struct {
++	Tag     string `json:"tag"`
++	Alive   bool   `json:"alive"`
++	DelayMs int64  `json:"delay_ms"`
++	HasHP   bool   `json:"has_hp"` // false => plain observatory; leastLoad degrades
++	All     int64  `json:"all,omitempty"`
++	Fail    int64  `json:"fail,omitempty"`
++	AvgNs   int64  `json:"avg_ns,omitempty"`
++	DevNs   int64  `json:"dev_ns,omitempty"`
++	MaxNs   int64  `json:"max_ns,omitempty"`
++	MinNs   int64  `json:"min_ns,omitempty"`
++	LastErr string `json:"last_err,omitempty"`
++}
++
++// Source explains which code path produced the final tag.
++const (
++	SourceStrategy    = "strategy"              // the strategy chose it
++	SourceOverride    = "override"              // pinned via OverrideBalancerTarget
++	SourceFallback    = "fallback_empty"        // strategy returned "", fell back
++	SourceFallbackErr = "fallback_select_error" // SelectOutbounds failed, fell back
++	SourceError       = "error"                 // no tag and no fallback
++)
++
++// Trace accumulates one balancer decision.
++//
++// Every method is nil-safe, which is what lets the strategies thread a single
++// *Trace through their real code path and pass nil when tracing is off. That is a
++// deliberate design choice: there is exactly ONE implementation of each balancing
++// algorithm, so the trace cannot drift from the behaviour it claims to explain.
++type Trace struct {
++	ConnID      uint32   `json:"conn_id"`
++	BalancerTag string   `json:"balancer_tag"`
++	Strategy    string   `json:"strategy"`
++	Selectors   []string `json:"selectors"`
++	Candidates  []string `json:"candidates"`
++	Observation []ObsRow `json:"observation,omitempty"`
++	Stages      []Stage  `json:"stages"`
++	Selected    string   `json:"selected"`
++	Source      string   `json:"source"`
++	FallbackTag string   `json:"fallback_tag,omitempty"`
++	Err         string   `json:"err,omitempty"`
++	DurationNs  int64    `json:"duration_ns"`
++	UnixNs      int64    `json:"unix_ns"`
++
++	start time.Time
++}
++
++// NewTrace starts a trace. Returns nil when tracing is disabled, so callers can pass
++// the result straight through without checking.
++//
++// Every field a caller needs to populate is an argument here on purpose. A nil
++// *Trace is the normal disabled state, so assigning to a field directly
++// (tr.Something = x) panics — only the nil-safe methods are safe to call.
++func NewTrace(balancerTag, strategy, fallbackTag string, connID uint32) *Trace {
++	if !BalancerEvalEnabled() {
++		return nil
++	}
++	now := time.Now()
++	return &Trace{
++		ConnID:      connID,
++		BalancerTag: balancerTag,
++		Strategy:    strategy,
++		FallbackTag: fallbackTag,
++		UnixNs:      now.UnixNano(),
++		start:       now,
++	}
++}
++
++// On reports whether this trace is collecting. Use it to skip work that is only
++// needed for tracing, such as snapshotting the observation.
++func (t *Trace) On() bool { return t != nil }
++
++// SetCandidates records the raw, pre-filter candidate set.
++func (t *Trace) SetCandidates(selectors, candidates []string) {
++	if t == nil {
++		return
++	}
++	t.Selectors = append([]string(nil), selectors...)
++	t.Candidates = append([]string(nil), candidates...)
++}
++
++// SetObservation records the observatory snapshot the strategy read.
++func (t *Trace) SetObservation(rows []ObsRow) {
++	if t == nil {
++		return
++	}
++	t.Observation = rows
++}
++
++// Add appends a completed stage.
++func (t *Trace) Add(s Stage) {
++	if t == nil {
++		return
++	}
++	t.Stages = append(t.Stages, s)
++}
++
++// Finish stamps the outcome and duration. Call exactly once, then hand to Eval.
++func (t *Trace) Finish(selected, source, errText string) {
++	if t == nil {
++		return
++	}
++	t.Selected = selected
++	t.Source = source
++	t.Err = errText
++	t.DurationNs = time.Since(t.start).Nanoseconds()
++}
++
++// StageBuilder incrementally assembles a Stage. All methods are nil-safe.
++type StageBuilder struct{ s *Stage }
++
++// Begin starts a stage whose input is `in`.
++func (t *Trace) Begin(id, kind string, in []string) *StageBuilder {
++	if t == nil {
++		return nil
++	}
++	return &StageBuilder{s: &Stage{ID: id, Kind: kind, In: append([]string(nil), in...)}}
++}
++
++// Keep marks a tag as surviving the stage.
++func (b *StageBuilder) Keep(tag string) {
++	if b == nil {
++		return
++	}
++	b.s.Out = append(b.s.Out, tag)
++}
++
++// Drop records a rejection with the numbers that justify it.
++func (b *StageBuilder) Drop(tag, reason string, values map[string]int64) {
++	if b == nil {
++		return
++	}
++	b.s.Rejected = append(b.s.Rejected, Rejection{Tag: tag, Reason: reason, Values: values})
++}
++
++// Score attaches a ranking score, in nanoseconds.
++func (b *StageBuilder) Score(tag string, ns int64) {
++	if b == nil {
++		return
++	}
++	if b.s.Scores == nil {
++		b.s.Scores = make(map[string]int64)
++	}
++	b.s.Scores[tag] = ns
++}
++
++// Param records a setting that governed this stage.
++func (b *StageBuilder) Param(k string, v int64) {
++	if b == nil {
++		return
++	}
++	if b.s.Params == nil {
++		b.s.Params = make(map[string]int64)
++	}
++	b.s.Params[k] = v
++}
++
++// Note attaches a stable explanatory code (see reasons.go), not prose.
++func (b *StageBuilder) Note(code string) {
++	if b == nil {
++		return
++	}
++	b.s.Note = code
++}
++
++// SetOut replaces the survivor list wholesale, for stages that reorder or truncate.
++func (b *StageBuilder) SetOut(out []string) {
++	if b == nil {
++		return
++	}
++	b.s.Out = append([]string(nil), out...)
++}
++
++// End commits the stage to the trace.
++func (b *StageBuilder) End(t *Trace) {
++	if b == nil || t == nil {
++		return
++	}
++	t.Stages = append(t.Stages, *b.s)
++}

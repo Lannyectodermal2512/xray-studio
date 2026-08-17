@@ -1,0 +1,440 @@
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { join } from 'node:path'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { watch, type FSWatcher } from 'node:fs'
+import type { Envelope, FaultRule, SimRequest } from '@shared/events'
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'
+import { EventStore } from './eventStore'
+import { Sidecar, sidecarPath } from './sidecar'
+
+// Electron's main-process stdout is not reliably captured when the app is launched
+// detached, which makes "the window never appeared" impossible to diagnose. Write a
+// trace to a file instead when XRAYSTUDIO_TRACE is set.
+const TRACE = process.env['XRAYSTUDIO_TRACE']
+function trace(msg: string): void {
+  if (!TRACE) return
+  try {
+    appendFileSync(TRACE, `${new Date().toISOString()} ${msg}\n`)
+  } catch {
+    /* diagnostics must never break the app */
+  }
+}
+
+const isDev = !app.isPackaged
+
+// Everything Electron derives from the app name — the About panel, the Hide/Quit menu
+// items, crash report metadata — follows this. It does NOT fix the bold application
+// menu title when running from source: macOS reads that from the running bundle's
+// CFBundleName, which in a dev run belongs to Electron itself and is fixed at launch,
+// long before any of this executes. Packaged builds get it from productName and read
+// correctly.
+app.setName('Xray Studio')
+
+app.setAboutPanelOptions({
+  applicationName: 'Xray Studio',
+  applicationVersion: app.getVersion(),
+  credits: 'Tests Xray-core configurations: balancer decision tracing and fault injection.',
+})
+
+const store = new EventStore()
+let sidecar: Sidecar | null = null
+let win: BrowserWindow | null = null
+let configWatcher: FSWatcher | null = null
+let currentConfig: string | null = null
+
+/** Snapshot cadence. The renderer never sees raw events — see EventStore. */
+const SNAPSHOT_HZ = 30
+
+function createWindow(): BrowserWindow {
+  const w = new BrowserWindow({
+    width: 1440,
+    height: 900,
+    minWidth: 1100,
+    minHeight: 700,
+    show: false,
+    backgroundColor: '#0e1116',
+    titleBarStyle: 'hiddenInset',
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      // The renderer displays tags, domains and error text originating from the
+      // config under test and from remote servers. Keep it sandboxed.
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  })
+
+  trace(`createWindow: isPackaged=${app.isPackaged} devURL=${process.env['ELECTRON_RENDERER_URL'] ?? '(none)'}`)
+
+  // XRAYSTUDIO_SHOT=<path>[,<delayMs>] captures the window to a PNG from inside the app.
+  // Useful for verifying the UI without granting Screen Recording to whatever shell
+  // happens to be driving the session.
+  const shot = process.env['XRAYSTUDIO_SHOT']
+  if (shot) {
+    const [file, delay] = shot.split(',')
+    setTimeout(
+      () => {
+        // XRAYSTUDIO_SHOT_JS runs in the renderer first, so a capture can target a
+        // specific tab or scroll position.
+        const pre = process.env['XRAYSTUDIO_SHOT_JS']
+        const ready = pre ? w.webContents.executeJavaScript(pre) : Promise.resolve()
+        void ready
+          .catch((e: Error) => trace(`shot-js failed: ${e.message}`))
+          .then(() => new Promise((r) => setTimeout(r, 500)))
+          .then(() => w.webContents.capturePage())
+          .then((img) => writeFileSync(file!, img.toPNG()))
+          .then(() => trace(`captured ${file}`))
+          .catch((e: Error) => trace(`capture failed: ${e.message}`))
+      },
+      Number(delay ?? 5000),
+    )
+  }
+  w.once('ready-to-show', () => {
+    trace('ready-to-show fired -> show()')
+    w.show()
+    trace(`isVisible=${w.isVisible()} bounds=${JSON.stringify(w.getBounds())}`)
+  })
+
+  // Diagnostics: a renderer that fails to load leaves ready-to-show unfired, and the
+  // app then sits there with no window and no error — which is indistinguishable from
+  // a hang. Report it, and show the window anyway so the failure is visible.
+  w.webContents.on('did-finish-load', () => trace('did-finish-load'))
+  w.webContents.on('did-fail-load', (_e, code, desc, url) => {
+    trace(`load FAILED ${code} ${desc} ${url}`)
+    w.show()
+  })
+  w.webContents.on('render-process-gone', (_e, details) => trace(`renderer gone: ${details.reason}`))
+  // Electron 43 replaced the positional arguments with a single event object.
+  w.webContents.on('console-message', (e) =>
+    trace(`renderer console[${e.level}] ${e.sourceId}:${e.lineNumber} ${e.message}`),
+  )
+  setTimeout(() => {
+    if (w.isDestroyed()) {
+      trace('window destroyed before it could be shown')
+      return
+    }
+    trace(`3s check: isVisible=${w.isVisible()} bounds=${JSON.stringify(w.getBounds())}`)
+    if (!w.isVisible()) {
+      trace('ready-to-show never fired; showing anyway')
+      w.show()
+      w.focus()
+      trace(`after forced show: isVisible=${w.isVisible()}`)
+    }
+  }, 3000)
+  w.webContents.setWindowOpenHandler(({ url }) => {
+    void shell.openExternal(url)
+    return { action: 'deny' }
+  })
+
+  const devURL = process.env['ELECTRON_RENDERER_URL']
+  if (isDev && devURL) void w.loadURL(devURL)
+  else void w.loadFile(join(__dirname, '../renderer/index.html'))
+
+  return w
+}
+
+async function ensureSidecar(): Promise<Sidecar> {
+  if (sidecar?.running) return sidecar
+
+  const bin = sidecarPath(app.getAppPath())
+  const sc = new Sidecar(bin)
+  store.beginSidecar()
+
+  sc.on('event', (ev: Envelope) => store.ingest(ev))
+  sc.on('coreLog', (line: string) => win?.webContents.send('core:log', line))
+  sc.on('stderr', (line: string) => win?.webContents.send('core:log', line))
+  sc.on('exit', ({ code, signal }: { code: number | null; signal: string | null }) => {
+    store.setSidecar(false, null, `sidecar exited (code=${code} signal=${signal})`)
+  })
+  sc.on('streamError', (msg: string) => store.setSidecar(true, sc.info?.xray ?? null, msg))
+
+  const ready = await sc.start()
+  trace(`sidecar ready pid=${ready.pid} port=${ready.port} token=${ready.token} xray=${ready.xray}`)
+  store.setSidecar(true, ready.xray)
+  sidecar = sc
+
+  // Re-arm the faults on the fresh process.
+  //
+  // The rule set lives in the sidecar's fault.Store, which is per-PROCESS, and reload
+  // is a respawn (see Sidecar's class comment). So a restart silently disarms every
+  // fault while the UI goes on listing them as enabled — the tool then reports the
+  // opposite of the truth. Doing it here rather than in the reload path also covers a
+  // crash-respawn, and it lands BEFORE startConfig, so the very first probe of the new
+  // instance already sees the fault.
+  const rules = store.currentFaults()
+  if (rules.length > 0) {
+    try {
+      const res = await sc.setFaults(rules)
+      trace(`re-armed ${rules.length} fault rule(s) on the new sidecar: applied=${res.applied}`)
+    } catch (err) {
+      // Surface it: a fault the user believes is active but is not would make every
+      // subsequent observation misleading.
+      store.setSidecar(true, ready.xray, `faults were not re-armed after restart: ${(err as Error).message}`)
+      trace(`re-arming faults FAILED: ${(err as Error).message}`)
+    }
+  }
+  return sc
+}
+
+/**
+ * Watches the config on disk. The user edits in their own editor, so the app has to
+ * notice — that is the whole reload workflow for M1.
+ */
+function watchConfig(path: string): void {
+  configWatcher?.close()
+  let debounce: NodeJS.Timeout | null = null
+  try {
+    configWatcher = watch(path, () => {
+      if (debounce) clearTimeout(debounce)
+      // Editors write in bursts (truncate, then write); coalesce them.
+      debounce = setTimeout(() => win?.webContents.send('config:changed', path), 250)
+    })
+  } catch {
+    // A missing directory or an editor that replaces the inode makes this fail;
+    // it is a convenience, not a requirement.
+    configWatcher = null
+  }
+}
+
+function registerIpc(): void {
+  ipcMain.handle('app:versions', () => ({
+    app: app.getVersion(),
+    electron: process.versions.electron,
+    chrome: process.versions.chrome,
+    node: process.versions.node,
+  }))
+
+  ipcMain.handle('config:pick', async () => {
+    const res = await dialog.showOpenDialog({
+      title: 'Open Xray config',
+      filters: [{ name: 'Xray config', extensions: ['json', 'jsonc'] }],
+      properties: ['openFile'],
+    })
+    if (res.canceled || !res.filePaths[0]) return null
+    return res.filePaths[0]
+  })
+
+  ipcMain.handle('config:read', async (_e, path: string) => readFile(path, 'utf8'))
+
+  /**
+   * Materialises pasted JSON as a real file and returns its path.
+   *
+   * Everything downstream — starting an instance, the disk watcher, the graph editor's
+   * read/save cycle — is addressed by path, because that is what the core's own loader
+   * takes. Threading an in-memory alternative through all of it would mean two code
+   * paths for every operation and a second class of config that silently lacks half
+   * the features. Writing the paste to disk instead costs one file and keeps the rest
+   * of the app unaware that pasting exists.
+   *
+   * It lands in userData, never next to the user's own configs: this is our scratch
+   * space, and a tool that scatters files into someone's config directory is a tool
+   * they stop trusting.
+   */
+  ipcMain.handle('config:fromText', async (_e, text: string, name?: string) => {
+    const dir = join(app.getPath('userData'), 'pasted')
+    await mkdir(dir, { recursive: true })
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+    const safe = (name ?? '').replace(/[^\w.-]/g, '').slice(0, 40)
+    const file = join(dir, `${safe || 'pasted'}-${stamp}.json`)
+    await writeFile(file, text, 'utf8')
+    trace(`pasted config -> ${file}`)
+    return file
+  })
+
+  ipcMain.handle('instance:start', async (_e, path: string) => {
+    const sc = await ensureSidecar()
+    // Reload = a fresh process. Stopping the instance in place would leave the burst
+    // observatory's probe timers running against a config that no longer exists.
+    if (currentConfig) {
+      await sc.stop()
+      sidecar = null
+      const fresh = await ensureSidecar()
+      currentConfig = path
+      watchConfig(path)
+      return fresh.startConfig(path)
+    }
+    currentConfig = path
+    watchConfig(path)
+    return sc.startConfig(path)
+  })
+
+  ipcMain.handle('instance:stop', async () => {
+    if (!sidecar) return null
+    const r = await sidecar.stopConfig()
+    return r
+  })
+
+  // Writing the user's real config. Deliberately explicit: only ever called from the
+  // Save button, never on edit, so the file on disk is always something they chose.
+  ipcMain.handle('config:write', async (_e, path: string, text: string) => {
+    await writeFile(path, text, 'utf8')
+    return true
+  })
+
+  // Validate text that has not been saved yet, so the Build tab can check a draft.
+  ipcMain.handle('instance:validateText', async (_e, text: string) => {
+    const sc = await ensureSidecar()
+    return sc.validateText(text)
+  })
+
+  ipcMain.handle('instance:validate', async (_e, path: string) => {
+    const sc = await ensureSidecar()
+    return sc.validate(path)
+  })
+
+  ipcMain.handle('faults:set', async (_e, rules: FaultRule[]) => {
+    const sc = await ensureSidecar()
+    const res = await sc.setFaults(rules)
+    store.setFaults(rules)
+    return res
+  })
+
+  ipcMain.handle('rtt:series', () => store.rttSeries())
+
+  // What-if analysis. The sidecar runs the REAL strategy code against the supplied
+  // observation, so the answer cannot drift from live behaviour.
+  // Parameter documentation is a static data file; load it once, lazily, so a missing
+  // or unreadable bundle degrades to "no tooltips" rather than breaking startup.
+  let docsCache: unknown = null
+  ipcMain.handle('docs:bundle', async () => {
+    if (docsCache) return docsCache
+    for (const p of [
+      join(app.getAppPath(), '..', 'data', 'docs-en', 'params.json'),
+      join(app.getAppPath(), 'data', 'docs-en', 'params.json'),
+      join(process.resourcesPath ?? '', 'docs-en', 'params.json'),
+    ]) {
+      try {
+        docsCache = JSON.parse(await readFile(p, 'utf8'))
+        trace(`docs loaded from ${p}`)
+        return docsCache
+      } catch {
+        /* try the next location */
+      }
+    }
+    trace('docs bundle not found; tooltips disabled')
+    return null
+  })
+
+  let schemaCache: unknown = null
+  ipcMain.handle('schema:bundle', async () => {
+    if (schemaCache) return schemaCache
+    for (const p of [
+      join(app.getAppPath(), '..', 'data', 'schema', 'protocols.json'),
+      join(app.getAppPath(), 'data', 'schema', 'protocols.json'),
+      join(process.resourcesPath ?? '', 'schema', 'protocols.json'),
+    ]) {
+      try {
+        schemaCache = JSON.parse(await readFile(p, 'utf8'))
+        return schemaCache
+      } catch {
+        /* try the next location */
+      }
+    }
+    trace('protocol schema not found')
+    return null
+  })
+
+  ipcMain.handle('selfcheck:run', async () => {
+    if (!sidecar) throw new Error('sidecar not running')
+    const snap = store.snapshot()
+    const balancers: Record<string, { strategy: string; candidates: string[] }> = {}
+    for (const b of snap.balancers) {
+      balancers[b.tag] = { strategy: b.strategy, candidates: b.candidates }
+    }
+    return sidecar.selfCheck(balancers)
+  })
+
+  ipcMain.handle('sim:run', async (_e, req: SimRequest) => {
+    if (!sidecar) throw new Error('sidecar not running')
+    return sidecar.simulate(req)
+  })
+}
+
+function startSnapshotLoop(): void {
+  setInterval(() => {
+    if (!win || win.isDestroyed()) return
+    // Only push when something actually changed, so an idle app costs nothing.
+    if (!store.takeDirty()) return
+    win.webContents.send('snapshot', store.snapshot())
+  }, 1000 / SNAPSHOT_HZ)
+}
+
+/**
+ * Keep Chromium's profile out of ~/Library/Application Support when running from
+ * source.
+ *
+ * macOS attributes a child process's file access to the app that LAUNCHED it, so a
+ * dev run started from a terminal, an IDE or an agent is not the app itself as far as
+ * TCC is concerned. Chromium's default profile directory then reads as another app's
+ * data, and every launch raises "would like to access data from other apps" — several
+ * times a session, on top of the window, which makes the tool unusable for the very
+ * thing it exists for.
+ *
+ * Putting the profile inside the repo's own .build/ sidesteps the check entirely:
+ * nothing there belongs to another app. It also means a dev profile never pollutes a
+ * packaged install's, and `rm -rf .build` is a clean slate. Must run before ready —
+ * Chromium reads the path during initialisation.
+ */
+if (isDev) {
+  const profile = join(app.getAppPath(), '..', '.build', 'electron-userdata')
+  try {
+    mkdirSync(profile, { recursive: true })
+    app.setPath('userData', profile)
+    trace(`userData -> ${profile}`)
+  } catch (err) {
+    // Not fatal: the default location still works, it just prompts.
+    trace(`could not relocate userData: ${(err as Error).message}`)
+  }
+}
+
+trace('main module loaded')
+
+void app.whenReady().then(async () => {
+  trace('app ready')
+  registerIpc()
+  win = createWindow()
+  startSnapshotLoop()
+
+  // Dev convenience: XRAYSTUDIO_CONFIG=<path> opens and starts a config on launch, so the
+  // edit/run loop does not require clicking through the picker every time.
+  const auto = process.env['XRAYSTUDIO_CONFIG']
+  if (auto) {
+    try {
+      const sc = await ensureSidecar()
+      currentConfig = auto
+      watchConfig(auto)
+      await sc.startConfig(auto)
+      win.webContents.send('config:opened', auto)
+    } catch (err) {
+      store.setSidecar(false, null, (err as Error).message)
+    }
+  }
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) win = createWindow()
+  })
+})
+
+// The sidecar is a child process holding the config's inbound ports. Reap it on
+// every exit path, not just the tidy one.
+async function shutdown(): Promise<void> {
+  configWatcher?.close()
+  await sidecar?.stop()
+  sidecar = null
+}
+
+app.on('before-quit', (e) => {
+  if (!sidecar) return
+  e.preventDefault()
+  void shutdown().then(() => app.quit())
+})
+
+app.on('window-all-closed', () => {
+  void shutdown().then(() => {
+    if (process.platform !== 'darwin') app.quit()
+  })
+})
+
+process.on('exit', () => {
+  sidecar?.stop().catch(() => {})
+})

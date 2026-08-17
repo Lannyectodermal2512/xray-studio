@@ -1,0 +1,2345 @@
+{
+  "generated": "2026-08-14T22:13:44Z",
+  "docsCommit": "901005cfbb887f20b60db4d59b5bce466206f5f3",
+  "license": "CC-BY-SA-4.0",
+  "attribution": "Adapted from the XTLS/Xray-docs-next documentation (https://github.com/XTLS/Xray-docs-next), licensed CC BY-SA 4.0. Text was extracted per parameter and reformatted; it is not verbatim.",
+  "params": {
+    "api.listen": {
+      "path": "api.listen",
+      "name": "listen",
+      "type": "string",
+      "summary": "The IP and port for the API service to listen on. This is an optional configuration item.",
+      "detail": "If this item is omitted, you need to add `inbounds` and `routing` configurations according to the example in Relevant Configuration below.",
+      "source": "https://xtls.github.io/en/config/api.html"
+    },
+    "api.services": {
+      "path": "api.services",
+      "name": "services",
+      "type": "[string]",
+      "summary": "The list of enabled APIs. See API List for available values.",
+      "source": "https://xtls.github.io/en/config/api.html"
+    },
+    "api.tag": {
+      "path": "api.tag",
+      "name": "tag",
+      "type": "string",
+      "summary": "The identifier of the outbound proxy.",
+      "source": "https://xtls.github.io/en/config/api.html"
+    },
+    "burstObservatory.pingConfig.connectivity": {
+      "path": "burstObservatory.pingConfig.connectivity",
+      "name": "connectivity",
+      "type": "string",
+      "summary": "The URL used to check local network connectivity. This URL should return an HTTP 204 success status code.",
+      "detail": "An empty string indicates no local network connectivity check.\n\nThis probe is executed only when the `destination` probe fails. This makes the cause of network failure clearer in the logs.\n\nNote: In transparent proxy mode, this request might be captured by the transparent proxy and re-enter Xray for routing (depending on your configuration). You need to use extra means to ensure it is not captured by the transparent proxy, such as bypassing based on the URL IP, or using cgroup/pid routing to completely prevent Xray's requests from being captured. Alternatively, you can choose a URL that matches a direct connection rule and allow this request to be captured by the transparent proxy.",
+      "source": "https://xtls.github.io/en/config/observatory.html"
+    },
+    "burstObservatory.pingConfig.destination": {
+      "path": "burstObservatory.pingConfig.destination",
+      "name": "destination",
+      "type": "string",
+      "summary": "The URL used to probe the connection status of the outbound proxy. This URL should return an HTTP 204 success status code. Default `\"https://connectivitycheck.gstatic.com/generate_204\"`.",
+      "source": "https://xtls.github.io/en/config/observatory.html"
+    },
+    "burstObservatory.pingConfig.httpMethod": {
+      "path": "burstObservatory.pingConfig.httpMethod",
+      "name": "httpMethod",
+      "type": "string",
+      "summary": "The HTTP method used for probing (e.g. `\"HEAD\"`, `\"GET\"`). Default `\"HEAD\"`.",
+      "detail": "The working principle of Burst Observatory is to immediately schedule probe tasks for each matched outbound at every `interval` \\* `sampling` (hereinafter referred to as the probe cycle). However, within each task's cycle, the probe is executed at a random time. This means compared to `observatory` (Background Connection Observatory), the fingerprint of this detector is less obvious. But if `interval` is set too small, or `sampling` is too large causing frequent probing, the fingerprint will be more obvious.\n\n`interval` and `sampling` jointly affect the sensitivity of failover and recovery. When a node fails probes continuously, it takes at fastest 1 probe cycle to mark the node as faulty, and at slowest 2 probe cycles. Recovering from failure requires one successful probe, which depends on the probe density; at slowest, it takes 1 probe cycle.",
+      "source": "https://xtls.github.io/en/config/observatory.html"
+    },
+    "burstObservatory.pingConfig.interval": {
+      "path": "burstObservatory.pingConfig.interval",
+      "name": "interval",
+      "type": "string",
+      "summary": "The expected **average** probe interval for each outbound proxy.",
+      "detail": "The time format is number + unit, such as `\"10s\"`, `\"2h45m\"`. Supported time units are `ns`, `us`, `ms`, `s`, `m`, `h`, corresponding to nanoseconds, microseconds, milliseconds, seconds, minutes, and hours respectively. Default `\"1m\"`. Minimum allowed value is `\"10s\"`. If less is specified, `\"10s\"` will be used.",
+      "source": "https://xtls.github.io/en/config/observatory.html"
+    },
+    "burstObservatory.pingConfig.sampling": {
+      "path": "burstObservatory.pingConfig.sampling",
+      "name": "sampling",
+      "type": "number",
+      "summary": "The number of recent probe results to keep. Default `10`.",
+      "source": "https://xtls.github.io/en/config/observatory.html"
+    },
+    "burstObservatory.pingConfig.timeout": {
+      "path": "burstObservatory.pingConfig.timeout",
+      "name": "timeout",
+      "type": "string",
+      "summary": "Probe timeout. Format is the same as `interval` above. Default `\"5s\"`.",
+      "source": "https://xtls.github.io/en/config/observatory.html"
+    },
+    "burstObservatory.subjectSelector": {
+      "path": "burstObservatory.subjectSelector",
+      "name": "subjectSelector",
+      "type": "[ string ]",
+      "summary": "An array of strings, where each string is used for prefix matching against outbound proxy tags. Given the following outbound proxy tags: `[ \"a\", \"ab\", \"c\", \"ba\" ]`, `\"subjectSelector\": [\"a\"]` will match `[ \"a\", \"ab\" ]`.",
+      "source": "https://xtls.github.io/en/config/observatory.html"
+    },
+    "dns.clientIp": {
+      "path": "dns.clientIp",
+      "name": "clientIp",
+      "type": "string",
+      "summary": "The IP address used in the EDNS Client Subnet extension.",
+      "detail": "Must be a valid IPv4 or IPv6 address. When actually sent, the last few bits will be automatically masked; IPv4 and IPv6 are sent with /24 and /96 subnets respectively.",
+      "source": "https://xtls.github.io/en/config/dns.html"
+    },
+    "dns.disableCache": {
+      "path": "dns.disableCache",
+      "name": "disableCache",
+      "type": "true | false",
+      "summary": "`true` disables DNS caching. Defaults to `false` (not disabled).",
+      "detail": "This does not affect `localhost` DNS (system DNS), which always follows Golang's DNS caching behavior (cgo and pure go may differ slightly).",
+      "source": "https://xtls.github.io/en/config/dns.html"
+    },
+    "dns.disableFallback": {
+      "path": "dns.disableFallback",
+      "name": "disableFallback",
+      "type": "true | false",
+      "summary": "`true` disables DNS fallback queries. Defaults to `false` (not disabled).",
+      "source": "https://xtls.github.io/en/config/dns.html"
+    },
+    "dns.disableFallbackIfMatch": {
+      "path": "dns.disableFallbackIfMatch",
+      "name": "disableFallbackIfMatch",
+      "type": "true | false",
+      "summary": "`true` disables fallback queries when the DNS server's priority domain list is matched. Defaults to `false` (not disabled).",
+      "source": "https://xtls.github.io/en/config/dns.html"
+    },
+    "dns.enableParallelQuery": {
+      "path": "dns.enableParallelQuery",
+      "name": "enableParallelQuery",
+      "type": "true | false",
+      "summary": "`true` enables parallel queries. Defaults to `false` (not enabled).",
+      "detail": "DNS failover is serial by default, meaning a query is sent to the next server only after the selected DNS server fails or `expectedIPs` and `unexpectedIPs` do not match.\n\nWhen parallel query is enabled, queries are initiated asynchronously to all selected DNS servers in advance, executing a strategy of \"dynamic grouping, intra-group racing, and inter-group fallback\".\n\n**Dynamic Grouping**: Adjacent servers in the selected server list are considered the same group if their `clientIP`, `skipFallback`, `queryStrategy`, `tag`, `domains`, `expectedIPs`, and `unexpectedIPs` are **exactly** the same.\n\n**Intra-group Racing**: If any DNS server in the same group queries successfully and the IP matches `expectedIPs` and `unexpectedIPs`, the group is considered successful, and results from other servers in the group are ignored.\n\n**Inter-group Fallback**: If the first group is still querying, wait. If the first group succeeds, return the IP. If all servers in the first group fail or IPs do not match, fallback to the next group. Finally, if all groups fail, return an empty resolution.",
+      "source": "https://xtls.github.io/en/config/dns.html"
+    },
+    "dns.hosts": {
+      "path": "dns.hosts",
+      "name": "hosts",
+      "type": "map{string: address} | map{string: [address]}",
+      "summary": "A static IP mapping. The value consists of entries in the form `\"domain\": \"address\"` or `\"domain\": [\"address 1\", \"address 2\"]`. Each address may be an IP or a domain name. When resolving a domain, the core will check all mapping entries and return all matched IP addresses. If nothing matches, the DNS query phase is entered.",
+      "detail": "The mapping target may be a domain name. When the core finishes matching and the mapping contains domain name(s), the behavior is slightly different:\n\n- If the mapping contains both IP addresses and domain names, the domain names are removed and only the IP addresses are returned. - If the mapping contains several domain names, the result is ambiguous: the match fails, is treated as a miss, and the DNS query phase is entered. - If the mapping contains exactly one domain name, that domain will be fed back into the Hosts module for recursive resolution, repeating the above steps with a maximum recursion depth of 5. - If the above recursive resolution yields no IPs, and the final resolution result contains exactly one domain name, that domain replaces the original requested domain and is sent to the DNS query phase.\n\nThe matching format (`domain:`, `full:`, etc.) is the same as the domain in the commonly used Routing System. The difference is that without a prefix, it defaults to using the `full:` prefix (similar to the common hosts file syntax).",
+      "source": "https://xtls.github.io/en/config/dns.html"
+    },
+    "dns.queryStrategy": {
+      "path": "dns.queryStrategy",
+      "name": "queryStrategy",
+      "type": "\"UseIP\" | \"UseIPv4\" | \"UseIPv6\" | \"UseSystem\"",
+      "summary": "Limits the capabilities of all servers in the DNS module and sets the default value for IP query types initiated by Xray itself.",
+      "detail": "The default value `UseIP` allows querying both A + AAAA records. When a query initiated by Xray itself does not specify an IP type, both A and AAAA records are queried from the upstream DNS server. `UseIPv4` only queries and allows querying A records; `UseIPv6` only queries and allows querying AAAA records.\n\n`UseSystem` adapts to the operating system's network environment. Before querying, it checks whether there are IPv4 and IPv6 default gateways, thereby limiting the capabilities of all servers and setting the default query type. It checks in real-time on graphical OS environments and only once on command-line environments.\n\nTIP 1 The global `\"queryStrategy\"` value takes precedence. When the `\"queryStrategy\"` value in a sub-item conflicts with the global `\"queryStrategy\"` value, the query for that sub-item will return an empty response.\n\nTIP 2 When the `\"queryStrategy\"` parameter is not written in a sub-item, the global `\"queryStrategy\"` parameter value is used. This behavior is the same as versions prior to Xray-core v1.8.6.\n\nFor example:\u003cbr\u003e Global `\"queryStrategy\": \"UseIPv6\"` conflicts with sub-item `\"queryStrategy\": \"UseIPv4\"`.\u003cbr\u003e Global `\"queryStrategy\": \"UseIPv4\"` conflicts with sub-item `\"queryStrategy\": \"UseIPv6\"`.\u003cbr\u003e Global `\"queryStrategy\": \"UseIP\"` does not conflict with sub-item `\"queryStrategy\": \"UseIPv6\"`.\u003cbr\u003e Global `\"queryStrategy\": \"UseIP\"` does not conflict with sub-item `\"queryStrategy\": \"UseIPv4\"`.\n\nThe sub-item query for the Netflix domain returns an empty response due to the conflicting `\"queryStrategy\"` value. The Netflix domain is then queried by `https://1.1.1.1/dns-query`, returning an A record.",
+      "source": "https://xtls.github.io/en/config/dns.html"
+    },
+    "dns.serveExpiredTTL": {
+      "path": "dns.serveExpiredTTL",
+      "name": "serveExpiredTTL",
+      "type": "number",
+      "summary": "Validity period for optimistic caching in seconds. Defaults to 0, meaning it never expires.",
+      "detail": "If the server has caching enabled and optimistic caching is turned on: when the cache has expired but the optimistic cache has not, the stale DNS record in the cache is returned immediately, and the cache is refreshed in the background. This can reduce latency.",
+      "source": "https://xtls.github.io/en/config/dns.html"
+    },
+    "dns.serveStale": {
+      "path": "dns.serveStale",
+      "name": "serveStale",
+      "type": "true | false",
+      "summary": "`true` enables DNS optimistic caching. Defaults to `false` (not enabled).",
+      "detail": "Only effective when the server has DNS caching enabled (i.e., this option is constrained by `disableCache`).",
+      "source": "https://xtls.github.io/en/config/dns.html"
+    },
+    "dns.servers": {
+      "path": "dns.servers",
+      "name": "servers",
+      "type": "\\string | [DnsServerObject ]",
+      "summary": "A list of DNS servers. Two types are supported: DNS address (string format) and DnsServerObject.",
+      "detail": "When the value is `\"localhost\"`, it indicates using the local machine's preset DNS configuration.\n\nWhen the value is a DNS `\"IP:Port\"` address, such as `\"8.8.8.8:53\"`, Xray will use the specified UDP port of this address for DNS queries. The query follows routing rules. If no port is specified, port 53 is used by default.\n\nWhen the value is in the form of `\"tcp://host:port\"`, such as `\"tcp://8.8.8.8:53\"`, Xray will use `DNS over TCP` for queries. The query follows routing rules. If no port is specified, port 53 is used by default.\n\nWhen the value is in the form of `\"tcp+local://host:port\"`, such as `\"tcp+local://8.8.8.8:53\"`, Xray will use `TCP Local Mode (TCPL)` for queries. This means the DNS request will **not** pass through the routing component but will request directly via the Freedom outbound to reduce latency. If no port is specified, port 53 is used by default.\n\nWhen the value is in the form of `\"https://host:port/dns-query\"`, such as `\"https://dns.google/dns-query\"`, Xray will use `DNS over HTTPS` (RFC8484, abbreviated as DOH) for queries. Some providers have certificates for IP aliases, so you can write the IP directly, such as `https://1.1.1.1/dns-query`. Non-standard ports and paths can also be used, such as `\"https://a.b.c.d:8443/my-dns-query\"`.\n\nWhen the value is in the form of `\"h2c://host:port/dns-query\"`, such as `\"h2c://dns.google/dns-query\"`, Xray will use the `DNS over HTTPS` request format but will send the request in cleartext h2c. This cannot be used directly; in this case, you need to configure a Freedom outbound + streamSettings with TLS to wrap it into a normal DOH request. This is used for special purposes, such as customizing the SNI of DOH requests or using utls fingerprints.\n\nWhen the value is in the form of `\"https+local://host:port/dns-query\"`, such as `\"https+local://dns.google/dns-query\"`, Xray will use `DOH Local Mode (DOHL)` for queries. This means the DOH request will **not** pass through the routing component but will request directly via the Freedom outbound to reduce latency. Generally suitable for server-side use. Non-standard ports and paths can also be used.\n\nWhen the value is in the form of `\"quic+local://host\"`, such as `\"quic+local://dns.adguard.com\"`, Xray will use `DNS over QUIC Local Mode (DOQL)` for queries. This means the DNS request will **not** pass through the routing component but will request directly via the Freedom outbound. This method requires the DNS server to support DNS over QUIC. By default, port 853 is used for queries, and non-standard ports can be used.\n\nWhen the value is `fakedns`, the FakeDNS feature will be used for queries.\n\nTIP 1 When using `localhost`, the local machine's DNS requests are not controlled by Xray. Additional configuration is required to forward DNS requests through Xray.\n\nTIP 2 The DNS clients initialized by different rules will be shown in the Xray startup logs at the `info` level, such as `local DOH`, `remote DOH`, and `udp` modes.\n\nTIP 3 (v1.4.0+) You can enable DNS query logging in Log.",
+      "source": "https://xtls.github.io/en/config/dns.html"
+    },
+    "dns.tag": {
+      "path": "dns.tag",
+      "name": "tag",
+      "type": "string",
+      "summary": "For query traffic generated by the built-in DNS, except for `localhost`, `fakedns`, `TCPL`, `DOHL`, and `DOQL` modes, this tag can be used in routing for matching via `inboundTag`.",
+      "source": "https://xtls.github.io/en/config/dns.html"
+    },
+    "dns.useSystemHosts": {
+      "path": "dns.useSystemHosts",
+      "name": "useSystemHosts",
+      "type": "true | false",
+      "summary": "If true, appends the system hosts file to the built-in DNS hosts.",
+      "source": "https://xtls.github.io/en/config/dns.html"
+    },
+    "inbounds[].listen": {
+      "path": "inbounds[].listen",
+      "name": "listen",
+      "type": "address",
+      "summary": "The listening address, which can be an IP address or a Unix domain socket. The default value is `\"0.0.0.0\"`, which means listening on all network interfaces.",
+      "detail": "You can specify an IP address available on the system.\n\n`\"::\"` is equivalent to `\"0.0.0.0\"`; both will listen on IPv6 and IPv4 simultaneously. However, if you only want to listen on IPv6, you can set `v6only` in `sockopt` to true. If you only want to listen on IPv4, you can use commands like `ip a` to view the specific IP on the network card (usually the machine's public IP address or a private network address like 10.x.x.x) and listen on that. Of course, you can do the same for IPv6.\n\nNote that because UDP is not connection-oriented, if the inbound is based on UDP and there are multiple IP addresses on the network card, and the external connection is to a non-preferred address on the card, Xray might incorrectly use the preferred address as the source address for the reply instead of the target of the external connection, causing the connection to fail. The solution is not to listen on `0.0.0.0` but to listen on the specific IP address on the network card.\n\nSupports Unix domain sockets in absolute path format, such as `\"/dev/shm/domain.socket\"`. You can add `@` at the beginning to represent abstract, and `@@` for abstract with padding.\n\nWhen filling in a Unix domain socket, `port` and `allocate` will be ignored. The protocol can currently be VLESS, VMess, or Trojan, and applies only to TCP-based transport methods, such as `tcp`, `websocket`, `grpc`. UDP-based transports like `mkcp` are not supported.\n\nWhen filling in a Unix domain socket, you can use the format `\"/dev/shm/domain.socket,0666\"`, i.e., adding a comma and access permission indicators after the socket, to specify the access permissions of the socket. This can be used to solve socket permission issues that occur by default.",
+      "source": "https://xtls.github.io/en/config/inbound.html"
+    },
+    "inbounds[].port": {
+      "path": "inbounds[].port",
+      "name": "port",
+      "type": "number | \"env:variable\" | string",
+      "summary": "Port. Accepted formats are as follows:",
+      "detail": "- Integer value: The actual port number. - Environment variable: Starts with `\"env:\"`, followed by the name of an environment variable, such as `\"env:PORT\"`. Xray will parse this environment variable as a string. - String: Can be a numeric string, such as `\"1234\"`; or a numerical range, such as `\"5-10\"` indicating ports 5 to 10 (6 ports in total). Commas can be used for segmentation, such as `11,13,15-17` indicating port 11, port 13, and ports 15 to 17 (5 ports in total).\n\nWhen only one port is specified, Xray will listen for inbound connections on this port. When a port range is specified, Xray will listen on all ports within the range.\n\nNote that listening on a port is a relatively expensive operation. Listening on a port range that is too large may cause a significant increase in resource usage or even cause Xray to fail to work properly. Generally speaking, problems may begin to appear when the number of listening ports approaches four digits. If you need to use a very large range, please consider using iptables for redirection instead of setting it here.",
+      "source": "https://xtls.github.io/en/config/inbound.html"
+    },
+    "inbounds[].protocol": {
+      "path": "inbounds[].protocol",
+      "name": "protocol",
+      "type": "\"tunnel\" | \"http\" | \"shadowsocks\" | \"socks\" | \"vless\" | \"vmess\" | \"trojan\" | \"wireguard\" | \"hysteria\" | \"tun\"",
+      "summary": "Connection protocol name. See the list of available Inbound Protocols on the left.",
+      "source": "https://xtls.github.io/en/config/inbound.html"
+    },
+    "inbounds[].settings": {
+      "path": "inbounds[].settings",
+      "name": "settings",
+      "type": "InboundConfigurationObject",
+      "summary": "Specific configuration content, which varies by protocol. See `InboundConfigurationObject` in each protocol section for details.",
+      "source": "https://xtls.github.io/en/config/inbound.html"
+    },
+    "inbounds[].settings.streamSettings": {
+      "path": "inbounds[].settings.streamSettings",
+      "name": "streamSettings",
+      "type": "StreamSettingsObject",
+      "summary": "Transport configuration for this inbound.",
+      "source": "https://xtls.github.io/en/config/inbound.html"
+    },
+    "inbounds[].settings.streamSettings[].sniffing": {
+      "path": "inbounds[].settings.streamSettings[].sniffing",
+      "name": "sniffing",
+      "type": "SniffingObject",
+      "summary": "Traffic sniffing is mainly used for transparent proxies and similar purposes. A typical flow is as follows:",
+      "detail": "1. If a device accesses the internet and visits abc.com, the device first queries DNS to get the IP of abc.com as 1.2.3.4, and then the device initiates a connection to 1.2.3.4. 2. If sniffing is not configured, the connection request received by Xray is for 1.2.3.4, which cannot be used for routing traffic based on domain rules. 3. When `enabled` in sniffing is set to `true`, Xray will sniff the domain name, i.e., abc.com, from the traffic data when processing this connection. 4. Xray will reset 1.2.3.4 to abc.com. The routing can then divert traffic according to the domain rules.\n\nBecause it becomes a connection requesting abc.com, more things can be done. Besides routing domain rule diversion, it can also re-perform DNS resolution and other tasks.\n\nWhen `enabled` in sniffing is set to `true`, it can also sniff Bittorrent type traffic. Then you can configure the \"protocol\" item in routing to set rules for handling unencrypted BT traffic. For example, the server side can be used to intercept unencrypted BT traffic, or the client side can fixedly forward BT traffic to a certain VPS, etc.\n\nNote: Newer browsers may use ECH to encrypt the Client Hello. In this case, Xray can only see the domain in the Outer Hello. You may need to consider hijacking DNS or manually disabling ECH in the browser configuration.",
+      "source": "https://xtls.github.io/en/config/inbound.html"
+    },
+    "inbounds[].settings.streamSettings[].tag": {
+      "path": "inbounds[].settings.streamSettings[].tag",
+      "name": "tag",
+      "type": "string",
+      "summary": "\u003e The identifier of this inbound connection, used to locate this connection in other configurations.",
+      "detail": "danger When it is not empty, its value must be **unique** among all `tag`s.",
+      "source": "https://xtls.github.io/en/config/inbound.html"
+    },
+    "inbounds[].sniffing.destOverride": {
+      "path": "inbounds[].sniffing.destOverride",
+      "name": "destOverride",
+      "type": "[\"http\" | \"tls\" | \"quic\" | \"fakedns\"]",
+      "summary": "When the traffic is of the specified type, reset the destination of the current connection based on the destination address contained within it.",
+      "detail": "Xray will only sniff the domains of protocols in `destOverride` for routing purposes. If you only want to sniff for routing but do not want to reset the destination address (e.g., resetting the destination address when using the Tor browser will cause connection failure), please add the corresponding protocol here and enable `routeOnly`.",
+      "source": "https://xtls.github.io/en/config/inbound.html"
+    },
+    "inbounds[].sniffing.domainsExcluded": {
+      "path": "inbounds[].sniffing.domainsExcluded",
+      "name": "domainsExcluded",
+      "type": "[string]",
+      "summary": "A list of domains. If the result of traffic sniffing is in this list, the destination address will **not** be reset. The domain format is the same as in Routing Configuration.",
+      "detail": "Filling in some domains may solve issues with iOS push notifications, Mijia smart devices, and voice chat in certain games (Rainbow Six).\u003cbr\u003e If you need to troubleshoot the cause of certain problems, you can test by disabling `\"sniffing\"` or enabling `\"routeOnly\"`.",
+      "source": "https://xtls.github.io/en/config/inbound.html"
+    },
+    "inbounds[].sniffing.enabled": {
+      "path": "inbounds[].sniffing.enabled",
+      "name": "enabled",
+      "type": "true | false",
+      "summary": "Whether to enable traffic sniffing.",
+      "source": "https://xtls.github.io/en/config/inbound.html"
+    },
+    "inbounds[].sniffing.ipsExcluded": {
+      "path": "inbounds[].sniffing.ipsExcluded",
+      "name": "ipsExcluded",
+      "type": "[string]",
+      "summary": "A list of IPs. If the destination address is in this list, the destination address will **not** be reset. The format is the same as in Routing Configuration.",
+      "source": "https://xtls.github.io/en/config/inbound.html"
+    },
+    "inbounds[].sniffing.metadataOnly": {
+      "path": "inbounds[].sniffing.metadataOnly",
+      "name": "metadataOnly",
+      "type": "true | false",
+      "summary": "When enabled, only the connection metadata will be used to sniff the destination address. At this time, sniffers other than `fakedns` will not be activated.",
+      "detail": "If disabled (using more than just metadata to infer the destination address), the client must send data first before the proxy server actually establishes a connection. This behavior is incompatible with protocols where the server must initiate the first message, such as the SMTP protocol.",
+      "source": "https://xtls.github.io/en/config/inbound.html"
+    },
+    "inbounds[].sniffing.routeOnly": {
+      "path": "inbounds[].sniffing.routeOnly",
+      "name": "routeOnly",
+      "type": "true | false",
+      "summary": "Use the sniffed domain only for routing; the proxy destination address remains the IP. The default value is `false`.",
+      "detail": "This item requires `destOverride` to be enabled to work.\n\nWhen it is guaranteed that **the proxied connection can obtain correct DNS resolution**, using `routeOnly` while enabling `destOverride`, and setting the routing matching strategy `domainStrategy` to `AsIs`, allows for domain and IP traffic splitting without DNS resolution throughout the process. In this case, the IP used when matching IP rules is the original IP of the domain name.",
+      "source": "https://xtls.github.io/en/config/inbound.html"
+    },
+    "inbounds[http].settings.allowTransparent": {
+      "path": "inbounds[http].settings.allowTransparent",
+      "name": "allowTransparent",
+      "type": "true | false",
+      "summary": "When set to `true`, all HTTP requests will be forwarded, not just proxy requests.",
+      "detail": "If configured improperly, enabling this option can cause infinite loops.",
+      "source": "https://xtls.github.io/en/config/inbounds/http.html"
+    },
+    "inbounds[http].settings.userLevel": {
+      "path": "inbounds[http].settings.userLevel",
+      "name": "userLevel",
+      "type": "number",
+      "summary": "User level. Connections will use the Local Policy corresponding to this user level.",
+      "detail": "The value of `userLevel` corresponds to the value of `level` in policy. If not specified, the default is 0.",
+      "source": "https://xtls.github.io/en/config/inbounds/http.html"
+    },
+    "inbounds[http].settings.users": {
+      "path": "inbounds[http].settings.users",
+      "name": "users",
+      "type": "[UserObject]",
+      "summary": "An array where each element is a user account. Default value is empty.",
+      "detail": "When `users` is not empty, the HTTP proxy will perform Basic Authentication on inbound connections.",
+      "source": "https://xtls.github.io/en/config/inbounds/http.html"
+    },
+    "inbounds[http].settings.vnext[].users[].pass": {
+      "path": "inbounds[http].settings.vnext[].users[].pass",
+      "name": "pass",
+      "type": "string",
+      "summary": "Password, string type. Required.",
+      "source": "https://xtls.github.io/en/config/inbounds/http.html"
+    },
+    "inbounds[http].settings.vnext[].users[].user": {
+      "path": "inbounds[http].settings.vnext[].users[].user",
+      "name": "user",
+      "type": "string",
+      "summary": "Username, string type. Required.",
+      "source": "https://xtls.github.io/en/config/inbounds/http.html"
+    },
+    "inbounds[hysteria].settings.users": {
+      "path": "inbounds[hysteria].settings.users",
+      "name": "users",
+      "type": "\\ [UserObject ]",
+      "summary": "An array representing a group of users approved by the server.",
+      "source": "https://xtls.github.io/en/config/inbounds/hysteria.html"
+    },
+    "inbounds[hysteria].settings.version": {
+      "path": "inbounds[hysteria].settings.version",
+      "name": "version",
+      "type": "number",
+      "summary": "Hysteria version, must be 2.",
+      "source": "https://xtls.github.io/en/config/inbounds/hysteria.html"
+    },
+    "inbounds[hysteria].settings.vnext[].users[].auth": {
+      "path": "inbounds[hysteria].settings.vnext[].users[].auth",
+      "name": "auth",
+      "type": "string",
+      "summary": "A string of any length.",
+      "source": "https://xtls.github.io/en/config/inbounds/hysteria.html"
+    },
+    "inbounds[hysteria].settings.vnext[].users[].email": {
+      "path": "inbounds[hysteria].settings.vnext[].users[].email",
+      "name": "email",
+      "type": "string",
+      "summary": "User email, used to distinguish traffic from different users (reflected in logs and statistics).",
+      "source": "https://xtls.github.io/en/config/inbounds/hysteria.html"
+    },
+    "inbounds[hysteria].settings.vnext[].users[].level": {
+      "path": "inbounds[hysteria].settings.vnext[].users[].level",
+      "name": "level",
+      "type": "number",
+      "summary": "User level. The connection will use the local policy corresponding to this user level.",
+      "detail": "The value of `level` corresponds to the `level` value in policy. If not specified, the default is 0.",
+      "source": "https://xtls.github.io/en/config/inbounds/hysteria.html"
+    },
+    "inbounds[shadowsocks].settings.email": {
+      "path": "inbounds[shadowsocks].settings.email",
+      "name": "email",
+      "type": "string",
+      "summary": "User email, used to distinguish traffic from different users (logs, statistics).",
+      "source": "https://xtls.github.io/en/config/inbounds/shadowsocks.html"
+    },
+    "inbounds[shadowsocks].settings.level": {
+      "path": "inbounds[shadowsocks].settings.level",
+      "name": "level",
+      "type": "number",
+      "summary": "User level. The connection will use the local policy corresponding to this user level. The value of `level` corresponds to the `level` value in policy. If not specified, the default is 0.",
+      "source": "https://xtls.github.io/en/config/inbounds/shadowsocks.html"
+    },
+    "inbounds[shadowsocks].settings.method": {
+      "path": "inbounds[shadowsocks].settings.method",
+      "name": "method",
+      "type": "string",
+      "summary": "Encryption method. See above for options.",
+      "source": "https://xtls.github.io/en/config/inbounds/shadowsocks.html"
+    },
+    "inbounds[shadowsocks].settings.network": {
+      "path": "inbounds[shadowsocks].settings.network",
+      "name": "network",
+      "type": "\"tcp\" | \"udp\" | \"tcp,udp\"",
+      "summary": "The network type that the server port **listens** on. The default value is `\"tcp\"`.",
+      "detail": "Note that this is only for listening; it mainly affects and controls the native UDP transmission of Shadowsocks. Setting it to `\"tcp\"` does not mean the inbound will reject UDP proxy requests, because UDP proxy requests can still be wrapped into TCP packets by XUDP in Mux.Cool and sent to the server.",
+      "source": "https://xtls.github.io/en/config/inbounds/shadowsocks.html"
+    },
+    "inbounds[shadowsocks].settings.password": {
+      "path": "inbounds[shadowsocks].settings.password",
+      "name": "password",
+      "type": "string",
+      "summary": "Required.",
+      "detail": "- Shadowsocks 2022\n\nUses a pre-shared key similar to WireGuard as the password.\n\nUse `openssl rand -base64 \u003clength\u003e` to generate a key compatible with shadowsocks-rust. The length depends on the encryption method used.\n\n| Encryption Method             | Key Length | | ----------------------------- | ---------: | | 2022-blake3-aes-128-gcm       |         16 | | 2022-blake3-aes-256-gcm       |         32 | | 2022-blake3-chacha20-poly1305 |         32 |\n\nIn the Go implementation, 32-byte keys always work.\n\n- Other encryption methods\n\nAny string. There is no limit on password length, but short passwords are more likely to be cracked. It is recommended to use passwords of 16 characters or longer.",
+      "source": "https://xtls.github.io/en/config/inbounds/shadowsocks.html"
+    },
+    "inbounds[shadowsocks].settings.users": {
+      "path": "inbounds[shadowsocks].settings.users",
+      "name": "users",
+      "type": "[UserObject ]",
+      "summary": "An array representing a group of users recognized by the server.",
+      "detail": "Each item in the array is a UserObject.\n\nWhen this option exists, it indicates that multi-user mode is enabled.",
+      "source": "https://xtls.github.io/en/config/inbounds/shadowsocks.html"
+    },
+    "inbounds[shadowsocks].settings.vnext[].users[].method": {
+      "path": "inbounds[shadowsocks].settings.vnext[].users[].method",
+      "name": "method",
+      "type": "string",
+      "summary": "- When the `method` in `InboundConfigurationObject` is not an SS2022 option, you can specify `\"method\"` for each user here (only non-SS2022 options are supported in `\"method\"`) together with `\"password\"` (in that case, the `\"password\"` set in `InboundConfigurationObject` will be ignored).",
+      "detail": "- When the `method` in `InboundConfigurationObject` is an SS2022 option, for security reasons, setting `\"method\"` for individual users is no longer supported. It is unified to the `\"method\"` specified in `InboundConfigurationObject`.",
+      "source": "https://xtls.github.io/en/config/inbounds/shadowsocks.html"
+    },
+    "inbounds[shadowsocks].settings.vnext[].users[].password": {
+      "path": "inbounds[shadowsocks].settings.vnext[].users[].password",
+      "name": "password",
+      "type": "string",
+      "summary": "Note that SS2022 does not ignore the upper-level `\"password\"` like the old SS did. The correct password format for the client should be `ServerPassword:UserPassword`. For example: `\"password\": \"114514:1919810\"`.",
+      "detail": "\u003e Remaining options\n\nHave the same meaning as in `InboundConfigurationObject`.",
+      "source": "https://xtls.github.io/en/config/inbounds/shadowsocks.html"
+    },
+    "inbounds[socks].settings.auth": {
+      "path": "inbounds[socks].settings.auth",
+      "name": "auth",
+      "type": "\"noauth\" | \"password\"",
+      "summary": "Authentication method for the Socks protocol. Supports `\"noauth\"` (anonymous) and `\"password\"` (user/password).",
+      "detail": "When using password, HTTP requests sent to this inbound will also require the same account and password.\n\nDefault value is `\"noauth\"`.",
+      "source": "https://xtls.github.io/en/config/inbounds/socks.html"
+    },
+    "inbounds[socks].settings.ip": {
+      "path": "inbounds[socks].settings.ip",
+      "name": "ip",
+      "type": "address",
+      "summary": "When UDP is enabled, Xray needs to know the IP address of the local machine.",
+      "detail": "\"The IP address of the local machine\" means the IP that the client can use to find the server when initiating a UDP connection. By default, it is the local IP address when the server accepts the TCP connection. It should work normally in most cases, but when passing through systems behind NAT, it may cause malfunctions, requiring this parameter to be modified to the correct public IP.\n\nWarning: If your machine has multiple IP addresses, you will be affected by the issue regarding UDP listening on 0.0.0.0 mentioned in Inbound Listening.",
+      "source": "https://xtls.github.io/en/config/inbounds/socks.html"
+    },
+    "inbounds[socks].settings.udp": {
+      "path": "inbounds[socks].settings.udp",
+      "name": "udp",
+      "type": "true | false",
+      "summary": "Whether to enable UDP protocol support.",
+      "detail": "Default value is `false`.",
+      "source": "https://xtls.github.io/en/config/inbounds/socks.html"
+    },
+    "inbounds[socks].settings.userLevel": {
+      "path": "inbounds[socks].settings.userLevel",
+      "name": "userLevel",
+      "type": "number",
+      "summary": "User level. Connections will use the Local Policy corresponding to this user level.",
+      "detail": "The value of `userLevel` corresponds to the value of `level` in policy. If not specified, the default is 0.",
+      "source": "https://xtls.github.io/en/config/inbounds/socks.html"
+    },
+    "inbounds[socks].settings.users": {
+      "path": "inbounds[socks].settings.users",
+      "name": "users",
+      "type": "\\ [UserObject ]",
+      "summary": "An array where each element is a user account.",
+      "detail": "This option is only valid when `auth` is set to `password`.\n\nDefault value is empty.",
+      "source": "https://xtls.github.io/en/config/inbounds/socks.html"
+    },
+    "inbounds[socks].settings.vnext[].users[].pass": {
+      "path": "inbounds[socks].settings.vnext[].users[].pass",
+      "name": "pass",
+      "type": "string",
+      "summary": "Password, string type. Required.",
+      "source": "https://xtls.github.io/en/config/inbounds/socks.html"
+    },
+    "inbounds[socks].settings.vnext[].users[].user": {
+      "path": "inbounds[socks].settings.vnext[].users[].user",
+      "name": "user",
+      "type": "string",
+      "summary": "Username, string type. Required.",
+      "source": "https://xtls.github.io/en/config/inbounds/socks.html"
+    },
+    "inbounds[trojan].settings.fallbacks": {
+      "path": "inbounds[trojan].settings.fallbacks",
+      "name": "fallbacks",
+      "type": "\\ [FallbackObject ]",
+      "summary": "An array containing a series of powerful fallback configurations (optional). For specific configuration of fallbacks, please click FallbackObject.",
+      "detail": "Xray's Trojan has complete support for fallbacks, and the configuration method is exactly the same as VLESS. The conditions for triggering fallback are also similar to VLESS: the length of the first packet \u003c 58, OR the 57th byte is not `\\r` (because Trojan has no protocol version), OR authentication fails.",
+      "source": "https://xtls.github.io/en/config/inbounds/trojan.html"
+    },
+    "inbounds[trojan].settings.users": {
+      "path": "inbounds[trojan].settings.users",
+      "name": "users",
+      "type": "\\ [UserObject ]",
+      "summary": "An array representing a group of users accepted by the server.",
+      "detail": "Each item is a UserObject.",
+      "source": "https://xtls.github.io/en/config/inbounds/trojan.html"
+    },
+    "inbounds[trojan].settings.vnext[].users[].email": {
+      "path": "inbounds[trojan].settings.vnext[].users[].email",
+      "name": "email",
+      "type": "string",
+      "summary": "Email address, optional, used to identify the user.",
+      "detail": "danger If there are multiple UserObjects, please note that emails must not be duplicated.",
+      "source": "https://xtls.github.io/en/config/inbounds/trojan.html"
+    },
+    "inbounds[trojan].settings.vnext[].users[].level": {
+      "path": "inbounds[trojan].settings.vnext[].users[].level",
+      "name": "level",
+      "type": "number",
+      "summary": "User level. Connections will use the Local Policy corresponding to this user level.",
+      "detail": "The value of `userLevel` corresponds to the value of `level` in policy. If not specified, it defaults to 0.",
+      "source": "https://xtls.github.io/en/config/inbounds/trojan.html"
+    },
+    "inbounds[trojan].settings.vnext[].users[].password": {
+      "path": "inbounds[trojan].settings.vnext[].users[].password",
+      "name": "password",
+      "type": "string",
+      "summary": "Required, any string.",
+      "source": "https://xtls.github.io/en/config/inbounds/trojan.html"
+    },
+    "inbounds[tun].settings.autoOutboundsInterface": {
+      "path": "inbounds[tun].settings.autoOutboundsInterface",
+      "name": "autoOutboundsInterface",
+      "type": "string",
+      "summary": "Automatically binds Xray outbounds to a physical network interface, so that traffic generated by Xray itself is not sent back into the TUN interface and looped.",
+      "detail": "Equivalent to automatically setting sockopt.interface for all outbounds (it also additionally covers some requests that cannot have outbound settings configured, such as the various local modes of the built-in DNS), which can be overridden by manually set sockopt.\n\nThe default value is `null`, which means not configured. You can specify an interface name explicitly, or use `\"auto\"` to let Xray choose one automatically. If `autoSystemRoutingTable` is configured but this field is omitted, Xray treats it as `\"auto\"`.",
+      "source": "https://xtls.github.io/en/config/inbounds/tun.html"
+    },
+    "inbounds[tun].settings.autoSystemRoutingTable": {
+      "path": "inbounds[tun].settings.autoSystemRoutingTable",
+      "name": "autoSystemRoutingTable",
+      "type": "[string]",
+      "summary": "The list of destination prefixes that Xray should add to the system routing table automatically so that the traffic is directed into this TUN interface. Each item is a CIDR. For example, `\"0.0.0.0/0\"` means all IPv4 traffic, and `\"::/0\"` means all IPv6 traffic.",
+      "detail": "Currently supported on Windows, macOS, and Linux. On FreeBSD, the routing table must be configured manually.",
+      "source": "https://xtls.github.io/en/config/inbounds/tun.html"
+    },
+    "inbounds[tun].settings.desc": {
+      "path": "inbounds[tun].settings.desc",
+      "name": "desc",
+      "type": "string",
+      "summary": "The description of the network interface name on Windows. Default is `Wintun`. This string is concatenated with \"Tunnel\" to form \"xxx Tunnel\".",
+      "detail": "On Windows, you can use `route print` to view the details.",
+      "source": "https://xtls.github.io/en/config/inbounds/tun.html"
+    },
+    "inbounds[tun].settings.dns": {
+      "path": "inbounds[tun].settings.dns",
+      "name": "dns",
+      "type": "[string]",
+      "summary": "This option only takes effect on Windows. The list of DNS servers assigned to the TUN interface, such as `\"1.1.1.1\"` and `\"8.8.8.8\"`.",
+      "source": "https://xtls.github.io/en/config/inbounds/tun.html"
+    },
+    "inbounds[tun].settings.gateway": {
+      "path": "inbounds[tun].settings.gateway",
+      "name": "gateway",
+      "type": "[string]",
+      "summary": "The list of address prefixes assigned to the TUN interface, usually one for IPv4 and one for IPv6, such as `\"10.0.0.1/16\"` and `\"fc00::1/64\"`.",
+      "detail": "On macOS, only IPv4 takes effect; if not set, `169.254.10.1/30` is used.",
+      "source": "https://xtls.github.io/en/config/inbounds/tun.html"
+    },
+    "inbounds[tun].settings.mtu": {
+      "path": "inbounds[tun].settings.mtu",
+      "name": "mtu",
+      "type": "number",
+      "summary": "The MTU of the interface. The default is `1500`.",
+      "source": "https://xtls.github.io/en/config/inbounds/tun.html"
+    },
+    "inbounds[tun].settings.name": {
+      "path": "inbounds[tun].settings.name",
+      "name": "name",
+      "type": "string",
+      "summary": "The name of the created TUN interface. Default is `\"utunN\"`.",
+      "detail": "Where N is a random number between 10 and 1024.",
+      "source": "https://xtls.github.io/en/config/inbounds/tun.html"
+    },
+    "inbounds[tun].settings.userLevel": {
+      "path": "inbounds[tun].settings.userLevel",
+      "name": "userLevel",
+      "type": "number",
+      "summary": "User level. The connection will use the local policy corresponding to this user level.",
+      "detail": "The value of `userLevel` corresponds to the `level` value in policy. If not specified, the default is 0.",
+      "source": "https://xtls.github.io/en/config/inbounds/tun.html"
+    },
+    "inbounds[vless].settings.decryption": {
+      "path": "inbounds[vless].settings.decryption",
+      "name": "decryption",
+      "type": "string",
+      "summary": "VLESS Encryption settings. Cannot be left empty; to disable, explicitly set it to `\"none\"`.",
+      "detail": "It is recommended for most users to use the `xray vlessenc` command to automatically generate this field to avoid configuration mistakes. The detailed configuration below is recommended for advanced users only.\n\ndetails Detailed configuration Its format is a string of detailed configuration fields connected by `.`. For example: `mlkem768x25519plus.native.600s.100-111-1111.75-0-111.50-0-3333.ptjHQxBQxTJ9MWr2cd5qWIflBSACHOevTauCQwa_71U`. This document refers to the individual parts separated by dots as blocks.\n\n- The 1st block is the handshake method. Currently, there is only `mlkem768x25519plus`. Requires the server and client to match. - The 2nd block is the traffic appearance. Options are `native`/`xorpub`/`random`, corresponding to: raw format packets / raw format + obfuscated public key part / full random numbers (similar to VMess/Shadowsocks). Requires the server and client to match. - The 3rd block is the session resumption ticket validity time. Format is `600s` or `100-500s`. The former will pick a random time between that duration and half of that duration (e.g., `600s` = `300-600s`); the latter manually specifies a random range.\n\nFollowing this is padding. After the connection is established, the server sends some garbage data to obfuscate length characteristics. This does not need to be the same as the client (the same part in the outbound is the padding sent from the client to the server). It is a variable-length part, formatted as `padding.delay.padding`+`(.delay.padding)`\\*n (multiple paddings can be inserted, requiring a delay block between two padding blocks). For example, you can write an ultra-long `padding.delay.padding.delay.padding.delay.padding.delay.padding.delay.padding`.\n\n- The `padding` format is `probability-min-max`, e.g., `100-111-1111` means 100% probability of sending a padding with a length of 111~1111. - The `delay` format is also `probability-min-max`, e.g., `75-0-111` means 75% probability of waiting for 0~111 milliseconds.\n\nThe first padding block has special requirements: it requires 100% probability and a minimum length greater than 0. If no padding exists, the core automatically uses `100-111-1111.75-0-111.50-0-3333` as the padding setting.\n\nThe last block is identified by the core as the parameter used to authenticate the client. It can be generated using `./xray x25519` (using the PrivateKey part) or `./xray mlkem768` (using the Seed part). It must correspond to the client. `mlkem768` is a post-quantum algorithm that prevents the private key from being cracked by quantum computers (in the future) to impersonate the server if client parameters are leaked. This parameter is only used for verification; the handshake process is post-quantum secure regardless, and existing encrypted data cannot be cracked by future quantum computers.",
+      "source": "https://xtls.github.io/en/config/inbounds/vless.html"
+    },
+    "inbounds[vless].settings.fallbacks": {
+      "path": "inbounds[vless].settings.fallbacks",
+      "name": "fallbacks",
+      "type": "\\ [FallbackObject ]",
+      "summary": "An array containing a series of powerful fallback distribution configurations (optional). For specific fallback configurations, please click FallbackObject.",
+      "source": "https://xtls.github.io/en/config/inbounds/vless.html"
+    },
+    "inbounds[vless].settings.flow": {
+      "path": "inbounds[vless].settings.flow",
+      "name": "flow",
+      "type": "string",
+      "summary": "When `users.flow` is an empty string or does not exist, `flow` will be used as its default value. When this value is non-empty, it makes it impossible to set `users.flow` to empty to disable flow control (because an empty string will fall back to the value here).",
+      "source": "https://xtls.github.io/en/config/inbounds/vless.html"
+    },
+    "inbounds[vless].settings.users": {
+      "path": "inbounds[vless].settings.users",
+      "name": "users",
+      "type": "\\ [UserObject ]",
+      "summary": "An array representing a group of users approved by the server.",
+      "detail": "Each item is a user UserObject.",
+      "source": "https://xtls.github.io/en/config/inbounds/vless.html"
+    },
+    "inbounds[vless].settings.vnext[].users[].email": {
+      "path": "inbounds[vless].settings.vnext[].users[].email",
+      "name": "email",
+      "type": "string",
+      "summary": "User email, used to distinguish traffic from different users (reflected in logs and statistics).",
+      "source": "https://xtls.github.io/en/config/inbounds/vless.html"
+    },
+    "inbounds[vless].settings.vnext[].users[].flow": {
+      "path": "inbounds[vless].settings.vnext[].users[].flow",
+      "name": "flow",
+      "type": "string",
+      "summary": "Flow control mode, used to select the XTLS algorithm.",
+      "detail": "Currently, the following flow control modes are available in the inbound protocol:\n\n- No `flow` or empty string: Use standard TLS proxy. - `xtls-rprx-vision`: Use the new XTLS mode, including inner handshake random padding.\n\nXTLS is only available under the following combinations:\n\n- TCP+TLS/REALITY: In this case, encrypted data is directly copied at the underlying layer (if transmitting TLS 1.3). - VLESS Encryption: No underlying transport restrictions. If the underlying layer does not support direct copying (see above), it only penetrates Encryption.",
+      "source": "https://xtls.github.io/en/config/inbounds/vless.html"
+    },
+    "inbounds[vless].settings.vnext[].users[].id": {
+      "path": "inbounds[vless].settings.vnext[].users[].id",
+      "name": "id",
+      "type": "string",
+      "summary": "The user ID for VLESS. It can be any string less than 30 bytes or a valid UUID. A custom string and its mapped UUID are equivalent, which means you can write the id in the configuration file to identify the same user like this:",
+      "detail": "- Write `\"id\": \"我爱🍉老师1314\"`, - Or write `\"id\": \"5783a3e7-e373-51cd-8642-c83782b807c5\"` (This UUID is the UUID mapping of `我爱🍉老师1314`).\n\nThe mapping standard is described in VLESS UUID Mapping Standard: Mapping Custom Strings to a UUIDv5.\n\nYou can use the command `xray uuid -i \"custom string\"` to generate the UUID mapped from the custom string.\n\n\u003e You can also use the command `xray uuid` to generate a random UUID.",
+      "source": "https://xtls.github.io/en/config/inbounds/vless.html"
+    },
+    "inbounds[vless].settings.vnext[].users[].level": {
+      "path": "inbounds[vless].settings.vnext[].users[].level",
+      "name": "level",
+      "type": "number",
+      "summary": "User level. The connection will use the local policy corresponding to this user level.",
+      "detail": "The value of `level` corresponds to the `level` value in policy. If not specified, the default is 0.",
+      "source": "https://xtls.github.io/en/config/inbounds/vless.html"
+    },
+    "inbounds[vless].settings.vnext[].users[].reverse": {
+      "path": "inbounds[vless].settings.vnext[].users[].reverse",
+      "name": "reverse",
+      "type": "struct",
+      "summary": "VLESS simplified reverse proxy configuration.",
+      "detail": "The presence of this item indicates that connections from this user can be used to establish a reverse proxy tunnel, while disabling normal forward proxy usage.\n\n`tag` is the outbound proxy tag for this reverse proxy. Routing traffic to this outbound using routing rules will forward it through the reverse proxy to the connected client's routing system (see VLESS Outbound for client configuration details).\n\nWhen multiple different connections (potentially from different devices) are connected, the core will randomly select one to dispatch reverse proxy data for each request.\n\nFull tutorial: VLESS Reverse Proxy Examples",
+      "source": "https://xtls.github.io/en/config/inbounds/vless.html"
+    },
+    "inbounds[vmess].settings.default": {
+      "path": "inbounds[vmess].settings.default",
+      "name": "default",
+      "type": "DefaultObject",
+      "summary": "Optional. Default configuration for `users`. Only valid when used in conjunction with `detour`.",
+      "source": "https://xtls.github.io/en/config/inbounds/vmess.html"
+    },
+    "inbounds[vmess].settings.users": {
+      "path": "inbounds[vmess].settings.users",
+      "name": "users",
+      "type": "\\ [UserObject ]",
+      "summary": "An array representing a group of users accepted by the server.",
+      "detail": "Each item is a UserObject.\n\nWhen this configuration is used for dynamic ports, Xray will automatically create users.",
+      "source": "https://xtls.github.io/en/config/inbounds/vmess.html"
+    },
+    "inbounds[vmess].settings.vnext[].users[].email": {
+      "path": "inbounds[vmess].settings.vnext[].users[].email",
+      "name": "email",
+      "type": "string",
+      "summary": "User email address, used to distinguish traffic from different users.",
+      "source": "https://xtls.github.io/en/config/inbounds/vmess.html"
+    },
+    "inbounds[vmess].settings.vnext[].users[].id": {
+      "path": "inbounds[vmess].settings.vnext[].users[].id",
+      "name": "id",
+      "type": "string",
+      "summary": "User ID for VMess. It can be any string less than 30 bytes, or a valid UUID.",
+      "detail": "A custom string and its mapped UUID are equivalent. This means you can identify the same user in the configuration file by writing the ID in either way:\n\n- Write `\"id\": \"我爱🍉老师1314\"`, - Or write `\"id\": \"5783a3e7-e373-51cd-8642-c83782b807c5\"` (This UUID is the UUID mapping of `我爱🍉老师1314`)\n\n\n\nThe mapping standard is described in VLESS UUID Mapping Standard: Mapping Custom Strings to UUIDv5.\n\nYou can use the command `xray uuid -i \"custom string\"` to generate the UUID mapped from a custom string.\n\n\u003e You can also use the command `xray uuid` to generate a random UUID.",
+      "source": "https://xtls.github.io/en/config/inbounds/vmess.html"
+    },
+    "inbounds[vmess].settings.vnext[].users[].level": {
+      "path": "inbounds[vmess].settings.vnext[].users[].level",
+      "name": "level",
+      "type": "number",
+      "summary": "User level. The connection will use the Local Policy corresponding to this user level.",
+      "detail": "The value of `level` corresponds to the value of `level` in policy. If not specified, it defaults to 0.",
+      "source": "https://xtls.github.io/en/config/inbounds/vmess.html"
+    },
+    "inbounds[wireguard].settings.allowedIPs": {
+      "path": "inbounds[wireguard].settings.allowedIPs",
+      "name": "allowedIPs",
+      "type": "string array",
+      "summary": "Allowed source IPs.",
+      "source": "https://xtls.github.io/en/config/inbounds/wireguard.html"
+    },
+    "inbounds[wireguard].settings.mtu": {
+      "path": "inbounds[wireguard].settings.mtu",
+      "name": "mtu",
+      "type": "int",
+      "summary": "The MTU size of the underlying WireGuard TUN.",
+      "detail": "\u003cdetails\u003e \u003csummary\u003eMethod to Calculate MTU\u003c/summary\u003e\n\nThe structure of a WireGuard packet is as follows:\n\n`N-byte encrypted data` is the MTU value we need. Depending on whether the endpoint is IPv4 or IPv6, the specific value can be 1440 (IPv4) or 1420 (IPv6). If you are in a special network environment, you may need to subtract more (e.g., home broadband PPPoE requires an extra -8).\n\n\u003c/details\u003e",
+      "source": "https://xtls.github.io/en/config/inbounds/wireguard.html"
+    },
+    "inbounds[wireguard].settings.peers": {
+      "path": "inbounds[wireguard].settings.peers",
+      "name": "peers",
+      "type": "\\ [Peers ]",
+      "summary": "List of peers, where each item is a peer configuration.",
+      "source": "https://xtls.github.io/en/config/inbounds/wireguard.html"
+    },
+    "inbounds[wireguard].settings.publicKey": {
+      "path": "inbounds[wireguard].settings.publicKey",
+      "name": "publicKey",
+      "type": "string",
+      "summary": "Public key, used for verification.",
+      "source": "https://xtls.github.io/en/config/inbounds/wireguard.html"
+    },
+    "inbounds[wireguard].settings.secretKey": {
+      "path": "inbounds[wireguard].settings.secretKey",
+      "name": "secretKey",
+      "type": "string",
+      "summary": "Private key. Required.",
+      "source": "https://xtls.github.io/en/config/inbounds/wireguard.html"
+    },
+    "log.access": {
+      "path": "log.access",
+      "name": "access",
+      "type": "string",
+      "summary": "The file path for the access log. Its value must be a valid file path, such as `\"/var/log/Xray/access.log\"` (Linux) or `\"C:\\\\Temp\\\\Xray\\\\_access.log\"` (Windows). When this item is unspecified or empty, logs are output to stdout.",
+      "detail": "- Special value `none`: disables the access log.",
+      "source": "https://xtls.github.io/en/config/log.html"
+    },
+    "log.dnsLog": {
+      "path": "log.dnsLog",
+      "name": "dnsLog",
+      "type": "bool",
+      "summary": "Whether to enable DNS query logs, for example: `DOH//doh.server got answer: domain.com -\u003e [ip1, ip2] 2.333ms`",
+      "source": "https://xtls.github.io/en/config/log.html"
+    },
+    "log.error": {
+      "path": "log.error",
+      "name": "error",
+      "type": "string",
+      "summary": "The file path for the error log. Its value must be a valid file path, such as `\"/var/log/Xray/error.log\"` (Linux) or `\"C:\\\\Temp\\\\Xray\\\\_error.log\"` (Windows). When this item is unspecified or empty, logs are output to stdout.",
+      "detail": "- Special value `none`: disables the error log.",
+      "source": "https://xtls.github.io/en/config/log.html"
+    },
+    "log.loglevel": {
+      "path": "log.loglevel",
+      "name": "loglevel",
+      "type": "\"debug\" | \"info\" | \"warning\" | \"error\" | \"none\"",
+      "summary": "The level of the error log, indicating the information that needs to be recorded. The default value is `\"warning\"`.",
+      "detail": "- `\"debug\"`: Output information used for debugging. Includes all `\"info\"` content. - `\"info\"`: Runtime status information, etc., which does not affect normal usage. Includes all `\"warning\"` content. - `\"warning\"`: Information output when issues occur that do not affect normal operation but may impact user experience. Includes all `\"error\"` content. - `\"error\"`: Xray encountered a problem where it cannot operate normally and requires immediate resolution. - `\"none\"`: Do not record any content.",
+      "source": "https://xtls.github.io/en/config/log.html"
+    },
+    "log.maskAddress": {
+      "path": "log.maskAddress",
+      "name": "maskAddress",
+      "type": "\"quarter\" | \"half\" | \"full\"",
+      "summary": "IP address mask. When enabled, it automatically replaces IP addresses appearing in the log to protect privacy when sharing logs. The default is empty (disabled).",
+      "detail": "Currently, the available levels are `quarter`, `half`, and `full`. The masking formats correspond as follows:\n\n- ipv4 `1.2.*.*` `1.*.*.*` `[Masked IPv4]` - ipv6 `1234:5678::/32` `1234::/16` `[Masked IPv6]`\n\nFor more specific requirements, you can use a custom format such as `/16+/32`. The format defines the number of bits to keep unmasked; the first number is for IPv4 and the second for IPv6. Note that the IPv4 value must be divisible by 8. Using /32 (IPv4) or /128 (IPv6) means no masking, while /0 will display as `[Masked IPv4/IPv6]`.",
+      "source": "https://xtls.github.io/en/config/log.html"
+    },
+    "metrics.listen": {
+      "path": "metrics.listen",
+      "name": "listen",
+      "type": "string",
+      "summary": "A simpler method: directly listen on an address and port to provide the service.",
+      "detail": "When setting this field, if `tag` is empty, it will automatically be set to `Metrics`. If neither (`tag` nor `listen`) is set, the core will fail to start.",
+      "source": "https://xtls.github.io/en/config/metrics.html"
+    },
+    "metrics.tag": {
+      "path": "metrics.tag",
+      "name": "tag",
+      "type": "string",
+      "summary": "The outbound proxy tag corresponding to metrics. You can access it by setting up a `tunnel` inbound + routing rules that point the `tunnel` to this outbound.",
+      "source": "https://xtls.github.io/en/config/metrics.html"
+    },
+    "observatory.enableConcurrency": {
+      "path": "observatory.enableConcurrency",
+      "name": "enableConcurrency",
+      "type": "true | false",
+      "summary": "- `true`: Probe all matched outbound proxies concurrently. Pauses for the time set in `probeInterval` after all are completed. - `false`: Probe matched outbound proxies one by one. Pauses for the time set in `probeInterval` after each outbound proxy is probed.",
+      "source": "https://xtls.github.io/en/config/observatory.html"
+    },
+    "observatory.probeInterval": {
+      "path": "observatory.probeInterval",
+      "name": "probeInterval",
+      "type": "string",
+      "summary": "The interval for initiating probes. The time format is number + unit, such as `\"10s\"`, `\"2h45m\"`. Supported time units are `ns`, `us`, `ms`, `s`, `m`, `h`, corresponding to nanoseconds, microseconds, milliseconds, seconds, minutes, and hours respectively.",
+      "detail": "Note that since the request interval is fixed, periodic fixed requests might lead to behavioral fingerprinting. Using protocols with multiplexing or enabling `mux` can alleviate this issue.",
+      "source": "https://xtls.github.io/en/config/observatory.html"
+    },
+    "observatory.probeUrl": {
+      "path": "observatory.probeUrl",
+      "name": "probeUrl",
+      "type": "string",
+      "summary": "The URL used to probe the connection status of the outbound proxy.",
+      "source": "https://xtls.github.io/en/config/observatory.html"
+    },
+    "observatory.subjectSelector": {
+      "path": "observatory.subjectSelector",
+      "name": "subjectSelector",
+      "type": "[ string ]",
+      "summary": "An array of strings, where each string is used for prefix matching against outbound proxy tags. Given the following outbound proxy tags: `[ \"a\", \"ab\", \"c\", \"ba\" ]`, `\"subjectSelector\": [\"a\"]` will match `[ \"a\", \"ab\" ]`.",
+      "source": "https://xtls.github.io/en/config/observatory.html"
+    },
+    "outbounds[].mux.concurrency": {
+      "path": "outbounds[].mux.concurrency",
+      "name": "concurrency",
+      "type": "number",
+      "summary": "Maximum concurrent connections. Minimum `1`, maximum `128`. If omitted or set to `0`, it equals `8`. Values greater than `128` are treated as 128, because once a connection reaches the maximum reuse count of 128, it will no longer be assigned any new sub-connections.",
+      "detail": "This value represents the maximum number of sub-connections carried on a single TCP connection. For example, if `concurrency=8` is set, when the client issues 8 TCP requests, Xray will only issue one actual TCP connection, and all 8 requests from the client are transmitted over this TCP connection.\n\nWhen the maximum sub-connection capacity of all Mux connections is fully occupied, the core will initiate new connections to carry sub-connections. If a large number of sub-connections are concurrent in a short time and subsequently decrease, the internal scheduler of the core will tend to distribute requests to 2 connections alternately and leave other connections idle, waiting for all their sub-connections to end naturally before closing them to save resources. If the total number of sub-connections continues to be lower than `concurrency` for a long time, after one of the connections reaches the maximum reuse count, the core will revert to a single connection state.\n\nWhen set to a negative number, such as `-1`, the Mux module is not used to carry TCP traffic.",
+      "source": "https://xtls.github.io/en/config/outbound.html"
+    },
+    "outbounds[].mux.enabled": {
+      "path": "outbounds[].mux.enabled",
+      "name": "enabled",
+      "type": "true | false",
+      "summary": "Whether to enable Mux for forwarding requests. Default is `false`.",
+      "source": "https://xtls.github.io/en/config/outbound.html"
+    },
+    "outbounds[].mux.xudpConcurrency": {
+      "path": "outbounds[].mux.xudpConcurrency",
+      "name": "xudpConcurrency",
+      "type": "number",
+      "summary": "Use a new XUDP aggregation tunnel (i.e., another Mux connection) to proxy UDP traffic. Fill in the maximum number of concurrent sub-UoT. Minimum `1`, maximum `1024`. If omitted or set to `0`, it will follow the same path as TCP traffic, which is the traditional behavior.",
+      "detail": "When set to a negative number, such as `-1`, the Mux module is not used to carry UDP traffic. The proxy protocol's original UDP transmission method will be used. For example, `Shadowsocks` will use native UDP, and `VLESS` will use UoT.",
+      "source": "https://xtls.github.io/en/config/outbound.html"
+    },
+    "outbounds[].mux.xudpProxyUDP443": {
+      "path": "outbounds[].mux.xudpProxyUDP443",
+      "name": "xudpProxyUDP443",
+      "type": "string",
+      "summary": "Controls how Mux handles proxied UDP/443 (QUIC) traffic:",
+      "detail": "- Default `reject`: Rejects traffic (browsers typically fall back to TCP HTTP2 automatically). - `allow`: Allows traffic to go through the Mux connection. - `skip`: Does not use the Mux module to carry UDP 443 traffic. The proxy protocol's original UDP transmission method will be used. For example, `Shadowsocks` will use native UDP, and `VLESS` will use UoT.",
+      "source": "https://xtls.github.io/en/config/outbound.html"
+    },
+    "outbounds[].protocol": {
+      "path": "outbounds[].protocol",
+      "name": "protocol",
+      "type": "\"blackhole\" | \"dns\" | \"freedom\" | \"http\" | \"loopback\" | \"shadowsocks\" | \"socks\" | \"trojan\" | \"vless\" | \"vmess\" | \"hysteria\" | \"wireguard\"",
+      "summary": "The connection protocol name. For the list of optional protocols, see Outbound Protocols on the left.",
+      "source": "https://xtls.github.io/en/config/outbound.html"
+    },
+    "outbounds[].proxySettings.tag": {
+      "path": "outbounds[].proxySettings.tag",
+      "name": "tag",
+      "type": "string",
+      "summary": "When the identifier of another outbound is specified, data sent by this outbound will be forwarded to the specified outbound for transmission.",
+      "detail": "danger This option conflicts with Sockopt.dialerProxy. Choose one as needed.\n\nBy default, this forwarding method **ignores** this outbound's own transport configuration (such as XHTTP, REALITY, or Sockopt), meaning the `streamSettings` of this outbound will not take effect.\u003cbr\u003e If you need forwarding that works together with `streamSettings`, please use `Sockopt.dialerProxy` instead or set `transportLayer` to `true` here.",
+      "source": "https://xtls.github.io/en/config/outbound.html"
+    },
+    "outbounds[].proxySettings.transportLayer": {
+      "path": "outbounds[].proxySettings.transportLayer",
+      "name": "transportLayer",
+      "type": "true | false",
+      "summary": "`true` converts this setting to `Sockopt.dialerProxy` so the forwarding can use this outbound's `streamSettings`. The default is `false`.",
+      "source": "https://xtls.github.io/en/config/outbound.html"
+    },
+    "outbounds[].sendThrough": {
+      "path": "outbounds[].sendThrough",
+      "name": "sendThrough",
+      "type": "address",
+      "summary": "The IP address used to send data. This is effective when the host has multiple IP addresses. The default value is `\"0.0.0.0\"`.",
+      "detail": "You can enter an IPv6 CIDR block (e.g., `114:514:1919:810::/64`), and Xray will use a random IP address from the address block to initiate external connections. You need to correctly configure the network access method, routing table, and kernel parameters to allow Xray to bind to any IP within the address block.\n\nFor networks using NDP access, it is not recommended to set a subnet smaller than `/120`. Otherwise, it may cause issues such as NDP flooding, leading to the router's neighbor cache becoming full.\n\nSpecial value `origin`: If this value is used, the request will be sent using the IP address of the local machine that received the connection.\n\nSpecial value `srcip`: If this value is used, the request will be sent using the source IP address of the inbound connection.\n\nFor example, if the machine has a full IPv4 range `11.4.5.0/24` and listens on `0.0.0.0` (all IPv4 and IPv6 on the network interface), if a client connects to the local machine via `11.4.5.14`, the outbound request will also be sent via `11.4.5.14`. If the client connects via `11.4.5.10`, the outbound request will be sent via `11.4.5.10`. This also applies to cases where the machine has a full range/multiple IPv6 addresses.\n\nAs mentioned in the inbound introduction, because of the connectionless nature of UDP, Xray cannot know the original destination IP where the request entered the core (for example, in the same QUIC connection, it might even change), so this feature cannot take effect for UDP.",
+      "source": "https://xtls.github.io/en/config/outbound.html"
+    },
+    "outbounds[].settings": {
+      "path": "outbounds[].settings",
+      "name": "settings",
+      "type": "OutboundConfigurationObject",
+      "summary": "Specific configuration content, which varies by protocol. See `OutboundConfigurationObject` in each protocol for details.",
+      "source": "https://xtls.github.io/en/config/outbound.html"
+    },
+    "outbounds[].settings.streamSettings": {
+      "path": "outbounds[].settings.streamSettings",
+      "name": "streamSettings",
+      "type": "StreamSettingsObject",
+      "summary": "Transport configuration for this outbound.",
+      "source": "https://xtls.github.io/en/config/outbound.html"
+    },
+    "outbounds[].settings.streamSettings[].mux": {
+      "path": "outbounds[].settings.streamSettings[].mux",
+      "name": "mux",
+      "type": "MuxObject",
+      "summary": "Specific configuration related to Mux.",
+      "source": "https://xtls.github.io/en/config/outbound.html"
+    },
+    "outbounds[].settings.streamSettings[].proxySettings": {
+      "path": "outbounds[].settings.streamSettings[].proxySettings",
+      "name": "proxySettings",
+      "type": "ProxySettingsObject",
+      "summary": "Outbound proxy configuration.",
+      "source": "https://xtls.github.io/en/config/outbound.html"
+    },
+    "outbounds[].settings.streamSettings[].targetStrategy": {
+      "path": "outbounds[].settings.streamSettings[].targetStrategy",
+      "name": "targetStrategy",
+      "type": "\"AsIs\" | \"UseIP\" | \"UseIPv6v4\" | \"UseIPv6\" | \"UseIPv4v6\" | \"UseIPv4\" | \"ForceIP\" | \"ForceIPv6v4\" | \"ForceIPv6\" | \"ForceIPv4v6\" | \"ForceIPv4\"",
+      "summary": "If this outbound attempts to send a domain request, this controls whether it is resolved/how it is resolved to an IP before sending.",
+      "detail": "The default value is `AsIs`, meaning it is sent to the remote server as is. All parameter meanings are roughly equivalent to `domainStrategy` in Sockopt.\n\nThis controls **proxied requests**. If the address of the outbound proxy server is a domain name, and you need to select a resolution strategy for the domain name itself, you should configure `domainStrategy` in Sockopt.",
+      "source": "https://xtls.github.io/en/config/outbound.html"
+    },
+    "outbounds[].settings.tag": {
+      "path": "outbounds[].settings.tag",
+      "name": "tag",
+      "type": "string",
+      "summary": "The identifier for this outbound connection, used to locate this connection in other configurations.",
+      "detail": "danger When not empty, its value must be **unique** among all `tag`s.",
+      "source": "https://xtls.github.io/en/config/outbound.html"
+    },
+    "outbounds[blackhole].settings.response": {
+      "path": "outbounds[blackhole].settings.response",
+      "name": "response",
+      "type": "ResponseObject",
+      "summary": "Configures the response data of the Blackhole.",
+      "detail": "After receiving data to be forwarded, Blackhole will send the specified response data, then close the connection. The data to be forwarded will be discarded. If this item is not specified, Blackhole will close the connection immediately.",
+      "source": "https://xtls.github.io/en/config/outbounds/blackhole.html"
+    },
+    "outbounds[dns].settings.rewriteAddress": {
+      "path": "outbounds[dns].settings.rewriteAddress",
+      "name": "rewriteAddress",
+      "type": "address",
+      "summary": "Modifies the DNS server address. If omitted, the address specified by the source is preserved.",
+      "source": "https://xtls.github.io/en/config/outbounds/dns.html"
+    },
+    "outbounds[dns].settings.rewriteNetwork": {
+      "path": "outbounds[dns].settings.rewriteNetwork",
+      "name": "rewriteNetwork",
+      "type": "[ \"tcp\" | \"udp\" ]",
+      "summary": "Modifies the transport protocol used for DNS traffic. Available values are `\"tcp\"` and `\"udp\"`. If omitted, the original transport method is preserved.",
+      "source": "https://xtls.github.io/en/config/outbounds/dns.html"
+    },
+    "outbounds[dns].settings.rewritePort": {
+      "path": "outbounds[dns].settings.rewritePort",
+      "name": "rewritePort",
+      "type": "number",
+      "summary": "Modifies the DNS server port. If omitted, the port specified by the source is preserved.",
+      "source": "https://xtls.github.io/en/config/outbounds/dns.html"
+    },
+    "outbounds[dns].settings.rules": {
+      "path": "outbounds[dns].settings.rules",
+      "name": "rules",
+      "type": "[RuleObject]",
+      "summary": "Matches DNS query rules in order, and supports fine-grained control by `qType` and `domain`.",
+      "detail": "If no rule is matched, the built-in fallback rule is used: A and AAAA queries are imported into the built-in DNS module, while other query types return an empty response with RCODE `0`.",
+      "source": "https://xtls.github.io/en/config/outbounds/dns.html"
+    },
+    "outbounds[dns].settings.userLevel": {
+      "path": "outbounds[dns].settings.userLevel",
+      "name": "userLevel",
+      "type": "number",
+      "summary": "User level. Connections will use the local policy corresponding to this user level.",
+      "detail": "The value of `userLevel` corresponds to the `level` value in policy. If omitted, it defaults to `0`.",
+      "source": "https://xtls.github.io/en/config/outbounds/dns.html"
+    },
+    "outbounds[freedom].settings.domainStrategy": {
+      "path": "outbounds[freedom].settings.domainStrategy",
+      "name": "domainStrategy",
+      "type": "\"AsIs\"\u003cbr\u003e",
+      "summary": "\u003e \"UseIP\" | \"UseIPv6v4\" | \"UseIPv6\" | \"UseIPv4v6\" | \"UseIPv4\"\u003cbr\u003e \u003e \"ForceIP\" | \"ForceIPv6v4\" | \"ForceIPv6\" | \"ForceIPv4v6\" | \"ForceIPv4\"",
+      "detail": "Default value `\"AsIs\"`.\n\nThe meanings of all parameters are roughly equivalent to `domainStrategy` in Sockopt.\n\nOnly using `\"AsIs\"` here allows passing the domain name to the subsequent `sockopt` module. If set to non-`\"AsIs\"` here, causing the domain to be resolved to a specific IP, it will invalidate the subsequent `sockopt.domainStrategy` and its related `happyEyeballs`. (There is no negative impact if these two settings are not adjusted).\n\nWhen sending UDP, Freedom ignores `domainStrategy` in `sockopt` for some reasons and forcibly prefers IPv4 by default.",
+      "source": "https://xtls.github.io/en/config/outbounds/freedom.html"
+    },
+    "outbounds[freedom].settings.finalRules": {
+      "path": "outbounds[freedom].settings.finalRules",
+      "name": "finalRules",
+      "type": "[FinalRuleObject]",
+      "summary": "Matches Freedom final outbound rules in order, and allows or blocks connection targets.",
+      "detail": "Compared with blocking in `routing`, `finalRules` applies at Freedom's final outbound stage: matching happens after the final IP is resolved and before dialing; in addition, UDP is also matched packet by packet during send and receive, making it stricter and more thorough. Each rule match takes about 50-150 ns.\n\nNote: whenever Freedom needs to apply `finalRules`, if `domainStrategy` is `AsIs` and the target is a domain, Freedom still resolves the target to an IP through the operating system DNS before matching rules. At that point the target is no longer a domain, so the later `sockopt.domainStrategy` and its `happyEyeballs` no longer take effect.\n\nThere is a default fallback safety policy for server-side and reverse-proxy scenarios:\n\nIf no explicit rule matches, the built-in fallback rule is used: traffic from the VLESS reverse proxy blocks all targets by default; traffic from `VLESS`, `VMess`, `Trojan`, `Shadowsocks`, `Hysteria`, or `WireGuard` inbounds blocks private and reserved IP ranges by default; other traffic is fully allowed by default.\n\nIf the server needs to allow clients to access some internal services, explicitly configure `allow` rules and limit them to the necessary `network`, `ip`, and `port` whenever possible.\n\nIf the server also needs features that rely on passing the domain to `sockopt` (such as `sockopt.domainStrategy` or `happyEyeballs`), it cannot continue relying on this default safety policy. You can configure the first rule as an `allow` rule without any matching conditions to restore the previous behavior; this is also equivalent to disabling this default safety policy, so evaluate the security impact yourself.",
+      "source": "https://xtls.github.io/en/config/outbounds/freedom.html"
+    },
+    "outbounds[freedom].settings.fragment": {
+      "path": "outbounds[freedom].settings.fragment",
+      "name": "fragment",
+      "type": "map",
+      "summary": "A set of key-value configuration items used to control outgoing TCP fragmentation. In some cases, it can deceive censorship systems, such as bypassing SNI blacklists.",
+      "detail": "`\"length\"` and `\"interval\"` are both Int32Range types.\n\n`\"packets\"`: Supports two fragmentation modes. `\"1-3\"` is TCP stream slicing, applied to the 1st through 3rd data writes by the client. `\"tlshello\"` is TLS handshake packet slicing.\n\n`\"length\"`: Fragment packet length (byte).\n\n`\"interval\"`: Fragment interval (ms).\n\nWhen `interval` is 0 and `\"packets\": \"tlshello\"` is set, the fragmented Client Hello will be sent in one TCP packet (provided its original size does not exceed MSS or MTU causing automatic system fragmentation).",
+      "source": "https://xtls.github.io/en/config/outbounds/freedom.html"
+    },
+    "outbounds[freedom].settings.noises": {
+      "path": "outbounds[freedom].settings.noises",
+      "name": "noises",
+      "type": "array",
+      "summary": "UDP noise, used to send some random data as \"noise\" before sending a UDP connection. Presence of this structure implies enablement. It might deceive sniffers, or it might disrupt normal connections. _Use at your own risk._ For this reason, it bypasses port 53 because that breaks DNS.",
+      "detail": "It is an array where multiple noise packets to be sent can be defined. A single element in the array is defined as follows:\n\n`\"type\"`: Noise packet type. Currently supports `\"rand\"` (random data), `\"str\"` (user-defined string), `\"base64\"` (base64 encoded custom binary data).\n\n`\"packet\"`: The content of the packet to be sent based on the preceding `type`.\n\n- When `type` is `rand`, this specifies the length of the random data. It can be a fixed value `\"100\"` or a floating range `\"50-150\"`. - When `type` is `str`, this specifies the string to be sent. - When `type` is `hex`, this specifies binary data in hex format. - When `type` is `base64`, this specifies base64 encoded binary data.\n\n`\"delay\"`: Delay in milliseconds. After sending this noise packet, the core will wait for this time before sending the next noise packet or real data. Defaults to no wait. It is an Int32Range type.",
+      "source": "https://xtls.github.io/en/config/outbounds/freedom.html"
+    },
+    "outbounds[freedom].settings.proxyProtocol": {
+      "path": "outbounds[freedom].settings.proxyProtocol",
+      "name": "proxyProtocol",
+      "type": "number",
+      "summary": "PROXY protocol is usually used with `redirect` to redirect traffic to Nginx or other backend services that have the PROXY protocol enabled. If the backend service does not support PROXY protocol, the connection will be disconnected.",
+      "detail": "The value of `proxyProtocol` is the PROXY protocol version number. Options are `1` or `2`. If not specified, it defaults to `0` (disabled).",
+      "source": "https://xtls.github.io/en/config/outbounds/freedom.html"
+    },
+    "outbounds[freedom].settings.redirect": {
+      "path": "outbounds[freedom].settings.redirect",
+      "name": "redirect",
+      "type": "address_port",
+      "summary": "Freedom will forcibly send all data to the specified address (instead of the address specified by the inbound).",
+      "detail": "The value is a string, e.g., `\"127.0.0.1:80\"`, `\":1234\"`.\n\nWhen the address is not specified, e.g., `\":443\"`, Freedom will not modify the original destination address. When the port is `0`, e.g., `\"xray.com:0\"`, Freedom will not modify the original port.",
+      "source": "https://xtls.github.io/en/config/outbounds/freedom.html"
+    },
+    "outbounds[freedom].settings.userLevel": {
+      "path": "outbounds[freedom].settings.userLevel",
+      "name": "userLevel",
+      "type": "number",
+      "summary": "User level. Connections will use the Local Policy corresponding to this user level.",
+      "detail": "The value of `userLevel` corresponds to the value of `level` in policy. If not specified, it defaults to 0.",
+      "source": "https://xtls.github.io/en/config/outbounds/freedom.html"
+    },
+    "outbounds[http].settings.address": {
+      "path": "outbounds[http].settings.address",
+      "name": "address",
+      "type": "string",
+      "summary": "HTTP proxy server address. Required.",
+      "source": "https://xtls.github.io/en/config/outbounds/http.html"
+    },
+    "outbounds[http].settings.email": {
+      "path": "outbounds[http].settings.email",
+      "name": "email",
+      "type": "string",
+      "summary": "Email address, used to identify the user. Optional if the remote server requires authentication; otherwise, do not include this item.",
+      "source": "https://xtls.github.io/en/config/outbounds/http.html"
+    },
+    "outbounds[http].settings.headers": {
+      "path": "outbounds[http].settings.headers",
+      "name": "headers",
+      "type": "map{ string, string }",
+      "summary": "HTTP headers, a map of key-value pairs. Each key represents the name of an HTTP header. All key-value pairs will be attached to every request.",
+      "source": "https://xtls.github.io/en/config/outbounds/http.html"
+    },
+    "outbounds[http].settings.level": {
+      "path": "outbounds[http].settings.level",
+      "name": "level",
+      "type": "number",
+      "summary": "User level. The connection will use the local policy corresponding to this user level. Optional if the remote server requires authentication; otherwise, do not include this item.",
+      "detail": "The value of `userLevel` corresponds to the value of `level` in policy. If not specified, the default is 0.",
+      "source": "https://xtls.github.io/en/config/outbounds/http.html"
+    },
+    "outbounds[http].settings.pass": {
+      "path": "outbounds[http].settings.pass",
+      "name": "pass",
+      "type": "string",
+      "summary": "Password, string type. Required if the remote server requires authentication; otherwise, do not include this item.",
+      "source": "https://xtls.github.io/en/config/outbounds/http.html"
+    },
+    "outbounds[http].settings.port": {
+      "path": "outbounds[http].settings.port",
+      "name": "port",
+      "type": "int",
+      "summary": "HTTP proxy server port. Required.",
+      "source": "https://xtls.github.io/en/config/outbounds/http.html"
+    },
+    "outbounds[http].settings.user": {
+      "path": "outbounds[http].settings.user",
+      "name": "user",
+      "type": "string",
+      "summary": "Username, string type. Required if the remote server requires authentication; otherwise, do not include this item.",
+      "source": "https://xtls.github.io/en/config/outbounds/http.html"
+    },
+    "outbounds[hysteria].settings.address": {
+      "path": "outbounds[hysteria].settings.address",
+      "name": "address",
+      "type": "string",
+      "summary": "Hysteria proxy server address, required.",
+      "source": "https://xtls.github.io/en/config/outbounds/hysteria.html"
+    },
+    "outbounds[hysteria].settings.port": {
+      "path": "outbounds[hysteria].settings.port",
+      "name": "port",
+      "type": "int",
+      "summary": "Hysteria proxy server port, required.",
+      "source": "https://xtls.github.io/en/config/outbounds/hysteria.html"
+    },
+    "outbounds[hysteria].settings.version": {
+      "path": "outbounds[hysteria].settings.version",
+      "name": "version",
+      "type": "number",
+      "summary": "Hysteria version, must be 2.",
+      "source": "https://xtls.github.io/en/config/outbounds/hysteria.html"
+    },
+    "outbounds[loopback].settings.inboundTag": {
+      "path": "outbounds[loopback].settings.inboundTag",
+      "name": "inboundTag",
+      "type": "string",
+      "summary": "The inbound tag used when re-entering routing.",
+      "detail": "This tag can be used as `inboundTag` in routing, indicating that data from this outbound will re-enter routing with this tag and be processed again by the corresponding rules.",
+      "source": "https://xtls.github.io/en/config/outbounds/loopback.html"
+    },
+    "outbounds[loopback].settings.sniffing": {
+      "path": "outbounds[loopback].settings.sniffing",
+      "name": "sniffing",
+      "type": "SniffingObject",
+      "summary": "Traffic sniffing. The specific configuration is the same as that of Inbound. Disabled by default.",
+      "source": "https://xtls.github.io/en/config/outbounds/loopback.html"
+    },
+    "outbounds[shadowsocks].settings.address": {
+      "path": "outbounds[shadowsocks].settings.address",
+      "name": "address",
+      "type": "address",
+      "summary": "Shadowsocks server address. Supports IPv4, IPv6, and domain names. Required.",
+      "source": "https://xtls.github.io/en/config/outbounds/shadowsocks.html"
+    },
+    "outbounds[shadowsocks].settings.email": {
+      "path": "outbounds[shadowsocks].settings.email",
+      "name": "email",
+      "type": "string",
+      "summary": "Email address, optional, used to identify the user.",
+      "source": "https://xtls.github.io/en/config/outbounds/shadowsocks.html"
+    },
+    "outbounds[shadowsocks].settings.level": {
+      "path": "outbounds[shadowsocks].settings.level",
+      "name": "level",
+      "type": "number",
+      "summary": "User level. The connection will use the local policy corresponding to this user level.",
+      "detail": "The value of `level` corresponds to the `level` value in policy. If not specified, the default is 0.",
+      "source": "https://xtls.github.io/en/config/outbounds/shadowsocks.html"
+    },
+    "outbounds[shadowsocks].settings.method": {
+      "path": "outbounds[shadowsocks].settings.method",
+      "name": "method",
+      "type": "string",
+      "summary": "Shadowsocks encryption method. Required.",
+      "source": "https://xtls.github.io/en/config/outbounds/shadowsocks.html"
+    },
+    "outbounds[shadowsocks].settings.password": {
+      "path": "outbounds[shadowsocks].settings.password",
+      "name": "password",
+      "type": "string",
+      "summary": "Shadowsocks authentication password. Required.",
+      "detail": "- Shadowsocks 2022\n\nUses a pre-shared key similar to WireGuard as the password.\n\nUse `openssl rand -base64 \u003clength\u003e` to generate a key compatible with shadowsocks-rust. The length depends on the encryption method used.\n\n| Encryption Method             | Key Length | | ----------------------------- | ---------: | | 2022-blake3-aes-128-gcm       |         16 | | 2022-blake3-aes-256-gcm       |         32 | | 2022-blake3-chacha20-poly1305 |         32 |\n\nIn the Go implementation, 32-byte keys always work.\n\n- Other encryption methods\n\nAny string. There is no limit on password length, but short passwords are more likely to be cracked. It is recommended to use passwords of 16 characters or longer.",
+      "source": "https://xtls.github.io/en/config/outbounds/shadowsocks.html"
+    },
+    "outbounds[shadowsocks].settings.port": {
+      "path": "outbounds[shadowsocks].settings.port",
+      "name": "port",
+      "type": "number",
+      "summary": "Shadowsocks server port. Required.",
+      "source": "https://xtls.github.io/en/config/outbounds/shadowsocks.html"
+    },
+    "outbounds[socks].settings.address": {
+      "path": "outbounds[socks].settings.address",
+      "name": "address",
+      "type": "address",
+      "summary": "Server address. Required.",
+      "detail": "Only connections to Socks 5 servers are supported.",
+      "source": "https://xtls.github.io/en/config/outbounds/socks.html"
+    },
+    "outbounds[socks].settings.email": {
+      "path": "outbounds[socks].settings.email",
+      "name": "email",
+      "type": "string",
+      "summary": "Email address, used to identify the user. Optional if the remote server requires authentication; otherwise, do not include this item.",
+      "source": "https://xtls.github.io/en/config/outbounds/socks.html"
+    },
+    "outbounds[socks].settings.level": {
+      "path": "outbounds[socks].settings.level",
+      "name": "level",
+      "type": "number",
+      "summary": "User level. The connection will use the local policy corresponding to this user level. Optional if the remote server requires authentication; otherwise, do not include this item.",
+      "detail": "The value of `userLevel` corresponds to the value of `level` in policy. If not specified, the default is 0.",
+      "source": "https://xtls.github.io/en/config/outbounds/socks.html"
+    },
+    "outbounds[socks].settings.pass": {
+      "path": "outbounds[socks].settings.pass",
+      "name": "pass",
+      "type": "string",
+      "summary": "Password, string type. Required if the remote server requires authentication; otherwise, do not include this item.",
+      "source": "https://xtls.github.io/en/config/outbounds/socks.html"
+    },
+    "outbounds[socks].settings.port": {
+      "path": "outbounds[socks].settings.port",
+      "name": "port",
+      "type": "number",
+      "summary": "Server port. Required.",
+      "source": "https://xtls.github.io/en/config/outbounds/socks.html"
+    },
+    "outbounds[socks].settings.user": {
+      "path": "outbounds[socks].settings.user",
+      "name": "user",
+      "type": "string",
+      "summary": "Username, string type. Required if the remote server requires authentication; otherwise, do not include this item.",
+      "source": "https://xtls.github.io/en/config/outbounds/socks.html"
+    },
+    "outbounds[trojan].settings.address": {
+      "path": "outbounds[trojan].settings.address",
+      "name": "address",
+      "type": "address",
+      "summary": "Server address. Supports IPv4, IPv6, and domain names. Required.",
+      "source": "https://xtls.github.io/en/config/outbounds/trojan.html"
+    },
+    "outbounds[trojan].settings.email": {
+      "path": "outbounds[trojan].settings.email",
+      "name": "email",
+      "type": "string",
+      "summary": "Email address. Optional, used to identify the user.",
+      "source": "https://xtls.github.io/en/config/outbounds/trojan.html"
+    },
+    "outbounds[trojan].settings.level": {
+      "path": "outbounds[trojan].settings.level",
+      "name": "level",
+      "type": "number",
+      "summary": "User level. Connections will use the Local Policy corresponding to this user level.",
+      "detail": "The value of `level` corresponds to the value of `level` in policy. If not specified, it defaults to 0.",
+      "source": "https://xtls.github.io/en/config/outbounds/trojan.html"
+    },
+    "outbounds[trojan].settings.password": {
+      "path": "outbounds[trojan].settings.password",
+      "name": "password",
+      "type": "string",
+      "summary": "Password. Required, any string.",
+      "source": "https://xtls.github.io/en/config/outbounds/trojan.html"
+    },
+    "outbounds[trojan].settings.port": {
+      "path": "outbounds[trojan].settings.port",
+      "name": "port",
+      "type": "number",
+      "summary": "Server port. Usually the same as the port the server is listening on.",
+      "source": "https://xtls.github.io/en/config/outbounds/trojan.html"
+    },
+    "outbounds[vless].settings.address": {
+      "path": "outbounds[vless].settings.address",
+      "name": "address",
+      "type": "address",
+      "summary": "Server address, points to the server. Supports domain names, IPv4, and IPv6.",
+      "source": "https://xtls.github.io/en/config/outbounds/vless.html"
+    },
+    "outbounds[vless].settings.encryption": {
+      "path": "outbounds[vless].settings.encryption",
+      "name": "encryption",
+      "type": "string",
+      "summary": "VLESS Encryption settings. Cannot be left empty; to disable, explicitly set to `\"none\"`.",
+      "detail": "It is recommended for most users to use the `xray vlessenc` command to automatically generate this field to avoid configuration mistakes. The detailed configuration below is recommended only for advanced users.\n\ndetails Detailed configuration Its format is a detailed configuration string of fields connected by `.`. For example: `mlkem768x25519plus.native.0rtt.100-111-1111.75-0-111.50-0-3333.ptjHQxBQxTJ9MWr2cd5qWIflBSACHOevTauCQwa_71U`. This document will refer to the separate parts separated by dots as \"blocks\".\n\n- **The 1st block** is the handshake method. Currently, there is only `mlkem768x25519plus`. Requires consistency between server and client. - **The 2nd block** is the traffic appearance. Options are `native`/`xorpub`/`random`, corresponding to: raw format packet / raw format + obfuscated public key part / fully random numbers (similar to VMESS/Shadowsocks). Requires consistency between server and client. - **The 3rd block** is session resumption. Choosing `0rtt` will follow the server settings to attempt to use previously generated tickets to skip the handshake for fast connection (can be manually disabled by the server). Choosing `1rtt` will force a 1-RTT handshake process. The meaning here differs from the server setting; see VLESS Inbound `decryption` settings for details.\n\nFollowing blocks are **padding**. After the connection is established, the client sends some garbage data to obfuscate length characteristics. It does not need to be the same as the server (the corresponding part in the inbound is the padding sent from the server to the client). It is a variable-length part with the format `padding.delay.padding` + `(.delay.padding)` × n (multiple padding blocks can be inserted, requiring a delay block between two padding blocks). For example, you can write a very long `padding.delay.padding.delay.padding.delay.padding.delay.padding.delay.padding`.\n\n- `padding` format is `probability-min-max`. E.g., `100-111-1111` means 100% probability to send a padding of length 111~1111. - `delay` format is also `probability-min-max`. E.g., `75-0-111` means 75% probability to wait 0~111 milliseconds.\n\nThe first padding block has special requirements: probability must be 100% and minimum length greater than 0. If no padding exists, the core automatically uses `100-111-1111.75-0-111.50-0-3333` as the padding setting.\n\n**The last block** will be recognized by the core as the parameter used to authenticate the server. It can be generated by `./xray x25519` (using the Password part) or `./xray mlkem768` (using the Client part). It must correspond to the server. `mlkem768` belongs to post-quantum algorithms, preventing (future) client parameter leaks from allowing quantum computers to crack the private key and impersonate the server. This parameter is only used for verification; the handshake process is post-quantum secure regardless, and existing encrypted data cannot be decrypted by future quantum computers.",
+      "source": "https://xtls.github.io/en/config/outbounds/vless.html"
+    },
+    "outbounds[vless].settings.flow": {
+      "path": "outbounds[vless].settings.flow",
+      "name": "flow",
+      "type": "string",
+      "summary": "Flow control mode, used to select the XTLS algorithm.",
+      "detail": "Currently, the following flow control modes are available in the outbound protocol:\n\n- **No `flow` or empty string**: Use standard TLS proxy. - **`xtls-rprx-vision`**: Use XTLS, including inner handshake random padding. Will intercept UDP traffic targeting port 443 (QUIC) to force browsers to use standard HTTPS, increasing traffic that can be Spliced. - **`xtls-rprx-vision-udp443`**: Same as `xtls-rprx-vision`, but does not intercept UDP 443. Used when a program forces the use of QUIC and would fail to work if intercepted.\n\nXTLS is available only in the following combinations:\n\n- **TCP+TLS/REALITY**: In this case, if transmitting TLS 1.3, the core will attempt to Splice encrypted data at the bottom layer. If successful, it saves all core IO overhead. - **VLESS Encryption**: No underlying transport restrictions. If the underlying transport is not TCP, it only attempts to penetrate Encryption, saving Encryption overhead. If it is TCP, it will still attempt to perform Splice.\n\nAbout Splice Splice is a function provided by the Linux Kernel. The system kernel forwards TCP directly, no longer passing through Xray's memory, greatly reducing data copying and CPU context switching.\n\nWhen using Vision mode, Splice is automatically enabled if the following conditions are met:\n\n- Linux environment. - Inbound protocol is a pure TCP connection like `Dokodemo door`, `Socks`, `HTTP`, or other inbound protocols using XTLS. - Outbound protocol is VLESS + XTLS.\n\nWhen using Splice, the network speed display will lag and will only be counted after the connection is disconnected because the core cannot know the traffic situation while the kernel takes over the connection.",
+      "source": "https://xtls.github.io/en/config/outbounds/vless.html"
+    },
+    "outbounds[vless].settings.id": {
+      "path": "outbounds[vless].settings.id",
+      "name": "id",
+      "type": "string",
+      "summary": "User ID for VLESS. It can be any string less than 30 bytes, or a valid UUID. A custom string and its mapped UUID are equivalent. This means you can identify the same user in the configuration file by writing the ID in either way:",
+      "detail": "- Write `\"id\": \"我爱🍉老师1314\"`, - Or write `\"id\": \"5783a3e7-e373-51cd-8642-c83782b807c5\"` (This UUID is the UUID mapping of `我爱🍉老师1314`)\n\nThe mapping standard is described in VLESS UUID Mapping Standard: Mapping Custom Strings to UUIDv5.\n\nYou can use the command `xray uuid -i \"custom string\"` to generate the UUID mapped from a custom string, or use the command `xray uuid` to generate a random UUID.",
+      "source": "https://xtls.github.io/en/config/outbounds/vless.html"
+    },
+    "outbounds[vless].settings.level": {
+      "path": "outbounds[vless].settings.level",
+      "name": "level",
+      "type": "number",
+      "summary": "User level. The connection will use the Local Policy corresponding to this user level.",
+      "detail": "The value of `level` corresponds to the value of `level` in policy. If not specified, it defaults to 0.",
+      "source": "https://xtls.github.io/en/config/outbounds/vless.html"
+    },
+    "outbounds[vless].settings.port": {
+      "path": "outbounds[vless].settings.port",
+      "name": "port",
+      "type": "number",
+      "summary": "Server port, usually the same as the port the server is listening on.",
+      "source": "https://xtls.github.io/en/config/outbounds/vless.html"
+    },
+    "outbounds[vless].settings.reverse": {
+      "path": "outbounds[vless].settings.reverse",
+      "name": "reverse",
+      "type": "struct",
+      "summary": "VLESS minimalist reverse proxy configuration. It preserves the real source IP information from the public-facing side.",
+      "detail": "The existence of this item indicates that this outbound can be used as a VLESS reverse proxy outbound, and it will automatically establish a connection to the server to register the reverse proxy tunnel.\n\n`tag` is the inbound proxy tag for this reverse proxy. When the server dispatches a reverse proxy request, it enters the routing system from the inbound using this tag, and the routing system routes it to the outbound you need.\n\nThe UUID used must be one that is also configured with `reverse` on the server side (see VLESS Inbound for details).\n\n`sniffing` see sniffingObject, performs sniffing on requests entering through this reverse proxy.\n\nFull tutorial: VLESS Reverse Proxy Examples",
+      "source": "https://xtls.github.io/en/config/outbounds/vless.html"
+    },
+    "outbounds[vmess].settings.address": {
+      "path": "outbounds[vmess].settings.address",
+      "name": "address",
+      "type": "address",
+      "summary": "Server address, supports IP address or domain name.",
+      "source": "https://xtls.github.io/en/config/outbounds/vmess.html"
+    },
+    "outbounds[vmess].settings.experiments": {
+      "path": "outbounds[vmess].settings.experiments",
+      "name": "experiments",
+      "type": "string",
+      "summary": "Enabled VMess protocol experimental features. (Features here are unstable and may be removed at any time). Multiple enabled experiments can be separated by the `|` character, such as `\"AuthenticatedLength|NoTerminationSignal\"`.",
+      "detail": "- `\"AuthenticatedLength\"`: Enable authenticated packet length experiment. This experiment requires both the client and server to enable it simultaneously and run the same version of the program. - `\"NoTerminationSignal\"`: Enable not sending the disconnection signal. This feature is now enabled by default.",
+      "source": "https://xtls.github.io/en/config/outbounds/vmess.html"
+    },
+    "outbounds[vmess].settings.id": {
+      "path": "outbounds[vmess].settings.id",
+      "name": "id",
+      "type": "string",
+      "summary": "VMess User ID. It can be any string less than 30 bytes or a valid UUID.",
+      "detail": "A custom string and its mapped UUID are equivalent. This means you can identify the same user in the configuration file like this:\n\n- Write `\"id\": \"我爱🍉老师1314\"`, - Or write `\"id\": \"5783a3e7-e373-51cd-8642-c83782b807c5\"` (This UUID is the UUID mapping of `我爱🍉老师1314`)\n\nThe mapping standard is described in VLESS UUID Mapping Standard: Mapping Custom Strings to a UUIDv5.\n\nYou can use the command `xray uuid -i \"custom string\"` to generate the UUID mapped from the custom string. You can also use the command `xray uuid` to generate a random UUID.",
+      "source": "https://xtls.github.io/en/config/outbounds/vmess.html"
+    },
+    "outbounds[vmess].settings.level": {
+      "path": "outbounds[vmess].settings.level",
+      "name": "level",
+      "type": "number",
+      "summary": "User level. The connection will use the local policy corresponding to this user level.",
+      "detail": "The value of `level` corresponds to the value of `level` in policy. If not specified, the default is 0.",
+      "source": "https://xtls.github.io/en/config/outbounds/vmess.html"
+    },
+    "outbounds[vmess].settings.port": {
+      "path": "outbounds[vmess].settings.port",
+      "name": "port",
+      "type": "number",
+      "summary": "The port number the server is listening on. Required.",
+      "source": "https://xtls.github.io/en/config/outbounds/vmess.html"
+    },
+    "outbounds[vmess].settings.security": {
+      "path": "outbounds[vmess].settings.security",
+      "name": "security",
+      "type": "\"aes-128-gcm\" | \"chacha20-poly1305\" | \"auto\"",
+      "summary": "Encryption method. The client will use the configured encryption method to send data, and the server will automatically identify it without configuration.",
+      "detail": "- `\"aes-128-gcm\"`: Use AES-128-GCM algorithm. - `\"chacha20-poly1305\"`: Use Chacha20-Poly1305 algorithm. - `\"auto\"`: Default value. Automatically selected (uses aes-128-gcm encryption when the running framework is AMD64, ARM64, or s390x; uses Chacha20-Poly1305 encryption in other cases).\n\nNote: `\"auto\"` only determines the AES hardware acceleration support status of the _client_. If the _server_ does not support AES hardware acceleration, you still need to manually set it to `chacha20-poly1305`. This is very important because Chacha20-Poly1305 takes about 48% more time than AES-128-GCM on platforms supporting AES acceleration, but on platforms _without_ AES acceleration, AES-128-GCM takes over 2000% more time than Chacha20-Poly1305.",
+      "source": "https://xtls.github.io/en/config/outbounds/vmess.html"
+    },
+    "outbounds[wireguard].settings.address": {
+      "path": "outbounds[wireguard].settings.address",
+      "name": "address",
+      "type": "string array",
+      "summary": "Wireguard will start a virtual network interface (tun) locally. Use one or more IP addresses; IPv6 is supported.",
+      "source": "https://xtls.github.io/en/config/outbounds/wireguard.html"
+    },
+    "outbounds[wireguard].settings.allowedIPs": {
+      "path": "outbounds[wireguard].settings.allowedIPs",
+      "name": "allowedIPs",
+      "type": "string array",
+      "summary": "Wireguard only allows traffic from specific source IPs.",
+      "source": "https://xtls.github.io/en/config/outbounds/wireguard.html"
+    },
+    "outbounds[wireguard].settings.domainStrategy": {
+      "path": "outbounds[wireguard].settings.domainStrategy",
+      "name": "domainStrategy",
+      "type": "\"ForceIPv6v4\" | \"ForceIPv6\" | \"ForceIPv4v6\" | \"ForceIPv4\" | \"ForceIP\"",
+      "summary": "Controls the domain resolution strategy when the Wireguard server address is a domain name or the target address of the proxied traffic is a domain name.",
+      "detail": "Unlike most proxy protocols, Wireguard does not allow passing domain names as targets. Therefore, if the incoming target is a domain, it needs to be resolved to an IP address before transmission. This is handled by Xray's built-in DNS. The meaning of this field is the same as `domainStrategy` in `Freedom` outbound. The default value is `ForceIP`.\n\nThe `domainStrategy` of `Freedom` outbound includes options like `UseIP`, which are not provided here because Wireguard must obtain a usable IP and cannot perform the behavior of falling back to a domain name after `UseIP` resolution fails.\u003cbr\u003e Note: When applied to proxied traffic, this option is also constrained by the `address` option. For example, if you set `ForceIPv6v4` but no IPv6 address is set in `address`, even if the target domain has AAAA records, they will not be resolved/used.",
+      "source": "https://xtls.github.io/en/config/outbounds/wireguard.html"
+    },
+    "outbounds[wireguard].settings.endpoint": {
+      "path": "outbounds[wireguard].settings.endpoint",
+      "name": "endpoint",
+      "type": "address",
+      "summary": "Server address, required.",
+      "detail": "URL:Port format, e.g., `engage.cloudflareclient.com:2408`\u003cbr\u003e IP:Port format, e.g., `162.159.192.1:2408` or `[2606:4700:d0::a29f:c001]:2408`",
+      "source": "https://xtls.github.io/en/config/outbounds/wireguard.html"
+    },
+    "outbounds[wireguard].settings.keepAlive": {
+      "path": "outbounds[wireguard].settings.keepAlive",
+      "name": "keepAlive",
+      "type": "int",
+      "summary": "Heartbeat interval in seconds. Default is 0, meaning no heartbeat.",
+      "source": "https://xtls.github.io/en/config/outbounds/wireguard.html"
+    },
+    "outbounds[wireguard].settings.mtu": {
+      "path": "outbounds[wireguard].settings.mtu",
+      "name": "mtu",
+      "type": "int",
+      "summary": "MTU size of the underlying Wireguard tun.",
+      "detail": "\u003cdetails\u003e \u003csummary\u003eMTU Calculation Method\u003c/summary\u003e\n\nThe structure of a Wireguard packet is as follows:\n\n`N-byte encrypted data` is the MTU value we need. Depending on whether the endpoint is IPv4 or IPv6, the specific value can be 1440 (IPv4) or 1420 (IPv6). If in a special environment, subtract further (e.g., home broadband PPPoE requires an extra -8).\n\n\u003c/details\u003e",
+      "source": "https://xtls.github.io/en/config/outbounds/wireguard.html"
+    },
+    "outbounds[wireguard].settings.noKernelTun": {
+      "path": "outbounds[wireguard].settings.noKernelTun",
+      "name": "noKernelTun",
+      "type": "true | false",
+      "summary": "By default, the core detects if it is running on Linux and if the current user has `CAP_NET_ADMIN` permissions to decide whether to enable the system virtual network interface; otherwise, it uses gVisor. Using the system virtual interface offers relatively higher performance. Note that this is only for processing IP packets and has nothing to do with the wireguard kernel module.",
+      "detail": "This detection may not always be accurate. For example, some LXC virtualization environments may not have TUN permissions at all, causing the outbound to fail. Therefore, you can set this option to manually disable it.\n\nWhen using the system virtual interface, it occupies IPv6 routing table number `10230`. Each additional Wireguard outbound will use subsequent routing tables sequentially; for example, the second one will use routing table `10231`, and so on.\n\nNote that if a second Xray instance is started on the same machine, it will not assign the next routing table number but will continue trying to use routing table `10230`. Since it is already occupied by the first Xray instance, it will fail to connect. If absolutely needed, you must set this option to disable the system virtual interface.",
+      "source": "https://xtls.github.io/en/config/outbounds/wireguard.html"
+    },
+    "outbounds[wireguard].settings.peers": {
+      "path": "outbounds[wireguard].settings.peers",
+      "name": "peers",
+      "type": "\\ [Peers ]",
+      "summary": "List of Wireguard servers, where each item is a server configuration.",
+      "source": "https://xtls.github.io/en/config/outbounds/wireguard.html"
+    },
+    "outbounds[wireguard].settings.preSharedKey": {
+      "path": "outbounds[wireguard].settings.preSharedKey",
+      "name": "preSharedKey",
+      "type": "string",
+      "summary": "Additional symmetric encryption key.",
+      "source": "https://xtls.github.io/en/config/outbounds/wireguard.html"
+    },
+    "outbounds[wireguard].settings.publicKey": {
+      "path": "outbounds[wireguard].settings.publicKey",
+      "name": "publicKey",
+      "type": "string",
+      "summary": "Server public key, used for verification, required.",
+      "source": "https://xtls.github.io/en/config/outbounds/wireguard.html"
+    },
+    "outbounds[wireguard].settings.reserved": {
+      "path": "outbounds[wireguard].settings.reserved",
+      "name": "reserved",
+      "type": "[ number ]",
+      "summary": "Wireguard reserved bytes, fill as needed.",
+      "source": "https://xtls.github.io/en/config/outbounds/wireguard.html"
+    },
+    "outbounds[wireguard].settings.secretKey": {
+      "path": "outbounds[wireguard].settings.secretKey",
+      "name": "secretKey",
+      "type": "string",
+      "summary": "User private key. Required.",
+      "source": "https://xtls.github.io/en/config/outbounds/wireguard.html"
+    },
+    "policy.level": {
+      "path": "policy.level",
+      "name": "level",
+      "type": "map{string: LevelPolicyObject}",
+      "summary": "A set of key-value pairs, where each key is a number in string format (required by JSON), such as `\"0\"`, `\"1\"`, etc. The double quotes cannot be omitted. This number corresponds to the user level. Each value is a LevelPolicyObject.",
+      "detail": "Each inbound and outbound proxy can now set a user level. Xray will apply different local policies based on the actual user level.",
+      "source": "https://xtls.github.io/en/config/policy.html"
+    },
+    "policy.levels[].bufferSize": {
+      "path": "policy.levels[].bufferSize",
+      "name": "bufferSize",
+      "type": "number",
+      "summary": "The internal buffer size for each request, in KB. Note that multiple requests may be carried on the same connection via multiplexing (e.g., when using mux.cool or gRPC). This means that even if they share an underlying connection, their buffer pools are independent.",
+      "detail": "When the internal buffer is larger than this value, the next write operation will only be performed after the internal buffer is sent out until it is less than or equal to this value.\n\nNote that for a UDP request, if a write attempt is made while the buffer is full, the write operation will not be blocked but **discarded**. If set too low or to 0, it may cause unexpected bandwidth waste.\n\nDefault values:\n\n- On ARM, MIPS, MIPSLE platforms, the default value is `0`. - On ARM64, MIPS64, MIPS64LE platforms, the default value is `4`. - On other platforms, the default value is `512`.\n\nThe default value can be set via the environment variable `XRAY_RAY_BUFFER_SIZE`. Note that the unit in the environment variable is MB (setting the environment variable to 1 is equivalent to setting the config to 1024).",
+      "source": "https://xtls.github.io/en/config/policy.html"
+    },
+    "policy.levels[].connIdle": {
+      "path": "policy.levels[].connIdle",
+      "name": "connIdle",
+      "type": "number",
+      "summary": "Connection idle time limit. Unit is seconds. Default value is `300`. When an inbound/outbound processes a connection, if no data is transferred (including uplink and downlink data) within the `connIdle` time, the connection is interrupted.",
+      "source": "https://xtls.github.io/en/config/policy.html"
+    },
+    "policy.levels[].downlinkOnly": {
+      "path": "policy.levels[].downlinkOnly",
+      "name": "downlinkOnly",
+      "type": "number",
+      "summary": "Time limit after the uplink connection is closed. Unit is seconds. Default value is `5`. When the client (such as a browser) closes the uplink connection, the inbound proxy will interrupt the connection after waiting for the `downlinkOnly` time.",
+      "detail": "In HTTP browsing scenarios, `uplinkOnly` and `downlinkOnly` can be set to `0` to improve connection closing efficiency.",
+      "source": "https://xtls.github.io/en/config/policy.html"
+    },
+    "policy.levels[].handshake": {
+      "path": "policy.levels[].handshake",
+      "name": "handshake",
+      "type": "number",
+      "summary": "Handshake time limit when establishing a connection. Unit is seconds. Default value is `4`. When an inbound proxy processes a new connection, if the time used during the handshake phase exceeds this time, the connection is interrupted.",
+      "source": "https://xtls.github.io/en/config/policy.html"
+    },
+    "policy.levels[].statsUserDownlink": {
+      "path": "policy.levels[].statsUserDownlink",
+      "name": "statsUserDownlink",
+      "type": "true | false",
+      "summary": "When set to `true`, enables downlink traffic statistics for all users of the current level.",
+      "source": "https://xtls.github.io/en/config/policy.html"
+    },
+    "policy.levels[].statsUserOnline": {
+      "path": "policy.levels[].statsUserOnline",
+      "name": "statsUserOnline",
+      "type": "true | false",
+      "summary": "\u003e When set to `true`, enables online user count statistics for all users of the current level. (Online criteria: connection activity within 20 seconds).",
+      "source": "https://xtls.github.io/en/config/policy.html"
+    },
+    "policy.levels[].statsUserUplink": {
+      "path": "policy.levels[].statsUserUplink",
+      "name": "statsUserUplink",
+      "type": "true | false",
+      "summary": "When set to `true`, enables uplink traffic statistics for all users of the current level.",
+      "source": "https://xtls.github.io/en/config/policy.html"
+    },
+    "policy.levels[].uplinkOnly": {
+      "path": "policy.levels[].uplinkOnly",
+      "name": "uplinkOnly",
+      "type": "number",
+      "summary": "Time limit after the downlink connection is closed. Unit is seconds. Default value is `2`. When the server (such as a remote website) closes the downlink connection, the outbound proxy will interrupt the connection after waiting for the `uplinkOnly` time.",
+      "source": "https://xtls.github.io/en/config/policy.html"
+    },
+    "policy.system": {
+      "path": "policy.system",
+      "name": "system",
+      "type": "SystemPolicyObject",
+      "summary": "Xray system-level policies.",
+      "source": "https://xtls.github.io/en/config/policy.html"
+    },
+    "policy.system.statsInboundDownlink": {
+      "path": "policy.system.statsInboundDownlink",
+      "name": "statsInboundDownlink",
+      "type": "true | false",
+      "summary": "When set to `true`, enables downlink traffic statistics for all inbound proxies.",
+      "source": "https://xtls.github.io/en/config/policy.html"
+    },
+    "policy.system.statsInboundUplink": {
+      "path": "policy.system.statsInboundUplink",
+      "name": "statsInboundUplink",
+      "type": "true | false",
+      "summary": "When set to `true`, enables uplink traffic statistics for all inbound proxies.",
+      "source": "https://xtls.github.io/en/config/policy.html"
+    },
+    "policy.system.statsOutboundDownlink": {
+      "path": "policy.system.statsOutboundDownlink",
+      "name": "statsOutboundDownlink",
+      "type": "true | false",
+      "summary": "When set to `true`, enables downlink traffic statistics for all outbound proxies.",
+      "source": "https://xtls.github.io/en/config/policy.html"
+    },
+    "policy.system.statsOutboundUplink": {
+      "path": "policy.system.statsOutboundUplink",
+      "name": "statsOutboundUplink",
+      "type": "true | false",
+      "summary": "When set to `true`, enables uplink traffic statistics for all outbound proxies.",
+      "source": "https://xtls.github.io/en/config/policy.html"
+    },
+    "routing.balancers": {
+      "path": "routing.balancers",
+      "name": "balancers",
+      "type": "\\ [BalancerObject ]",
+      "summary": "An array, where each item is a load balancer configuration.",
+      "detail": "When a rule points to a load balancer, Xray will select an outbound through this load balancer and then forward traffic using it.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.balancers[].fallbackTag": {
+      "path": "routing.balancers[].fallbackTag",
+      "name": "fallbackTag",
+      "type": "string",
+      "summary": "If all outbounds cannot be connected based on observation results, the outbound specified by this configuration item is used.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.balancers[].selector": {
+      "path": "routing.balancers[].selector",
+      "name": "selector",
+      "type": "[ string ]",
+      "summary": "An array of strings. Each string is used for prefix matching against outbound identifiers. Among the following outbound identifiers: `[ \"a\", \"ab\", \"c\", \"ba\" ]`, `\"selector\": [\"a\"]` will match `[ \"a\", \"ab\" ]`.",
+      "detail": "Generally matches multiple outbounds to distribute load among them.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.balancers[].strategy.settings.baselines": {
+      "path": "routing.balancers[].strategy.settings.baselines",
+      "name": "baselines",
+      "type": "[ string ]",
+      "summary": "The maximum acceptable standard deviation duration for RTT speed tests.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.balancers[].strategy.settings.costs": {
+      "path": "routing.balancers[].strategy.settings.costs",
+      "name": "costs",
+      "type": "[ CostObject ]",
+      "summary": "Optional configuration item. An array to assign weights to all outbounds.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.balancers[].strategy.settings.costs[].match": {
+      "path": "routing.balancers[].strategy.settings.costs[].match",
+      "name": "match",
+      "type": "string",
+      "summary": "Matches outbound `Tag`.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.balancers[].strategy.settings.costs[].regexp": {
+      "path": "routing.balancers[].strategy.settings.costs[].regexp",
+      "name": "regexp",
+      "type": "true | false",
+      "summary": "Whether to use regular expressions to select outbound `Tag`.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.balancers[].strategy.settings.costs[].value": {
+      "path": "routing.balancers[].strategy.settings.costs[].value",
+      "name": "value",
+      "type": "float number",
+      "summary": "Weight value. The larger the value, the less likely the corresponding node is to be selected.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.balancers[].strategy.settings.expected": {
+      "path": "routing.balancers[].strategy.settings.expected",
+      "name": "expected",
+      "type": "number",
+      "summary": "The number of optimal nodes selected by the load balancer. Traffic will be randomly distributed among these nodes.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.balancers[].strategy.settings.maxRTT": {
+      "path": "routing.balancers[].strategy.settings.maxRTT",
+      "name": "maxRTT",
+      "type": "string",
+      "summary": "The maximum acceptable RTT duration for speed tests.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.balancers[].strategy.settings.tolerance": {
+      "path": "routing.balancers[].strategy.settings.tolerance",
+      "name": "tolerance",
+      "type": "float number",
+      "summary": "The maximum acceptable failure rate for speed tests. For example, 0.01 means accepting a 1% failure rate.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.balancers[].strategy.type": {
+      "path": "routing.balancers[].strategy.type",
+      "name": "type",
+      "type": "\"random\" | \"roundRobin\" | \"leastPing\" | \"leastLoad\"",
+      "summary": "- `random`: Default value. Randomly selects a matched outbound proxy. - `roundRobin`: Selects matched outbound proxies in order.",
+      "detail": "The two strategies above can optionally use an observatory. If `fallbackTag` is set and an observatory is present, outbounds observed as unavailable will be automatically excluded (those without observation data are assumed to be alive).\n\n- `leastPing`: Selects the matched outbound proxy with the lowest latency based on observation results. - `leastLoad`: Selects the most stable outbound proxy based on observation results.\n\nThe two strategies above must be used together with an observatory, and nodes not covered by the observatory will be directly excluded. If all are unavailable and `fallbackTag` is not set, the default outbound will be selected.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.balancers[].tag": {
+      "path": "routing.balancers[].tag",
+      "name": "tag",
+      "type": "string",
+      "summary": "The identifier of this load balancer, used to match `balancerTag` in `RuleObject`.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.domainStrategy": {
+      "path": "routing.domainStrategy",
+      "name": "domainStrategy",
+      "type": "\"AsIs\" | \"IPIfNonMatch\" | \"IPOnDemand\"",
+      "summary": "Domain resolution strategy. Different strategies are used based on different settings.",
+      "detail": "- `\"AsIs\"`: No extra operation. Uses the domain in the destination address or the sniffed domain. Default value. - `\"IPIfNonMatch\"`: When no rule is matched after a full round of matching, resolve the domain to an IP and perform a second round of matching. - `\"IPOnDemand\"`: Before starting matching, resolve the domain to an IP immediately for matching.\n\nActual resolution behavior will be delayed until the first IP rule is encountered to reduce latency. The result will contain both IPv4 and IPv6 (you can further restrict this via `queryStrategy` in the built-in DNS). When a domain resolves to multiple IPs, each rule will try all IPs in turn. If any IP meets the requirement, the rule is considered matched.\n\nWhen `sniff` + `routeOnly` is enabled, allowing the routing system to see both IP and domain, if the aforementioned resolution occurs, the routing system can only see the IP resolved from the domain and cannot see the original destination IP, unless resolution fails.\n\nWhen two domains exist (target domain + sniffed result), the priority of the sniffed result is always higher, whether for resolution or domain matching.\n\nRegardless of whether resolution occurs, the routing system will not affect the actual destination address. The requested target remains the original target.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules": {
+      "path": "routing.rules",
+      "name": "rules",
+      "type": "[RuleObject]",
+      "summary": "Corresponds to an array, where each item is a rule.",
+      "detail": "For each connection, routing will judge these rules from top to bottom. When the first effective rule is encountered, the connection is forwarded to the `outboundTag` or `balancerTag` specified by it.\n\nWhen no rule is matched, traffic is sent via the first outbound by default.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].attrs": {
+      "path": "routing.rules[].attrs",
+      "name": "attrs",
+      "type": "object",
+      "summary": "A JSON object where keys and values are strings. Used to detect HTTP traffic attribute values (due to obvious reasons, only supports 1.0 and 1.1). The rule is matched when HTTP headers contain all specified keys and values contain the specified substrings. Keys are case-insensitive. Values support regular expressions.",
+      "detail": "It also supports pseudo-headers like `:method` and `:path` from h2 for matching methods and paths (although these headers do not exist in HTTP/1.1).\n\nFor non-CONNECT methods of HTTP inbounds, `attrs` can be obtained directly. For other inbounds, sniffing must be enabled to obtain these values for matching.\n\nExample:\n\n- Detect HTTP GET: `{\":method\": \"GET\"}` - Detect HTTP Path: `{\":path\": \"/test\"}` - Detect Content Type: `{\"accept\": \"text/html\"}`",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].balancerTag": {
+      "path": "routing.rules[].balancerTag",
+      "name": "balancerTag",
+      "type": "string",
+      "summary": "Corresponds to a Balancer identifier.",
+      "detail": "You must choose one between `balancerTag` and `outboundTag`. When both are specified, `outboundTag` takes effect.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].domain": {
+      "path": "routing.rules[].domain",
+      "name": "domain",
+      "type": "[string]",
+      "summary": "- **Pure string**: Same as substring below, but the `\"keyword:\"` prefix can be omitted. - **Regular expression**: Starts with `\"regexp:\"`, the rest is a regular expression. The rule takes effect when the regular expression matches the target domain. For example, \"regexp:\\\\\\\\.goo.\\*\\\\\\\\.com\\$\" matches \"www.google.com\" and \"fonts.googleapis.com\", but not \"google.com\". Case sensitive. - **Subdomain (Recommended)**: Starts with `\"domain:\"`, the rest is a domain name. The rule takes effect when the domain is the target domain or its subdomain. For example, \"domain:xray.com\" matches \"www.xray.com\" and \"xray.com\", but not \"wxray.com\". - **Substring**: Starts with `\"keyword:\"`, the rest is a string. The rule takes effect when this string matches any part of the target domain. For example, \"keyword:sina.com\" matches \"sina.com\", \"sina.com.cn\", and \"www.sina.com\", but not \"sina.cn\". - **Full match**: Starts with `\"full:\"`, the rest is a domain name. The rule takes effect when this domain exactly matches the target domain. For example, \"full:xray.com\" matches \"xray.com\" but not \"www.xray.com\". - **Dotless domain**: Starts with `\"dotless:\"`, the rest is a string that cannot contain `.`. The rule takes effect when the domain contains no `.` and this string matches any part of the target domain. For example, \"dotless:pc-\" matches \"pc-alice\", \"mypc-alice\". Suitable for intranet NetBIOS domains, etc. Case sensitive. - **Predefined domain list**: Starts with `\"geosite:\"`, the rest is a name, such as `geosite:google` or `geosite:cn`. Refer to Predefined Domain List for names and domain lists. - **Load domains from file**: In the form of `\"ext:file:tag\"`. Must start with `ext:` (lowercase), followed by filename and tag. The file is stored in the Resource Directory. The file format is the same as `geosite.dat`, and the tag must exist in the file.",
+      "detail": "`\"ext:geoip.dat:cn\"` is equivalent to `\"geoip:cn\"`",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].inboundTag": {
+      "path": "routing.rules[].inboundTag",
+      "name": "inboundTag",
+      "type": "[string]",
+      "summary": "An array, where each item is an identifier. The rule takes effect when an item matches the identifier of the inbound protocol.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].ip": {
+      "path": "routing.rules[].ip",
+      "name": "ip",
+      "type": "[string]",
+      "summary": "An array, where each item represents an IP range. The rule takes effect when an item matches the target IP. Available forms:",
+      "detail": "- **IP**: Like `\"127.0.0.1\"`. - **CIDR**: Like `\"10.0.0.0/8\"`. You can also use `\"0.0.0.0/0\"` or `\"::/0\"` to specify all IPv4 or IPv6. - **Predefined IP list**: This list is pre-installed in every Xray installation package, named `geoip.dat`. Usage is like `\"geoip:cn\"`. Must start with `geoip:` (lowercase), followed by a two-character country code. Supports almost all countries with internet access. - **Special value**: `\"geoip:private\"`, includes all private addresses, such as `127.0.0.1`. - **Load IPs from file**: In the form of `\"ext:file:tag\"`. Must start with `ext:` (lowercase), followed by filename and tag. The file is stored in the Resource Directory. The file format is the same as `geoip.dat`, and the tag must exist in the file. - **Inverse selection `!`**: `\"!10.0.0.0/8\"` means anything not in `10.0.0.0/8`, and `\"!geoip:cn\"` means results not in `geoip:cn`. Multiple inverse options have an `AND` relationship, while positive options, or positive options together with all inverse options, have an `OR` relationship. For example, `ip: [\"!geoip:cn\", \"!geoip:us\", \"geoip:telegram\"]` matches IPs that are not from the US AND not from China, OR are Telegram IPs.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].localIP": {
+      "path": "routing.rules[].localIP",
+      "name": "localIP",
+      "type": "[string]",
+      "summary": "Format is the same as other IPs. Used to specify the IP used by the local inbound (when using 0.0.0.0 to listen on all IPs, different actual incoming IPs will produce different localIPs).",
+      "detail": "Ineffective for UDP (due to UDP being message-oriented, tracking is not possible); it always sees the listening IP.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].localPort": {
+      "path": "routing.rules[].localPort",
+      "name": "localPort",
+      "type": "number | string",
+      "summary": "Local inbound port. Format matches `port`/`sourcePort`. Useful when the inbound listens on a port range.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].network": {
+      "path": "routing.rules[].network",
+      "name": "network",
+      "type": "\"tcp\" | \"udp\" | \"tcp,udp\"",
+      "summary": "Optional values are \"tcp\", \"udp\", or \"tcp,udp\". The rule takes effect when the connection method matches.",
+      "detail": "Since the core obviously only supports TCP and UDP layer 4 protocols, a routing rule containing only `\"network\": \"tcp,udp\"` can be used as a \"catch-all\" to match any traffic. An example usage is placing it at the very end of all routing rules to specify the default outbound when no other rules match (otherwise the core defaults to the first outbound).\n\nOf course, other ways that obviously match any traffic, such as specifying ports 1-65535, have a similar effect.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].outboundTag": {
+      "path": "routing.rules[].outboundTag",
+      "name": "outboundTag",
+      "type": "string",
+      "summary": "Corresponds to an outbound identifier.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].port": {
+      "path": "routing.rules[].port",
+      "name": "port",
+      "type": "number | string",
+      "summary": "Target port range. Three forms:",
+      "detail": "- `\"a-b\"`: a and b are positive integers less than 65536. This is a closed interval. The rule takes effect when the target port falls within this range. - `a`: a is a positive integer less than 65536. The rule takes effect when the target port is a. - A mixture of the above two forms, separated by commas \",\". For example: `\"53,443,1000-2000\"`.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].process": {
+      "path": "routing.rules[].process",
+      "name": "process",
+      "type": "[string]",
+      "summary": "If the connection originates from the local machine, match its process. If not from local, it is directly regarded as a match failure. Only supports Windows and Linux.",
+      "detail": "In particular, on Android the client app needs to call `github.com/xtls/xray-core/common/net.RegisterAndroidProcessFinder()` to inject the finder provided by the Android API. This hook can customize the string returned to the core, enabling features such as app matching.\n\nThis option is an array, where each item has three matching modes.\n\n1. **No slash**: Matches process name. 2. **Contains slash, does not end with slash**: Matches absolute path. 3. **Contains slash, ends with slash**: Matches folder; all processes under this folder are considered a match.\n\nNote:\n\n- All options are case-sensitive. - On Windows, use backslash `\\` for paths. Here it is uniformly required to use forward slash `/`, e.g., `C:/Windows/System32/curl.exe`, because backslashes are treated as escape characters in JSON, which is inconvenient (unless you choose to double the backslashes, which also works). - When matching by process name, the core automatically removes the `.exe` suffix. Similarly, `[\"curl\"]` can match curl on both Linux and Windows. When using absolute paths, the `.exe` suffix cannot be ignored.\n\nSpecial syntax sugar:\n\n- `self/`: Matches the current core process, very useful for avoiding routing loops. - `xray/`: Will be replaced by the absolute path where the current core resides, matching all Xray processes started from this binary.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].protocol": {
+      "path": "routing.rules[].protocol",
+      "name": "protocol",
+      "type": "[ \"http\" | \"tls\" | \"quic\" | \"bittorrent\" ]",
+      "summary": "An array, where each item represents a protocol. The rule takes effect when a protocol matches the protocol type of the current connection.",
+      "detail": "`http` only supports 1.0 and 1.1; h2 is not supported yet (plaintext h2 traffic is also very rare).\n\n`tls` TLS 1.0 ~ 1.3.\n\n`quic` Due to the complexity of this protocol, sniffing may sometimes fail.\n\n`bittorrent` Only has the most basic sniffing; may not work for much encrypted and obfuscated traffic.\n\nYou must enable the `sniffing` option in the inbound proxy to sniff the protocol type used by the connection.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].ruleTag": {
+      "path": "routing.rules[].ruleTag",
+      "name": "ruleTag",
+      "type": "string",
+      "summary": "Optional. No actual effect, only used to identify the name of this rule.",
+      "detail": "If set, information regarding this rule will be output at the Info level when the rule is matched, used for debugging which specific rule was hit.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].sourceIP": {
+      "path": "routing.rules[].sourceIP",
+      "name": "sourceIP",
+      "type": "[string]",
+      "summary": "An array, where each item represents an IP range. Forms include IP, CIDR, GeoIP, and loading IPs from a file. The rule takes effect when an item matches the source IP.",
+      "detail": "Alias: `source`",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].sourcePort": {
+      "path": "routing.rules[].sourcePort",
+      "name": "sourcePort",
+      "type": "number | string",
+      "summary": "Source port. Three forms:",
+      "detail": "- `\"a-b\"`: a and b are positive integers less than 65536. This is a closed interval. The rule takes effect when the source port falls within this range. - `a`: a is a positive integer less than 65536. The rule takes effect when the source port is a. - A mixture of the above two forms, separated by commas \",\". For example: `\"53,443,1000-2000\"`.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].user": {
+      "path": "routing.rules[].user",
+      "name": "user",
+      "type": "[string]",
+      "summary": "An array, where each item is an email address. The rule takes effect when an item matches the source user.",
+      "detail": "Similar to domains, it also supports regex matching starting with `regexp:`. (Similarly, need to replace `\\` with `\\\\`, see explanation in domain section).",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].vlessRoute": {
+      "path": "routing.rules[].vlessRoute",
+      "name": "vlessRoute",
+      "type": "number | string",
+      "summary": "VLESS inbound allows the client to modify the 7th and 8th bytes of the configured UUID to any bytes. The server routing will use this as `vlessRoute` data, allowing users to customize parts of the server routing based on needs without changing any external fields.",
+      "detail": "The configuration uses data after Big-Endian encoding to uint16 (if you don't understand, treat these four digits as a hexadecimal number and convert to decimal). E.g., `0001→1`, `000e→14`, `38b2→14514`. The reason for this is that the syntax here is the same as `port`; you can freely specify many segments for routing just like specifying ports.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].webhook": {
+      "path": "routing.rules[].webhook",
+      "name": "webhook",
+      "type": "WebhookObject",
+      "summary": "Optional. If set, a POST request will be sent to the specified URL when the rule is matched.",
+      "detail": "Example of data sent in the POST request:",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].webhook.deduplication": {
+      "path": "routing.rules[].webhook.deduplication",
+      "name": "deduplication",
+      "type": "number",
+      "summary": "The time (in seconds) for event deduplication. If multiple events are triggered within this period, duplicate requests are ignored.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].webhook.headers": {
+      "path": "routing.rules[].webhook.headers",
+      "name": "headers",
+      "type": "object",
+      "summary": "HTTP request headers.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "routing.rules[].webhook.url": {
+      "path": "routing.rules[].webhook.url",
+      "name": "url",
+      "type": "string",
+      "summary": "The URL to which the notification will be sent. Both standard web addresses and local Unix socket paths are supported.",
+      "detail": "- `https://api.example.com/alert` — a standard URL for sending notifications via HTTP(S). Used for integration with external web services or APIs. - `/var/run/webhook.sock` — sends the notification via a Unix socket, with the POST request directed to the root path `/` of the socket. - `/var/run/webhook.sock:/alert` — sends the notification via a Unix socket to a specific endpoint `/alert`. This allows direct integration with local services without using a network interface. - `@abstract:/webhook` — abstract socket (lock-free, Linux/Android only). - `@@padded:/webhook` — abstract socket with padding for HAProxy compatibility.",
+      "source": "https://xtls.github.io/en/config/routing.html"
+    },
+    "streamSettings.finalmask": {
+      "path": "streamSettings.finalmask",
+      "name": "finalmask",
+      "type": "FinalMaskObject",
+      "summary": "FinalMask configuration, used for the final stage of traffic obfuscation.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.finalmask[].sockopt": {
+      "path": "streamSettings.finalmask[].sockopt",
+      "name": "sockopt",
+      "type": "SockoptObject",
+      "summary": "Configuration related to low-level network behavior.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.method": {
+      "path": "streamSettings.method",
+      "name": "method",
+      "type": "\"raw\" | \"xhttp\" | \"mkcp\" | \"grpc\" | \"websocket\" | \"httpupgrade\" | \"hysteria\"",
+      "summary": "Transport method used by the data stream. The default value is `raw`.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.rawSettings": {
+      "path": "streamSettings.rawSettings",
+      "name": "rawSettings",
+      "type": "RawObject",
+      "summary": "RAW configuration for the data stream. Only valid when `method` is `raw`.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.rawSettings[].xhttpSettings": {
+      "path": "streamSettings.rawSettings[].xhttpSettings",
+      "name": "xhttpSettings",
+      "type": "XHTTPObject",
+      "summary": "XHTTP configuration for the data stream. Only valid when `method` is `xhttp`.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.rawSettings[].xhttpSettings[].kcpSettings": {
+      "path": "streamSettings.rawSettings[].xhttpSettings[].kcpSettings",
+      "name": "kcpSettings",
+      "type": "KcpObject",
+      "summary": "mKCP configuration for the data stream. Only valid when `method` is `mkcp`.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings": {
+      "path": "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings",
+      "name": "grpcSettings",
+      "type": "GRPCObject",
+      "summary": "gRPC configuration for the data stream. Only valid when `method` is `grpc`.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings": {
+      "path": "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings",
+      "name": "wsSettings",
+      "type": "WebSocketObject",
+      "summary": "WebSocket configuration for the data stream. Only valid when `method` is `websocket`.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings[].httpupgradeSettings": {
+      "path": "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings[].httpupgradeSettings",
+      "name": "httpupgradeSettings",
+      "type": "HTTPUpgradeObject",
+      "summary": "HTTPUpgrade configuration for the data stream. Only valid when `method` is `httpupgrade`.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings[].httpupgradeSettings[].hysteriaSettings": {
+      "path": "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings[].httpupgradeSettings[].hysteriaSettings",
+      "name": "hysteriaSettings",
+      "type": "HysteriaObject",
+      "summary": "Hysteria configuration for the data stream. Only valid when `method` is `hysteria`.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.realitySettings": {
+      "path": "streamSettings.realitySettings",
+      "name": "realitySettings",
+      "type": "RealityObject",
+      "summary": "REALITY configuration. REALITY is a modified form of TLS that uses the appearance and handshake characteristics of a target site as camouflage.",
+      "detail": "Only valid when `security` is `reality`. It can only be used together with the `RAW`, `XHTTP`, and `gRPC` transport methods.\n\nREALITY is currently one of the most secure transport-security schemes, and from the outside its traffic looks consistent with ordinary web traffic. Enabling REALITY together with a suitable XTLS Vision flow-control mode can also deliver performance gains of several times or even more than ten times.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.realitySettings.afterBytes": {
+      "path": "streamSettings.realitySettings.afterBytes",
+      "name": "afterBytes",
+      "type": "number",
+      "summary": "Optional. Starts rate limiting fallback REALITY connections only after the specified number of bytes has been transmitted. The default is `0`.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.burstBytesPerSec": {
+      "path": "streamSettings.realitySettings.burstBytesPerSec",
+      "name": "burstBytesPerSec",
+      "type": "number",
+      "summary": "Optional. Burst rate limit for fallback REALITY connections, in bytes per second. It takes effect when it is greater than `bytesPerSec`.",
+      "detail": "The following fields are for **outbound** (**client-side**) configuration.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.bytesPerSec": {
+      "path": "streamSettings.realitySettings.bytesPerSec",
+      "name": "bytesPerSec",
+      "type": "number",
+      "summary": "Optional. Base rate limit for fallback REALITY connections, in bytes per second. The default is `0`, meaning disabled.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.fingerprint": {
+      "path": "streamSettings.realitySettings.fingerprint",
+      "name": "fingerprint",
+      "type": "string",
+      "summary": "Required. Same as TLSObject. Note that `unsafe`, which disables uTLS for TLS, is not supported here because REALITY relies on that library to manipulate lower-level TLS parameters.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.limitFallbackUpload": {
+      "path": "streamSettings.realitySettings.limitFallbackUpload",
+      "name": "limitFallbackUpload",
+      "type": "/ `limitFallbackDownload`",
+      "summary": "The best practice for REALITY is still to borrow certificates from the same ASN, so in most cases you do not need this feature. It is only worth considering when you are forced to borrow certificates from something like a free CDN such as Cloudflare and want to avoid your server becoming an acceleration node for others.",
+      "detail": "Fallback rate limiting is itself a fingerprint and is not recommended. If you are developing a panel or one-click script, make sure these parameters are randomized.\n\n`limitFallbackUpload` and `limitFallbackDownload` are optional and can rate-limit fallback connections that fail verification. `bytesPerSec` defaults to `0`, which means disabled.\n\nMechanism: for each unverified fallback connection, the rate-limiting algorithm starts after `afterBytes` bytes have been transmitted. The algorithm uses a token bucket. The bucket capacity is `burstBytesPerSec`. Each transmitted byte consumes one token. The bucket starts full with `burstBytesPerSec` tokens. Every second the bucket is refilled with `bytesPerSec` tokens until full.\n\nExample: `afterBytes=10485760`, `burstBytesPerSec=5242880`, `bytesPerSec=1048576` means traffic is limited to 1 MB/s after 15 MB has been transmitted. If transmission pauses, it can burst back up to 5 MB/s after 5 seconds and then settle again at 1 MB/s.\n\nGuidance: if `afterBytes` and `burstBytesPerSec` are too large, rate limiting has little practical effect. If `bytesPerSec` and `burstBytesPerSec` are too small, the behavior becomes easy to detect. These parameters should be chosen with the resource size of the borrowed site in mind. If you do not want bursts, set `burstBytesPerSec` to `0`.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.maxClientVer": {
+      "path": "streamSettings.realitySettings.maxClientVer",
+      "name": "maxClientVer",
+      "type": "string",
+      "summary": "Optional. Maximum Xray client version, in `x.y.z` format.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.maxTimeDiff": {
+      "path": "streamSettings.realitySettings.maxTimeDiff",
+      "name": "maxTimeDiff",
+      "type": "number",
+      "summary": "Optional. Maximum allowed time difference, in milliseconds.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.minClientVer": {
+      "path": "streamSettings.realitySettings.minClientVer",
+      "name": "minClientVer",
+      "type": "string",
+      "summary": "Optional. Minimum Xray client version, in `x.y.z` format.",
+      "detail": "The default value is `26.3.27`. Lowering this value allows older clients to connect, but their TLS fingerprints differ noticeably from those of real browsers and may be classified as non-browser traffic by DPI. Lower this value at your own risk.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.mldsa65Seed": {
+      "path": "streamSettings.realitySettings.mldsa65Seed",
+      "name": "mldsa65Seed",
+      "type": "string",
+      "summary": "Server-only. The private key used to add an extra post-quantum signature to the certificate sent to the REALITY client, using ML-DSA-65. If a quantum computer capable of breaking x25519 ever exists, leaked `password` material could allow MITM attacks; this feature is intended to prevent that future risk.",
+      "detail": "Generate the keypair with `xray mldsa65`. After the server is configured with the private key, the signature is added only as a certificate extension, so it does not affect old clients or clients that do not enable this feature.\n\nNote that after enabling this feature, the certificate returned by `target` **must** be longer than 3500 bytes, because the post-quantum signature makes the temporary REALITY certificate larger. To avoid becoming a fingerprint, the `target` certificate also needs to be large. You can inspect this with `xray tls ping example.com`. For fully post-quantum security, `target` also needs to support the X25519MLKEM768 post-quantum key exchange, which can be checked with the same command.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.mldsa65Verify": {
+      "path": "streamSettings.realitySettings.mldsa65Verify",
+      "name": "mldsa65Verify",
+      "type": "",
+      "summary": "Optional. The public key used for `mldsa65` signature verification. When non-empty, Xray uses it to verify the certificate returned by the server. See the description of `mldsa65Seed` for details.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.password": {
+      "path": "streamSettings.realitySettings.password",
+      "name": "password",
+      "type": "string",
+      "summary": "Required. The public key corresponding to the server private key. Generate it with `./xray x25519 -i \"server private key\"`. The old field name was `publicKey`, but it was renamed to avoid misunderstanding. It is indeed an x25519 public key, but in the REALITY design it is held by the client and should not be treated as something to publish openly.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.privateKey": {
+      "path": "streamSettings.realitySettings.privateKey",
+      "name": "privateKey",
+      "type": "string",
+      "summary": "Required. Generate it with `./xray x25519`.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.serverName": {
+      "path": "streamSettings.realitySettings.serverName",
+      "name": "serverName",
+      "type": "string",
+      "summary": "One of the server-side `serverNames`.",
+      "detail": "The client can also set this to any IP address. In that case Xray sends a Client Hello without an SNI extension. To use this feature, the server-side `serverNames` must contain an empty string `\"\"`.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.serverNames": {
+      "path": "streamSettings.realitySettings.serverNames",
+      "name": "serverNames",
+      "type": "[string]",
+      "summary": "Required. The list of `serverName` values allowed for clients. `*` wildcards are not supported.",
+      "detail": "Usually this should stay consistent with `target`. In practice, valid values are any SNI accepted by the server according to the behavior of `target`, and typically refer to the SAN values on the returned certificate.\n\nThe list may contain an empty string `\"\"`, meaning connections without SNI are accepted. Using this feature does not require `target` to have an IP certificate; you only need to ensure that it does not reject a Client Hello without SNI. When using this feature, the client-side `serverName` cannot be empty and should instead be filled with any valid IP address as a placeholder.\n\nYou can use `xray tls ping` to observe how the server responds to requests without SNI.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.shortId": {
+      "path": "streamSettings.realitySettings.shortId",
+      "name": "shortId",
+      "type": "string",
+      "summary": "One of the server-side `shortIds`.",
+      "detail": "Its length is 8 bytes, which means up to 16 hexadecimal characters in the range `0` to `f`. It may be shorter than 16 characters, and the core pads trailing zeroes automatically, but the number of characters must be **even**, because one byte is represented by two hex digits.\n\nFor example, `aa1234` is automatically expanded to `aa12340000000000`, but `aaa1234` causes an error.\n\nZero is also even, so if the server-side `shortIds` contains an empty string `\"\"`, the client-side value may also be empty.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.shortIds": {
+      "path": "streamSettings.realitySettings.shortIds",
+      "name": "shortIds",
+      "type": "[string]",
+      "summary": "Required. The list of available `shortId` values for clients, which can be used to distinguish different clients.",
+      "detail": "See the `shortId` field for the required format.\n\nIf the list contains an empty string, the client-side `shortId` may also be empty.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.show": {
+      "path": "streamSettings.realitySettings.show",
+      "name": "show",
+      "type": "true | false",
+      "summary": "When set to `true`, debug information is printed.",
+      "detail": "The following fields are for **inbound** (**server-side**) configuration.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.spiderX": {
+      "path": "streamSettings.realitySettings.spiderX",
+      "name": "spiderX",
+      "type": "string",
+      "summary": "Initial crawler path and parameters. It is recommended that each client use a different value.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.target": {
+      "path": "streamSettings.realitySettings.target",
+      "name": "target",
+      "type": "string",
+      "summary": "Required. The format is the same as VLESS fallback dest.",
+      "detail": "The old name was `dest`. In current versions the two fields are aliases.\n\nIf `target` supports the post-quantum key-exchange algorithm X25519MLKEM768, the REALITY client also automatically uses that post-quantum algorithm for key negotiation. You can check support with `xray tls ping cloudflare.com`, replacing the domain with your `target` and optionally including a port.\n\nThe core decides whether the current configuration is client-side or server-side based on whether this field exists. Do not fill it in on the client side, or it will cause incorrect detection.\n\nFor camouflage reasons, Xray **directly forwards** traffic that fails authentication, meaning traffic that is not a valid REALITY request, to `target`. If the IP address of the `target` site is special, for example a site behind Cloudflare CDN, your server effectively becomes a port forwarder for Cloudflare and may be abused after scanning.\n\nTo avoid that, consider placing Nginx or something similar in front to filter out unwanted SNI values. You can also consider configuring `limitFallbackUpload` and `limitFallbackDownload` to limit the rate.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings.xver": {
+      "path": "streamSettings.realitySettings.xver",
+      "name": "xver",
+      "type": "number",
+      "summary": "Optional. The format is the same as VLESS fallback xver.",
+      "source": "https://xtls.github.io/en/config/transports/reality.html"
+    },
+    "streamSettings.realitySettings[].tlsSettings": {
+      "path": "streamSettings.realitySettings[].tlsSettings",
+      "name": "tlsSettings",
+      "type": "TLSObject",
+      "summary": "TLS configuration. TLS is provided by Go. In normal cases the negotiation result is TLS 1.3. DTLS is not supported.",
+      "detail": "Only valid when `security` is `tls`. It supports use with the `RAW`, `XHTTP`, `mKCP`, `gRPC`, `WebSocket`, `HTTPUpgrade`, and `Hysteria` transport methods.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.security": {
+      "path": "streamSettings.security",
+      "name": "security",
+      "type": "\"none\" | \"reality\" | \"tls\"",
+      "summary": "Whether to enable transport security. Supported options are:",
+      "detail": "- `\"none\"` means disabled (default). - `\"reality\"` means using REALITY. - `\"tls\"` means using TLS.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.sockopt.V6Only": {
+      "path": "streamSettings.sockopt.V6Only",
+      "name": "V6Only",
+      "type": "true | false",
+      "summary": "When set to `true`, listening on `::` accepts only IPv6 connections. Linux only.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.acceptProxyProtocol": {
+      "path": "streamSettings.sockopt.acceptProxyProtocol",
+      "name": "acceptProxyProtocol",
+      "type": "true | false",
+      "summary": "Inbound-only. Controls whether PROXY protocol is accepted.",
+      "detail": "PROXY protocol is used to pass the real source IP and port. If you do not know what it is, ignore this option.\n\nCommon reverse proxies such as HAProxy and Nginx can be configured to send it, and VLESS fallback `xver` can also send it.\n\nWhen set to `true`, the peer must send PROXY protocol v1 or v2 immediately after the underlying TCP connection is established, otherwise the connection is closed.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.addressPortStrategy": {
+      "path": "streamSettings.sockopt.addressPortStrategy",
+      "name": "addressPortStrategy",
+      "type": "\"none\" | \"SrvPortOnly\" | \"SrvAddressOnly\" | \"SrvPortAndAddress\" | \"TxtPortOnly\" | \"TxtAddressOnly\" | \"TxtPortAndAddress\"",
+      "summary": "Use SRV records or TXT records to specify the target address and or port used by outbound. The default value is `none`, which disables the feature.",
+      "detail": "These lookups go through system DNS rather than Xray's built-in DNS. The queried name is the outbound domain name. If the lookup fails, the request is sent using the original address and port.\n\n`Srv*` means querying SRV records in their standard format. `Txt*` means querying TXT records in a format such as `127.0.0.1:80`.\n\n`PortOnly` resets only the port. `AddressOnly` resets only the address. `PortAndAddress` resets both.\n\nThis option takes effect before `domainStrategy` inside `sockopt`. After the address is rewritten, it is still resolved according to `domainStrategy`, if any. However, it takes effect after `Freedom`'s own `domainStrategy`, so if that one already resolved the domain to an IP, this option no longer works.\n\nAs a practical consequence, if ordinary domain traffic is sent into a `Freedom` outbound with `AsIs`, enabling this field makes the core try to resolve and rewrite the address and port, for example by querying `google.com` for SRV records.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.customSockopt": {
+      "path": "streamSettings.sockopt.customSockopt",
+      "name": "customSockopt",
+      "type": "[]",
+      "summary": "An array for advanced users to specify any needed socket option. In theory, all connection-related settings above can be expressed here, and you can also set other socket options that exist but are not exposed directly by the core. It currently supports Linux, Windows, and Darwin. The example below is equivalent to `\"tcpcongestion\": \"bbr\"`.",
+      "detail": "Make sure you understand socket programming before using it.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.dialerProxy": {
+      "path": "streamSettings.sockopt.dialerProxy",
+      "name": "dialerProxy",
+      "type": "\"\"",
+      "summary": "An outbound identifier. When non-empty, the specified outbound is used to establish the connection. It can be used for chained forwarding that still respects transport configuration.",
+      "detail": "danger This option is incompatible with `ProxySettingsObject.Tag`.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.domainStrategy": {
+      "path": "streamSettings.sockopt.domainStrategy",
+      "name": "domainStrategy",
+      "type": "\"AsIs\"\u003cbr\u003e",
+      "summary": "\u003e \"UseIP\" | \"UseIPv6v4\" | \"UseIPv6\" | \"UseIPv4v6\" | \"UseIPv4\"\u003cbr\u003e \u003e \"ForceIP\" | \"ForceIPv6v4\" | \"ForceIPv6\" | \"ForceIPv4v6\" | \"ForceIPv4\"",
+      "detail": "The default value is `\"AsIs\"`.\n\nWhen the target address is a domain name, this field controls how outbound connections resolve and use that target:\n\n- With `\"AsIs\"`, Xray does not specially handle the domain name. In the end it uses Go's built-in dialer directly. The priority is fixed to the RFC 6724 default and does not follow configurations such as `gai.conf`, so in practice IPv6 is usually preferred. - With any other value, Xray uses the Xray-core built-in DNS server for resolution. If there is no `DNSObject`, system DNS is used. If multiple IP addresses match, the core randomly picks one target IP. - `\"IPv4\"` means resolve IPv4 only. `\"IPv4v6\"` means resolve IPv4 first and resolve IPv6 only if that lookup returns an error or no IP addresses. If IPv4 addresses are resolved but subsequent connection attempts fail, it does not fall back to IPv6. `\"IPv6\"` and `\"IPv6v4\"` work analogously, with the address-family order reversed. - When built-in DNS also sets `\"queryStrategy\"`, the actual behavior is the intersection of the two settings. Only IP types included in both are resolved. For example, `\"queryStrategy\": \"UseIPv4\"` together with `\"domainStrategy\": \"UseIP\"` behaves the same as `\"domainStrategy\": \"UseIPv4\"`. - When using a `\"Use\"` option, Xray falls back to `\"AsIs\"` if the resolution result does not match the requested family, such as a domain that only has IPv4 while using `UseIPv6`. - When using a `\"Force\"` option, the connection fails outright if the resolution result does not match the requested family.\n\nTIP When using `\"UseIP\"` or `\"ForceIP\"`, and OutboundObject specifies `sendThrough`, the core automatically infers whether IPv4 or IPv6 is needed from the local address. If you manually force a single IP family, such as `UseIPv4`, but it conflicts with `sendThrough`, the connection fails.\n\ndanger Improper use of this feature can create an infinite loop.\n\nShort version: connecting to the server needs a DNS result, but completing the DNS query also needs to connect to the server.\n\n\u003e Tony: which came first, the chicken or the egg?\n\nDetailed explanation:\n\n1. Trigger condition: the proxy server is `proxy.com`, and the built-in DNS server is enabled in non-Local mode. 2. Before Xray establishes a TCP connection to `proxy.com`, it queries `proxy.com` through the built-in DNS server. 3. The built-in DNS server connects to `dns.com` and sends a query to obtain the IP of `proxy.com`. 4. Bad routing rules cause the request sent in step 3 to be proxied through `proxy.com`. 5. Xray now tries to establish another TCP connection to `proxy.com`. 6. Before doing that, it again queries `proxy.com` through the built-in DNS server. 7. The built-in DNS server reuses the connection from step 3 and sends the new query. 8. The problem appears: the connection from step 3 is waiting for the query result from step 7, while step 7 cannot finish until the connection from step 3 is fully established. 9. Good game.\n\nPossible solutions:\n\n- Fix the traffic split of the built-in DNS server. - Use hosts. - ~~If you still do not know how to solve it, do not use this feature.~~\n\nSo this feature is **not recommended** for inexperienced users unless they understand the routing implications.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.happyEyeballs": {
+      "path": "streamSettings.sockopt.happyEyeballs",
+      "name": "happyEyeballs",
+      "type": "HappyEyeballsObject",
+      "summary": "An RFC 8305 Happy Eyeballs implementation, TCP only. When the target is a domain name, it races the resolved addresses and chooses the first successful one. It only works when `Sockopt.domainStrategy` is not `AsIs`.",
+      "detail": "Note that `UseIPv4v6` and `ForceIPv4v6` effectively reduce the usable IP list to IPv4 and switch to resolving IPv6 only if IPv4 resolution returns an error or no IP addresses. Failure to connect over IPv4 does not trigger this fallback. This usage is not recommended. Prefer `UseIP` or `ForceIP` together with `HappyEyeballs.interleave`.\n\nDo not use this feature together with this outbound's `targetStrategy`, because then `Sockopt` only sees the final IP after replacement.\u003cbr\u003e Do not use it together with `dialerProxy` either, because that prevents `happyEyeballs` from taking effect.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.interface": {
+      "path": "streamSettings.sockopt.interface",
+      "name": "interface",
+      "type": "\"\"",
+      "summary": "Bind the outbound connection to a specific network-interface name. Supported on Linux, iOS, Mac OS, and Windows.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.level": {
+      "path": "streamSettings.sockopt.level",
+      "name": "level",
+      "type": "\"\"",
+      "summary": "Optional. Protocol level. The default is `6`, which means TCP.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.mark": {
+      "path": "streamSettings.sockopt.mark",
+      "name": "mark",
+      "type": "number",
+      "summary": "An integer. When non-zero, outbound connections are marked with this value through `SO_MARK`.",
+      "detail": "- Linux only. - Requires `CAP_NET_ADMIN`.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.network": {
+      "path": "streamSettings.sockopt.network",
+      "name": "network",
+      "type": "\"\"",
+      "summary": "Optional. Restricts the option to a specific network type. Supported values are `tcp`, `tcp4`, `tcp6`, `udp`, `udp4`, and `udp6`. A value without a numeric suffix means the sockopt is applied to both stacks. Note that an IPv4 target does **not** guarantee that the network passed in by the standard library is `tcp4`/`udp4` — for example, the system may use an IPv6 socket to connect to an IPv4 address. Verify the standard library behavior before using this.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.opt": {
+      "path": "streamSettings.sockopt.opt",
+      "name": "opt",
+      "type": "\"\"",
+      "summary": "The option number to operate on, in decimal. In the example above, `13` is the decimal form of `TCP_CONGESTION`, whose hexadecimal value is `0xd`.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.system": {
+      "path": "streamSettings.sockopt.system",
+      "name": "system",
+      "type": "\"\"",
+      "summary": "Optional. Restricts the option to a specific operating system, using lowercase. If the current system does not match, the option is skipped. If left empty, the option is applied directly. Supported values are `linux`, `windows`, `darwin`, and `android` (`android` is only for dedicated Android builds; running a Linux build on Android still counts as `linux`).",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.tcpFastOpen": {
+      "path": "streamSettings.sockopt.tcpFastOpen",
+      "name": "tcpFastOpen",
+      "type": "true | false | number",
+      "summary": "Whether to enable TCP Fast Open.",
+      "detail": "When set to `true` or a positive integer, TFO is enabled. When set to `false` or a negative value, TFO is forcibly disabled. When the field is absent or `0`, the system default is used. This option is available for both inbound and outbound.\n\n- It is only available on the following operating systems or later: - Linux 3.16: requires the kernel parameter `net.ipv4.tcp_fastopen`. This parameter is a bitmap where `0x1` allows the client side and `0x2` allows the server side. The default is `0x1`. If the server must enable TFO, set it to `0x3`. - ~~Windows 10 (1607)~~, but the implementation is incorrect - Mac OS 10.11 / iOS 9, needs testing - FreeBSD 10.3 on server side / 12.0 on client side: requires `net.inet.tcp.fastopen.server_enabled=1` and `net.inet.tcp.fastopen.client_enabled=1`, needs testing\n\n- For inbound, a positive integer here means the maximum number of pending TFO connection requests. **Not every operating system supports setting this here**: - Linux / FreeBSD: the positive integer is used as the limit. The maximum accepted value is 2147483647. If set to `true`, the value becomes `256`. On Linux, `net.core.somaxconn` also caps it, so if you exceed `somaxconn`, raise that as well. - Mac OS: `true` or a positive integer only means enabling TFO. The backlog must be configured separately via `net.inet.tcp.fastopen_backlog`. - Windows: `true` or a positive integer only means enabling TFO.\n\n- For outbound, `true` or a positive integer simply means enabling TFO on any supported OS.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.tcpKeepAliveIdle": {
+      "path": "streamSettings.sockopt.tcpKeepAliveIdle",
+      "name": "tcpKeepAliveIdle",
+      "type": "number",
+      "summary": "TCP idle threshold in seconds. Once a TCP connection has been idle for this long, Keep-Alive probes begin.",
+      "detail": "For outbound, Xray uses Chrome's default values, where both idle and interval are 45 seconds. Setting either this field or `tcpKeepAliveInterval` to a negative value disables that default keepalive; a positive value overrides it.\n\nFor inbound, Keep-Alive is disabled by default. It becomes enabled when either this field or `tcpKeepAliveInterval` is non-zero. If only one is set, the other follows the operating-system default.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.tcpKeepAliveInterval": {
+      "path": "streamSettings.sockopt.tcpKeepAliveInterval",
+      "name": "tcpKeepAliveInterval",
+      "type": "number",
+      "summary": "Time interval in seconds between Keep-Alive probes after TCP enters Keep-Alive state. The rest of the behavior is described above.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.tcpMaxSeg": {
+      "path": "streamSettings.sockopt.tcpMaxSeg",
+      "name": "tcpMaxSeg",
+      "type": "number",
+      "summary": "Used to set the maximum segment size of TCP packets.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.tcpMptcp": {
+      "path": "streamSettings.sockopt.tcpMptcp",
+      "name": "tcpMptcp",
+      "type": "true | false",
+      "summary": "The default value is `false`. When set to `true`, Multipath TCP is enabled. This is client-only, because starting with Go 1.24 MPTCP is enabled by default when listening. It currently requires Linux kernel 5.6 or later.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.tcpNoDelay": {
+      "path": "streamSettings.sockopt.tcpNoDelay",
+      "name": "tcpNoDelay",
+      "type": "true | false",
+      "summary": "This field has been removed because Go enables TCP no delay by default. If you want to disable it, do so through `customSockopt`.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.tcpUserTimeout": {
+      "path": "streamSettings.sockopt.tcpUserTimeout",
+      "name": "tcpUserTimeout",
+      "type": "number",
+      "summary": "In milliseconds. See: https://github.com/grpc/proposal/blob/master/A18-tcp-user-timeout.md",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.tcpWindowClamp": {
+      "path": "streamSettings.sockopt.tcpWindowClamp",
+      "name": "tcpWindowClamp",
+      "type": "number",
+      "summary": "Bind the advertised TCP window size to this value. The kernel chooses the larger value between this and `SOCK_MIN_RCVBUF / 2`.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.tcpcongestion": {
+      "path": "streamSettings.sockopt.tcpcongestion",
+      "name": "tcpcongestion",
+      "type": "\"\"",
+      "summary": "TCP congestion-control algorithm. Linux only. When unset, the operating-system default is used.",
+      "detail": "Common algorithms\n\n- `bbr` (recommended) - `cubic` - `reno`\n\n\n\nRun `sysctl net.ipv4.tcp_congestion_control` to see the current system default.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.tproxy": {
+      "path": "streamSettings.sockopt.tproxy",
+      "name": "tproxy",
+      "type": "\"redirect\" | \"tproxy\" | \"off\"",
+      "summary": "Whether to enable transparent proxying. Linux only.",
+      "detail": "- `\"redirect\"`: transparent proxy in Redirect mode, supporting all IPv4 and IPv6 TCP connections - `\"tproxy\"`: transparent proxy in TProxy mode, supporting all IPv4 and IPv6 TCP and UDP connections - `\"off\"`: disable transparent proxying\n\nTransparent proxying requires root or `CAP_NET_ADMIN`.\n\ndanger When tunnel has `followRedirect` set to `true`, and `tproxy` is empty in Sockopt, the `tproxy` value is set to `\"redirect\"`.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.trustedXForwardedFor": {
+      "path": "streamSettings.sockopt.trustedXForwardedFor",
+      "name": "trustedXForwardedFor",
+      "type": "[ string ]",
+      "summary": "Only applies to the four HTTP-based transport methods: `XHTTP`, `WebSocket`, `HTTPUpgrade`, and `gRPC`. It controls whether to trust the XFF (`X-Forwarded-For`) header, that is, whether to treat it as coming from a trusted reverse proxy.",
+      "detail": "Xray checks whether the headers corresponding to the strings in this array are present in the request. If any one of them is present, regardless of its value, Xray allows the value at index 0 in the XFF header to override the source IP; otherwise, it ignores the XFF header.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.type": {
+      "path": "streamSettings.sockopt.type",
+      "name": "type",
+      "type": "\"\"",
+      "summary": "Required. The value type to set. Currently `int` and `str` are supported.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.sockopt.value": {
+      "path": "streamSettings.sockopt.value",
+      "name": "value",
+      "type": "\"\"",
+      "summary": "The value to set. In the example above, the value is `bbr`.",
+      "detail": "When `type` is `int`, the value must be a decimal number.",
+      "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.tlsSettings.allowInsecure": {
+      "path": "streamSettings.tlsSettings.allowInsecure",
+      "name": "allowInsecure",
+      "type": "true | false",
+      "summary": "Whether to allow insecure connections. Client-only. The default value is `false`.",
+      "detail": "When set to `true`, Xray does not verify the validity of the TLS certificate provided by the remote host.\n\ndanger ~~For security reasons, this option should not be set to `true` in real deployments, otherwise you may be vulnerable to man-in-the-middle attacks.~~\n\nThis option is deprecated. Use `pinnedPeerCertSha256` to specify the certificate manually instead.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.tlsSettings.alpn": {
+      "path": "streamSettings.tlsSettings.alpn",
+      "name": "alpn",
+      "type": "[string]",
+      "summary": "An array of strings that specifies the ALPN values used during TLS handshake. The default value is `[\"h2\", \"http/1.1\"]`.",
+      "detail": "Special value `[\"FromMitM\"]`, when it is the only element, causes outbound TLS to reuse the ALPN from the TLS connection decrypted by a `tunnel` inbound.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.tlsSettings.certificates": {
+      "path": "streamSettings.tlsSettings.certificates",
+      "name": "certificates",
+      "type": "\\ [CertificateObject ]",
+      "summary": "Certificate list. Each item represents one certificate. A full chain is recommended.",
+      "detail": "If you want an A or A+ rating from tools such as ssllibs or myssl, see this discussion.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.tlsSettings.cipherSuites": {
+      "path": "streamSettings.tlsSettings.cipherSuites",
+      "name": "cipherSuites",
+      "type": "string",
+      "summary": "`cipherSuites` configures the list of supported cipher suites, separated by `:`.",
+      "detail": "You can find Go cipher-suite names and descriptions here or here.\n\ndanger These two options are not required in normal cases and usually do not affect security. If left unset, Go chooses automatically according to the platform. If you are not familiar with them, do not configure them.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.tlsSettings.curvePreferences": {
+      "path": "streamSettings.tlsSettings.curvePreferences",
+      "name": "curvePreferences",
+      "type": "[string]",
+      "summary": "An array of strings that specifies the curves supported when performing ECDHE during TLS handshake. Supported values are:",
+      "detail": "\\*: not supported by uTLS\n\nAs of Go 1.26, the default includes all curves above. Changing the order does not force either side to prefer a specific curve; the actual curve is negotiated by the key-exchange mechanism itself.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.tlsSettings.disableSystemRoot": {
+      "path": "streamSettings.tlsSettings.disableSystemRoot",
+      "name": "disableSystemRoot",
+      "type": "true | false",
+      "summary": "Whether to disable the operating system's built-in CA certificates. The default value is `false`.",
+      "detail": "When set to `true`, Xray uses only the certificates specified in `certificates` during TLS handshake. When set to `false`, Xray uses only the operating system's built-in CA certificates during TLS handshake.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.tlsSettings.echConfigList": {
+      "path": "streamSettings.tlsSettings.echConfigList",
+      "name": "echConfigList",
+      "type": "string",
+      "summary": "Client-only parameter that configures ECHConfig. A non-empty value means the client enables Encrypted Client Hello. Two formats are supported.",
+      "detail": "The first is a fixed ECHConfig string, for example:\n\n`\"AF7+DQBaAAAgACA51i3Ssu4wUMV4FNCc8iRX5J+YC4Bhigz9sacl2lCfSQAkAAEAAQABAAIAAQADAAIAAQACAAIAAgADAAMAAQADAAIAAwADAAtleGFtcGxlLmNvbQAA\"`\n\nThe second is querying a DNS server. For example, when using a CDN, you can dynamically obtain ECHConfig from HTTPS records. If a valid ECH Config is obtained, Xray obeys the TTL returned by the server. The query target is the configured SNI, or the configured server domain name if SNI is empty and the target is a domain name.\n\nThe basic format is `\"udp://1.1.1.1\"`, meaning query ECHConfig through UDP DNS 1.1.1.1. You can also use `\"https://1.1.1.1/dns-query\"` or `h2c://` to query via DoH or h2c. All of these support an explicit port, such as `udp://1.1.1.1:53`. If omitted, the default port is 53 or 443 according to the protocol.\n\nYou can also specify a dedicated domain for the ECHConfig lookup in the form `\"example.com+https://1.1.1.1/dns-query\"`. In that case Xray forcibly uses the ECHConfig from the DNS records of `example.com` for the connection. This is useful if you want to obtain ECHConfig from DNS without exposing that you are querying the target domain's HTTPS record, or when you do not want to publish HTTPS records under that domain.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.tlsSettings.echServerKeys": {
+      "path": "streamSettings.tlsSettings.echServerKeys",
+      "name": "echServerKeys",
+      "type": "string",
+      "summary": "Server-only parameter used to enable Encrypted Client Hello on the server.",
+      "detail": "Use `xray tls ech --serverName example.com` to generate an ECH Server Key and its corresponding Config. `example.com` is the SNI exposed to the outside when SNI is encrypted, and can be any value. The Server Key includes the ECHConfig. If you lose the client-side Config, you can recover it with `xray tls ech -i \"your server key\"`. You can publish it in a DNS HTTPS record; see the format here or in RFC 9460.\n\nNote that after ECH is configured, the server still accepts normal non-ECH connections.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.tlsSettings.echSockopt": {
+      "path": "streamSettings.tlsSettings.echSockopt",
+      "name": "echSockopt",
+      "type": "SockoptObject",
+      "summary": "Adjusts the underlying socket options of the connection used when querying DNS for ECH records.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.tlsSettings.enableSessionResumption": {
+      "path": "streamSettings.tlsSettings.enableSessionResumption",
+      "name": "enableSessionResumption",
+      "type": "true | false",
+      "summary": "Whether to enable session resumption. It is disabled by default, and session resumption is only attempted when both the server and the client enable it.",
+      "detail": "If negotiation succeeds, certificates do not need to be transmitted during the handshake. This saves a tiny amount of handshake time, which is usually negligible.\n\nNote that this is not TLS 0-RTT. `gotls` does not support that feature yet, so this does not reduce TLS handshake RTT.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.tlsSettings.fingerprint": {
+      "path": "streamSettings.tlsSettings.fingerprint",
+      "name": "fingerprint",
+      "type": "string",
+      "summary": "This parameter configures the fingerprint of the `TLS Client Hello`. The default value is `chrome`. To revert to native Go TLS, set it to `unsafe`. When enabled, Xray uses the uTLS library to **simulate** a TLS fingerprint, or generates one randomly. Three configuration styles are supported:",
+      "detail": "1. TLS fingerprints of the latest versions of common browsers, including:\n\n- `\"chrome\"` - `\"firefox\"` - `\"safari\"` - `\"ios\"` - `\"android\"` - `\"edge\"` - `\"360\"` - `\"qq\"`\n\n2. Automatically generate a fingerprint when Xray starts:\n\n- `\"random\"`: randomly choose one from newer browser versions - `\"randomized\"`: generate a completely random unique fingerprint that fully supports TLS 1.3 with X25519\n\n3. Use native uTLS hello names such as `\"HelloRandomizedNoALPN\"` or `\"HelloChrome_106_Shuffle\"`. See the full list in the uTLS library.\n\nThis feature only **simulates** the `TLS Client Hello` fingerprint. Behavior and other fingerprints remain the same as Go. If you want more complete browser-like TLS fingerprints and behavior, use Browser Dialer.\n\nWhen this feature is enabled, some TLS options that affect TLS fingerprints are overridden by the uTLS library and stop taking effect. The parameters still passed through are: `\"serverName\" \"disableSystemRoot\" \"pinnedPeerCertSha256\" \"masterKeyLog\" \"echConfigList\" \"echSockopt\"`.\n\nALPN has special behavior.\n\nBy default, the most common `h2,http/1.1` is forced as ALPN. For WebSocket and HttpUpgrade transports, `http/1.1` is used by default — otherwise negotiating to `h2` would prevent the connection from succeeding — but you may manually set it to `h2,http/1.1` if you are sure the server supports completing the handshake with this ALPN.\n\nIf ECH is enabled, the outer ALPN is always shown as `h2,http/1.1`. The inner ALPN is forced to `http/1.1` for WebSocket or HttpUpgrade transports to allow the handshake to complete; for other protocols the user-configured ALPN is honored.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.tlsSettings.masterKeyLog": {
+      "path": "streamSettings.tlsSettings.masterKeyLog",
+      "name": "masterKeyLog",
+      "type": "string",
+      "summary": "Path to a `(Pre)-Master-Secret` log file. It can be used by software such as Wireshark to decrypt TLS connections sent by Xray.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.tlsSettings.maxVersion": {
+      "path": "streamSettings.tlsSettings.maxVersion",
+      "name": "maxVersion",
+      "type": "string",
+      "summary": "`maxVersion` is the maximum acceptable TLS version.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.tlsSettings.minVersion": {
+      "path": "streamSettings.tlsSettings.minVersion",
+      "name": "minVersion",
+      "type": "string",
+      "summary": "`minVersion` is the minimum acceptable TLS version.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.tlsSettings.pinnedPeerCertSha256": {
+      "path": "streamSettings.tlsSettings.pinnedPeerCertSha256",
+      "name": "pinnedPeerCertSha256",
+      "type": "string",
+      "summary": "Used to specify the SHA-256 hash of the remote server certificate. It uses hexadecimal encoding and is case-insensitive, for example `e8e2d387fdbffeb38e9c9065cf30a97ee23c0e3d32ee6f78ffae40966befccc9`. Multiple hash values can be joined with `,`, and verification succeeds if any one of them matches.",
+      "detail": "This encoding matches the SHA-256 certificate fingerprint shown by the Chrome certificate viewer and the SHA-256 certificate fingerprint format used on crt.sh. You can compute it with `xray tls hash --cert \u003ccert.pem\u003e`, or with `openssl x509 -noout -fingerprint -sha256 -in cert.pem`, including its colon-separated format. `xray tls ping` also prints the SHA-256 hash of the remote certificate.\n\nThis check overrides normal certificate validation. There are two cases:\n\n- If the core finds that the matching hash belongs to a leaf certificate, verification succeeds immediately. - If the core finds that the matching hash belongs to a CA certificate, whether root or intermediate, it uses the value in `serverName` to verify that the leaf certificate is signed by that CA.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.tlsSettings.rejectUnknownSni": {
+      "path": "streamSettings.tlsSettings.rejectUnknownSni",
+      "name": "rejectUnknownSni",
+      "type": "bool",
+      "summary": "When set to `true`, the server rejects the TLS handshake if the received SNI does not match the certificate domain. The default is `false`.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.tlsSettings.serverName": {
+      "path": "streamSettings.tlsSettings.serverName",
+      "name": "serverName",
+      "type": "string",
+      "summary": "Server name. The server certificate's SAN must contain this value. It can be a domain name or an IP address. If it is a domain name, it will be sent in the SNI extension of the Client Hello. IP addresses will not send the SNI extension, because SNI does not allow IP addresses. If you fill in an IPv6 address, wrap it in `[]`.",
+      "detail": "When left empty, the value in `address` is used automatically if that value is a domain name.\n\nSpecial value `\"FromMitM\"` causes Xray to use the SNI extracted from TLS decrypted by a `tunnel` inbound.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.tlsSettings.verifyPeerCertByName": {
+      "path": "streamSettings.tlsSettings.verifyPeerCertByName",
+      "name": "verifyPeerCertByName",
+      "type": "string",
+      "summary": "Client-only. The SNI used for certificate verification. Multiple domain names can be separated with `,`; it is enough for any one SAN in the certificate to match one of them. This overrides the `serverName` used for verification and is intended for special cases such as domain fronting.",
+      "detail": "Special value `\"FromMitM\"` causes Xray to additionally include the SNI extracted from TLS decrypted by a `tunnel` inbound.",
+      "source": "https://xtls.github.io/en/config/transports/tls.html"
+    }
+  }
+}

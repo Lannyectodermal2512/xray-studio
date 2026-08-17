@@ -1,0 +1,101 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: xray-studio <xray-studio@localhost>
+Date: Fri, 14 Aug 2026 05:03:34 +0300
+Subject: [PATCH 5/9] app/observatory/burst: emit probe events with a round id
+
+Includes the net_down case, whose result the collector discards (it stores
+only values > 0). That suppression is deliberate upstream, avoiding false
+negatives when the local uplink is down, but it also means a genuine failure
+can silently vanish from the sampling window, so it needs to be observable.
+---
+ app/observatory/burst/healthping.go | 37 ++++++++++++++++++++++++++++-
+ 1 file changed, 36 insertions(+), 1 deletion(-)
+
+diff --git a/app/observatory/burst/healthping.go b/app/observatory/burst/healthping.go
+index b5cc021..0689dec 100644
+--- a/app/observatory/burst/healthping.go
++++ b/app/observatory/burst/healthping.go
+@@ -11,6 +11,7 @@ import (
+ 	"github.com/xtls/xray-core/common/dice"
+ 	"github.com/xtls/xray-core/common/errors"
+ 	"github.com/xtls/xray-core/features/routing"
++	"github.com/xtls/xray-core/xraytrace"
+ )
+ 
+ // HealthPingSettings holds settings for health Checker
+@@ -159,6 +160,12 @@ type rtt struct {
+ 	value   time.Duration
+ }
+ 
++// roundSeq numbers health-check rounds so probe events can be grouped. A round can
++// be cancelled part-way (the scheduler aborts an unfinished round before starting
++// the next), which is why consumers must not assume every round yields
++// len(tags)*SamplingCount results.
++var roundSeq atomic.Uint64
++
+ // doCheck performs the 'rounds' amount checks in given 'duration'. You should make
+ // sure all tags are valid for current balancer
+ // cancel ctx will stop all pending checks
+@@ -169,10 +176,13 @@ func (h *HealthPing) doCheck(ctx context.Context, tags []string, duration time.D
+ 	}
+ 	ch := make(chan *rtt, count)
+ 	timers := make([]*time.Timer, 0, count)
++	round := roundSeq.Add(1)
+ 	for _, tag := range tags {
+ 		handler := tag
+ 		client := newPingClient(
+-			h.ctx,
++			// Mark probe-originated so a fault dialer can distinguish probe dials
++			// from user traffic; they otherwise share the exact same path.
++			xraytrace.MarkProbe(h.ctx, handler),
+ 			h.dispatcher,
+ 			h.Settings.Destination,
+ 			h.Settings.Timeout,
+@@ -185,8 +195,17 @@ func (h *HealthPing) doCheck(ctx context.Context, tags []string, duration time.D
+ 			}
+ 			timers = append(timers, time.AfterFunc(delay, func() {
+ 				errors.LogDebug(h.ctx, "checking ", handler)
++				xraytrace.Probe(xraytrace.ProbeEvent{
++					Phase: "start", Kind: "burst", Tag: handler,
++					Dest: h.Settings.Destination, Round: round,
++				})
+ 				delay, err := client.MeasureDelay(h.Settings.HttpMethod)
+ 				if err == nil {
++					xraytrace.Probe(xraytrace.ProbeEvent{
++						Phase: "end", Kind: "burst", Tag: handler,
++						Dest: h.Settings.Destination, Round: round,
++						Class: "ok", RTTNs: delay.Nanoseconds(),
++					})
+ 					ch <- &rtt{
+ 						handler: handler,
+ 						value:   delay,
+@@ -195,6 +214,17 @@ func (h *HealthPing) doCheck(ctx context.Context, tags []string, duration time.D
+ 				}
+ 				if !h.checkConnectivity() {
+ 					errors.LogWarning(h.ctx, "network is down")
++					// This result is DISCARDED by the collector below (it only stores
++					// values > 0), so a real failure silently leaves no trace in the
++					// sampling window. That is the entire point of the connectivity
++					// gate — suppress false negatives when our own uplink is down —
++					// but it also means an injected fault can vanish from the results.
++					// Emitting it makes the suppression visible.
++					xraytrace.Probe(xraytrace.ProbeEvent{
++						Phase: "end", Kind: "burst", Tag: handler,
++						Dest: h.Settings.Destination, Round: round,
++						Class: "net_down", Err: err.Error(),
++					})
+ 					ch <- &rtt{
+ 						handler: handler,
+ 						value:   0,
+@@ -207,6 +237,11 @@ func (h *HealthPing) doCheck(ctx context.Context, tags []string, duration time.D
+ 					handler,
+ 					err,
+ 				))
++				xraytrace.Probe(xraytrace.ProbeEvent{
++					Phase: "end", Kind: "burst", Tag: handler,
++					Dest: h.Settings.Destination, Round: round,
++					Class: "fail", Err: err.Error(),
++				})
+ 				ch <- &rtt{
+ 					handler: handler,
+ 					value:   rttFailed,

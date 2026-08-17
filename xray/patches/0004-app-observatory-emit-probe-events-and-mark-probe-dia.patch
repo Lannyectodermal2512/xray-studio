@@ -1,0 +1,82 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: xray-studio <xray-studio@localhost>
+Date: Fri, 14 Aug 2026 05:03:34 +0300
+Subject: [PATCH 4/9] app/observatory: emit probe events and mark probe dials
+
+Probes share the dial path with user traffic, so a fault-injecting dialer
+cannot otherwise tell them apart. Also reports the collected underlying error,
+which upstream sends only to the log and never into LastErrorReason.
+---
+ app/observatory/observer.go | 32 ++++++++++++++++++++++++++++----
+ 1 file changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/app/observatory/observer.go b/app/observatory/observer.go
+index 80d81e2..5aac52e 100644
+--- a/app/observatory/observer.go
++++ b/app/observatory/observer.go
+@@ -22,6 +22,7 @@ import (
+ 	"github.com/xtls/xray-core/features/outbound"
+ 	"github.com/xtls/xray-core/features/routing"
+ 	"github.com/xtls/xray-core/transport/internet/tagged"
++	"github.com/xtls/xray-core/xraytrace"
+ 	"google.golang.org/protobuf/proto"
+ )
+ 
+@@ -143,6 +144,10 @@ func (o *Observer) probe(outbound string) ProbeResult {
+ 					return errors.New("cannot understand address").Base(err)
+ 				}
+ 				trackedCtx := session.TrackedConnectionError(o.ctx, errorCollectorForRequest)
++				// Mark the dial as probe-originated. Probes share the dial path with
++				// user traffic (which is what makes dialer-level fault injection
++				// faithful), so without this a fault dialer cannot tell them apart.
++				trackedCtx = xraytrace.MarkProbe(trackedCtx, outbound)
+ 				conn, err := tagged.Dialer(trackedCtx, o.dispatcher, dest, outbound)
+ 				if err != nil {
+ 					return errors.New("cannot dial remote address ", dest).Base(err)
+@@ -165,13 +170,17 @@ func (o *Observer) probe(outbound string) ProbeResult {
+ 		Jar:     nil,
+ 		Timeout: time.Second * 5,
+ 	}
++	probeURL := "https://www.google.com/generate_204"
++	if o.config.ProbeUrl != "" {
++		probeURL = o.config.ProbeUrl
++	}
++	xraytrace.Probe(xraytrace.ProbeEvent{
++		Phase: "start", Kind: "observer", Tag: outbound, Dest: probeURL,
++	})
++
+ 	var GETTime time.Duration
+ 	err := task.Run(o.ctx, func() error {
+ 		startTime := time.Now()
+-		probeURL := "https://www.google.com/generate_204"
+-		if o.config.ProbeUrl != "" {
+-			probeURL = o.config.ProbeUrl
+-		}
+ 		req, _ := http.NewRequest(http.MethodGet, probeURL, nil)
+ 		utils.TryDefaultHeadersWith(req.Header, "nav")
+ 		response, err := httpClient.Do(req)
+@@ -188,9 +197,24 @@ func (o *Observer) probe(outbound string) ProbeResult {
+ 	if err != nil {
+ 		errorMessage := "the outbound " + outbound + " is dead: GET request failed:" + err.Error() + "with outbound handler report underlying connection failed"
+ 		errors.LogInfoInner(o.ctx, errorCollectorForRequest.UnderlyingError(), errorMessage)
++		// The underlying error is the useful one — it names the actual dial/TLS
++		// failure — but upstream only ever sends it to the log, never into
++		// LastErrorReason. Prefer it here.
++		reported := err.Error()
++		if underlying := errorCollectorForRequest.UnderlyingError(); underlying != nil {
++			reported = underlying.Error()
++		}
++		xraytrace.Probe(xraytrace.ProbeEvent{
++			Phase: "end", Kind: "observer", Tag: outbound, Dest: probeURL,
++			Class: "fail", Err: reported,
++		})
+ 		return ProbeResult{Alive: false, LastErrorReason: errorMessage}
+ 	}
+ 	errors.LogInfo(o.ctx, "the outbound ", outbound, " is alive:", GETTime.Seconds())
++	xraytrace.Probe(xraytrace.ProbeEvent{
++		Phase: "end", Kind: "observer", Tag: outbound, Dest: probeURL,
++		Class: "ok", RTTNs: GETTime.Nanoseconds(),
++	})
+ 	return ProbeResult{Alive: true, Delay: GETTime.Milliseconds()}
+ }
+ 

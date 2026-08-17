@@ -1,0 +1,27 @@
+{
+  "log": { "loglevel": "warning" },
+  "inbounds": [
+    { "tag": "in", "listen": "127.0.0.1", "port": 10809, "protocol": "socks",
+      "settings": { "auth": "noauth" } }
+  ],
+  "outbounds": [
+    { "tag": "proxy-a", "protocol": "freedom" },
+    { "tag": "proxy-b", "protocol": "freedom" },
+    { "protocol": "freedom" }
+  ],
+  "observatory": {
+    "subjectSelector": ["proxy-a"],
+    "probeURL": "http://cp.cloudflare.com/generate_204"
+  },
+  "routing": {
+    "domainStrategy": "IPIfNoMatch",
+    "balancer": [ { "tag": "typo" } ],
+    "balancers": [
+      { "tag": "bal", "selector": ["node-"], "fallbackTag": "nowhere",
+        "strategy": { "type": "leastLoad",
+                      "settings": { "tolerance": 1.5, "baselines": ["100ms"] } } }
+    ],
+    "rules": [ { "inboundTag": ["in"], "balancerTag": "bal" } ]
+  },
+  "api": { "tag": "api", "services": ["StatsService"] }
+}

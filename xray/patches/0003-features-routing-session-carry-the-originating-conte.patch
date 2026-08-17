@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: xray-studio <xray-studio@localhost>
+Date: Fri, 14 Aug 2026 05:03:34 +0300
+Subject: [PATCH 3/9] features/routing/session: carry the originating context
+
+Lets a balancer decision be attributed to the connection that triggered it.
+Optional and nil for synthetic routing contexts such as TestRoute.
+---
+ features/routing/session/context.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/features/routing/session/context.go b/features/routing/session/context.go
+index e331c43..feddc2f 100644
+--- a/features/routing/session/context.go
++++ b/features/routing/session/context.go
+@@ -13,8 +13,17 @@ type Context struct {
+ 	Inbound  *session.Inbound
+ 	Outbound *session.Outbound
+ 	Content  *session.Content
++
++	// Ctx is the context this routing context was derived from. It carries the
++	// per-connection id that common/errors stamps onto log lines, which is what lets
++	// a balancer decision be correlated with the connection that triggered it.
++	// Optional: nil for synthetic routing contexts such as TestRoute.
++	Ctx context.Context
+ }
+ 
++// GetContext returns the originating context, or nil.
++func (ctx *Context) GetContext() context.Context { return ctx.Ctx }
++
+ // GetInboundTag implements routing.Context.
+ func (ctx *Context) GetInboundTag() string {
+ 	if ctx.Inbound == nil {
+@@ -159,5 +168,6 @@ func AsRoutingContext(ctx context.Context) routing.Context {
+ 		Inbound:  session.InboundFromContext(ctx),
+ 		Outbound: ob,
+ 		Content:  session.ContentFromContext(ctx),
++		Ctx:      ctx,
+ 	}
+ }

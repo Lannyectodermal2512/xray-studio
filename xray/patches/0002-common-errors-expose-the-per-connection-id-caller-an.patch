@@ -1,0 +1,46 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: xray-studio <xray-studio@localhost>
+Date: Fri, 14 Aug 2026 05:03:34 +0300
+Subject: [PATCH 2/9] common/errors: expose the per-connection id, caller and
+ severity
+
+doLog already stamps uint32(ctx.IDFromContext(ctx)) into the unexported prefix
+field, which is what renders as [123456] on a log line. Exposing it lets a log
+handler correlate records with the connection that produced them without
+parsing formatted text.
+---
+ common/errors/errors.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+diff --git a/common/errors/errors.go b/common/errors/errors.go
+index 7a35f25..61a083b 100644
+--- a/common/errors/errors.go
++++ b/common/errors/errors.go
+@@ -31,6 +31,27 @@ type Error struct {
+ 	severity log.Severity
+ }
+ 
++// ConnID returns the per-connection id doLog stamped onto this error, or 0.
++//
++// doLog appends uint32(ctx.IDFromContext(ctx)) as the sole prefix element, which is
++// what renders as "[123456]" at the start of a log line. Exposing it lets a log
++// handler correlate every log record with the connection that produced it — the join
++// key for the whole event model — without parsing the formatted string.
++func (err *Error) ConnID() uint32 {
++	if len(err.prefix) == 1 {
++		if id, ok := err.prefix[0].(uint32); ok {
++			return id
++		}
++	}
++	return 0
++}
++
++// Caller returns the trimmed package path that logged this error, e.g. "app/router".
++func (err *Error) Caller() string { return err.caller }
++
++// Severity returns the effective severity, resolving through wrapped errors.
++func (err *Error) Sev() log.Severity { return GetSeverity(err) }
++
+ // Error implements error.Error().
+ func (err *Error) Error() string {
+ 	builder := strings.Builder{}

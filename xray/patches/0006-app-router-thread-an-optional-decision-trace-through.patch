@@ -1,0 +1,1355 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: xray-studio <xray-studio@localhost>
+Date: Fri, 14 Aug 2026 05:03:34 +0300
+Subject: [PATCH 6/9] app/router: thread an optional decision trace through the
+ balancers
+
+Records, per decision: the raw candidate set, the observatory snapshot that was
+read, every filter stage with per-candidate rejection reasons and the numbers
+behind them, the leastLoad score arithmetic (deviation * sqrt(cost)), the
+baseline walk and truncation point, and the final uniform draw.
+
+The traced method IS the normal code path: PickOutbound calls it with a nil
+trace and every Trace method is nil-safe. There is deliberately no second
+implementation of any balancing algorithm, because a parallel 'explaining' copy
+could drift from the real one and the UI would present the drift as truth.
+
+Also surfaces three things upstream has no representation for at all:
+  - candidates absent from the observation (leastPing and leastLoad iterate the
+    observation, not the candidate list, so an unprobed outbound is invisible
+    rather than rejected)
+  - that random/roundRobin ignore the observatory entirely unless fallbackTag
+    is set, and treat an unobserved candidate as alive
+  - that the last step of random and leastLoad is a coin toss, not a ranking
+---
+ app/router/balancing.go               | 223 ++++++++++++--
+ app/router/strategy_leastload.go      | 241 ++++++++++++++-
+ app/router/strategy_leastload_test.go |  12 +-
+ app/router/strategy_leastping.go      |  78 +++++
+ app/router/strategy_random.go         |  55 ++--
+ app/router/strategy_trace_test.go     | 420 ++++++++++++++++++++++++++
+ 6 files changed, 957 insertions(+), 72 deletions(-)
+ create mode 100644 app/router/strategy_trace_test.go
+
+diff --git a/app/router/balancing.go b/app/router/balancing.go
+index 5f8cb1c..577f84d 100644
+--- a/app/router/balancing.go
++++ b/app/router/balancing.go
+@@ -10,6 +10,7 @@ import (
+ 	"github.com/xtls/xray-core/core"
+ 	"github.com/xtls/xray-core/features/extension"
+ 	"github.com/xtls/xray-core/features/outbound"
++	"github.com/xtls/xray-core/xraytrace"
+ )
+ 
+ type BalancingStrategy interface {
+@@ -20,6 +21,50 @@ type BalancingPrincipleTarget interface {
+ 	GetPrincipleTarget([]string) []string
+ }
+ 
++// TracingStrategy is implemented by strategies that can explain their choice.
++//
++// The traced method is the SAME code path as PickOutbound — PickOutbound simply
++// calls it with a nil trace, and every *xraytrace.Trace method is nil-safe. There is
++// deliberately no second implementation of any balancing algorithm: a parallel
++// "explaining" copy could drift from the real one, and the UI would then present the
++// drift as ground truth.
++type TracingStrategy interface {
++	PickOutboundTraced([]string, *xraytrace.Trace) string
++}
++
++// pickWithTrace routes through the traced path when the strategy supports it.
++func pickWithTrace(s BalancingStrategy, candidates []string, tr *xraytrace.Trace) string {
++	if ts, ok := s.(TracingStrategy); ok {
++		return ts.PickOutboundTraced(candidates, tr)
++	}
++	return s.PickOutbound(candidates)
++}
++
++// observationRows flattens an observatory result for a trace. The observatory mutates
++// its records continuously, so this copies rather than referencing: the snapshot must
++// describe the decision that was actually made.
++func observationRows(result *observatory.ObservationResult) []xraytrace.ObsRow {
++	if result == nil {
++		return nil
++	}
++	rows := make([]xraytrace.ObsRow, 0, len(result.Status))
++	for _, s := range result.Status {
++		row := xraytrace.ObsRow{
++			Tag:     s.OutboundTag,
++			Alive:   s.Alive,
++			DelayMs: s.Delay,
++			LastErr: s.LastErrorReason,
++		}
++		if hp := s.HealthPing; hp != nil {
++			row.HasHP = true
++			row.All, row.Fail = hp.All, hp.Fail
++			row.AvgNs, row.DevNs, row.MaxNs, row.MinNs = hp.Average, hp.Deviation, hp.Max, hp.Min
++		}
++		rows = append(rows, row)
++	}
++	return rows
++}
++
+ type RoundRobinStrategy struct {
+ 	FallbackTag string
+ 
+@@ -44,77 +89,201 @@ func (s *RoundRobinStrategy) GetPrincipleTarget(strings []string) []string {
+ }
+ 
+ func (s *RoundRobinStrategy) PickOutbound(tags []string) string {
+-	if s.observatory != nil {
+-		observeReport, err := s.observatory.GetObservation(s.ctx)
+-		if err == nil {
+-			aliveTags := make([]string, 0)
+-			if result, ok := observeReport.(*observatory.ObservationResult); ok {
+-				status := result.Status
+-				statusMap := make(map[string]*observatory.OutboundStatus)
+-				for _, outboundStatus := range status {
+-					statusMap[outboundStatus.OutboundTag] = outboundStatus
+-				}
+-				for _, candidate := range tags {
+-					if outboundStatus, found := statusMap[candidate]; found {
+-						if outboundStatus.Alive {
+-							aliveTags = append(aliveTags, candidate)
+-						}
+-					} else {
+-						// unfound candidate is considered alive
+-						aliveTags = append(aliveTags, candidate)
+-					}
+-				}
+-				tags = aliveTags
+-			}
+-		}
+-	}
++	return s.PickOutboundTraced(tags, nil)
++}
++
++// PickOutboundTraced implements TracingStrategy. Same code path as PickOutbound.
++func (s *RoundRobinStrategy) PickOutboundTraced(tags []string, tr *xraytrace.Trace) string {
++	tags = aliveFilter(s.observatory, s.ctx, s.FallbackTag, tags, tr)
+ 
+ 	n := len(tags)
+ 	if n == 0 {
+ 		// goes to fallbackTag
++		if tr.On() {
++			st := tr.Begin(xraytrace.StageRRIndex, "choose", tags)
++			st.Note(xraytrace.NoteEmpty)
++			st.End(tr)
++		}
+ 		return ""
+ 	}
+ 
+ 	s.mu.Lock()
+ 	defer s.mu.Unlock()
++	before := s.index
+ 	tag := tags[s.index%n]
+ 	s.index = (s.index + 1) % n
++
++	if tr.On() {
++		st := tr.Begin(xraytrace.StageRRIndex, "choose", tags)
++		st.Keep(tag)
++		st.Param("index_before", int64(before))
++		st.Param("index_after", int64(s.index))
++		st.Param("n", int64(n))
++		for _, t := range tags {
++			if t != tag {
++				st.Drop(t, xraytrace.ReasonNotCurrentIndex, nil)
++			}
++		}
++		// The index is taken modulo the POST-FILTER list, which is rebuilt on every
++		// call. When an outbound dies or revives, n changes and the rotation jumps —
++		// it is not a stable cursor over a stable set, and a tag can repeat.
++		if before >= n {
++			st.Note(xraytrace.NoteRRIndexJumped)
++		}
++		st.End(tr)
++	}
+ 	return tag
+ }
+ 
++// aliveFilter is the liveness filter shared by random and roundRobin.
++//
++// Two behaviours here reliably surprise people, so both are recorded:
++//   - The observatory is only consulted when fallbackTag is set (observatory stays
++//     nil otherwise), so without it these strategies happily pick dead outbounds.
++//   - A candidate absent from the observation is treated as ALIVE, not dead.
++func aliveFilter(obs extension.Observatory, ctx context.Context, fallbackTag string, tags []string, tr *xraytrace.Trace) []string {
++	if obs == nil {
++		if tr.On() {
++			st := tr.Begin(xraytrace.StageAliveFilter, "filter", tags)
++			st.SetOut(tags)
++			if fallbackTag == "" {
++				st.Note(xraytrace.NoteObservatoryIgnored)
++			} else {
++				st.Note(xraytrace.NoteObservatoryNil)
++			}
++			st.End(tr)
++		}
++		return tags
++	}
++
++	observeReport, err := obs.GetObservation(ctx)
++	if err != nil {
++		// Upstream silently skips the whole filter on error and uses the raw list.
++		if tr.On() {
++			st := tr.Begin(xraytrace.StageAliveFilter, "filter", tags)
++			st.SetOut(tags)
++			st.Note(xraytrace.NoteObservationError)
++			st.End(tr)
++		}
++		return tags
++	}
++
++	result, ok := observeReport.(*observatory.ObservationResult)
++	if !ok {
++		if tr.On() {
++			st := tr.Begin(xraytrace.StageAliveFilter, "filter", tags)
++			st.SetOut(tags)
++			st.Note(xraytrace.NoteObservationError)
++			st.End(tr)
++		}
++		return tags
++	}
++	tr.SetObservation(observationRows(result))
++
++	statusMap := make(map[string]*observatory.OutboundStatus)
++	for _, outboundStatus := range result.Status {
++		statusMap[outboundStatus.OutboundTag] = outboundStatus
++	}
++
++	st := tr.Begin(xraytrace.StageAliveFilter, "filter", tags)
++	aliveTags := make([]string, 0)
++	unfound := false
++	for _, candidate := range tags {
++		if outboundStatus, found := statusMap[candidate]; found {
++			if outboundStatus.Alive {
++				aliveTags = append(aliveTags, candidate)
++				st.Keep(candidate)
++			} else {
++				st.Drop(candidate, xraytrace.ReasonNotAlive, map[string]int64{"delay_ms": outboundStatus.Delay})
++			}
++		} else {
++			// unfound candidate is considered alive
++			aliveTags = append(aliveTags, candidate)
++			st.Keep(candidate)
++			unfound = true
++		}
++	}
++	if unfound {
++		st.Note(xraytrace.NoteUnfoundAssumedAlive)
++	}
++	st.End(tr)
++	return aliveTags
++}
++
+ type Balancer struct {
+ 	selectors   []string
+ 	strategy    BalancingStrategy
+ 	ohm         outbound.Manager
+ 	fallbackTag string
+ 
++	// Identity, for telemetry only. Set by Router.Init/ReloadRules, which is where
++	// the BalancingRule that produced this Balancer is still in scope.
++	tag          string
++	strategyName string
++
+ 	override override
+ }
+ 
+ // PickOutbound picks the tag of a outbound
+ func (b *Balancer) PickOutbound() (string, error) {
++	return b.PickOutboundWithConn(0)
++}
++
++// PickOutboundWithConn is PickOutbound, attributing the decision to a connection id
++// so the trace can be joined to the rest of that connection's story.
++//
++// When xraytrace.OnBalancerEval is unset, NewTrace returns nil, every trace call is a
++// nil-check, and this behaves exactly as unpatched upstream.
++func (b *Balancer) PickOutboundWithConn(connID uint32) (string, error) {
++	tr := xraytrace.NewTrace(b.tag, b.strategyName, b.fallbackTag, connID)
++
+ 	candidates, err := b.SelectOutbounds()
+ 	if err != nil {
+ 		if b.fallbackTag != "" {
+ 			errors.LogInfo(context.Background(), "fallback to [", b.fallbackTag, "], due to error: ", err)
++			tr.Finish(b.fallbackTag, xraytrace.SourceFallbackErr, err.Error())
++			xraytrace.Eval(tr)
+ 			return b.fallbackTag, nil
+ 		}
++		tr.Finish("", xraytrace.SourceError, err.Error())
++		xraytrace.Eval(tr)
+ 		return "", err
+ 	}
++	tr.SetCandidates(b.selectors, candidates)
++
+ 	var tag string
+ 	if o := b.override.Get(); o != "" {
++		// Note the override is returned unvalidated: it is not checked for membership
++		// in candidates, for existence, or for liveness. Pinning a nonexistent tag
++		// kills the connection outright rather than falling back.
+ 		tag = o
+-	} else {
+-		tag = b.strategy.PickOutbound(candidates)
++		if tr.On() {
++			st := tr.Begin(xraytrace.StageSelect, "choose", candidates)
++			st.Keep(o)
++			st.Note("override_pinned")
++			st.End(tr)
++		}
++		tr.Finish(tag, xraytrace.SourceOverride, "")
++		xraytrace.Eval(tr)
++		return tag, nil
+ 	}
++
++	tag = pickWithTrace(b.strategy, candidates, tr)
+ 	if tag == "" {
+ 		if b.fallbackTag != "" {
+ 			errors.LogInfo(context.Background(), "fallback to [", b.fallbackTag, "], due to empty tag returned")
++			tr.Finish(b.fallbackTag, xraytrace.SourceFallback, "")
++			xraytrace.Eval(tr)
+ 			return b.fallbackTag, nil
+ 		}
+ 		// will use default handler
+-		return "", errors.New("balancing strategy returns empty tag")
++		err := errors.New("balancing strategy returns empty tag")
++		tr.Finish("", xraytrace.SourceError, err.Error())
++		xraytrace.Eval(tr)
++		return "", err
+ 	}
++	tr.Finish(tag, xraytrace.SourceStrategy, "")
++	xraytrace.Eval(tr)
+ 	return tag, nil
+ }
+ 
+diff --git a/app/router/strategy_leastload.go b/app/router/strategy_leastload.go
+index 289982a..30354e5 100644
+--- a/app/router/strategy_leastload.go
++++ b/app/router/strategy_leastload.go
+@@ -13,6 +13,7 @@ import (
+ 	"github.com/xtls/xray-core/common/errors"
+ 	"github.com/xtls/xray-core/core"
+ 	"github.com/xtls/xray-core/features/extension"
++	"github.com/xtls/xray-core/xraytrace"
+ )
+ 
+ // LeastLoadStrategy represents a least load balancing strategy
+@@ -68,18 +69,54 @@ func (s *LeastLoadStrategy) InjectContext(ctx context.Context) {
+ }
+ 
+ func (s *LeastLoadStrategy) PickOutbound(candidates []string) string {
+-	selects := s.pickOutbounds(candidates)
++	return s.PickOutboundTraced(candidates, nil)
++}
++
++// PickOutboundTraced implements TracingStrategy. Same code path as PickOutbound.
++func (s *LeastLoadStrategy) PickOutboundTraced(candidates []string, tr *xraytrace.Trace) string {
++	selects := s.pickOutboundsTraced(candidates, tr)
+ 	count := len(selects)
+ 	if count == 0 {
+ 		// goes to fallbackTag
++		if tr.On() {
++			st := tr.Begin(xraytrace.StageDice, "choose", nil)
++			st.Note(xraytrace.NoteEmpty)
++			st.End(tr)
++		}
+ 		return ""
+ 	}
+-	return selects[dice.Roll(count)].Tag
++	idx := dice.Roll(count)
++	picked := selects[idx].Tag
++
++	if tr.On() {
++		in := make([]string, 0, count)
++		for _, n := range selects {
++			in = append(in, n.Tag)
++		}
++		st := tr.Begin(xraytrace.StageDice, "choose", in)
++		st.Keep(picked)
++		st.Param("n", int64(count))
++		st.Param("index", int64(idx))
++		for i, n := range selects {
++			if i != idx {
++				st.Drop(n.Tag, xraytrace.ReasonNotChosenByDice, nil)
++			}
++		}
++		// Worth stating plainly in the UI: with more than one survivor the final step
++		// is a uniform draw, so leastLoad is NOT deterministic unless Expected == 1
++		// with no baselines. Most "why is it flapping" confusion ends here.
++		st.End(tr)
++	}
++	return picked
+ }
+ 
+ func (s *LeastLoadStrategy) pickOutbounds(candidates []string) []*node {
+-	qualified := s.getNodes(candidates)
+-	selects := s.selectLeastLoad(qualified)
++	return s.pickOutboundsTraced(candidates, nil)
++}
++
++func (s *LeastLoadStrategy) pickOutboundsTraced(candidates []string, tr *xraytrace.Trace) []*node {
++	qualified := s.getNodes(candidates, tr)
++	selects := s.selectLeastLoad(qualified, tr)
+ 	return selects
+ }
+ 
+@@ -99,14 +136,20 @@ func (s *LeastLoadStrategy) pickOutbounds(candidates []string) []*node {
+ // 3. Speed priority: Baselines + `Expected Count <= 0`.
+ // go through all baselines until find selects, if not, select none. Used in combination
+ // with 'balancer.fallbackTag', it means: selects qualified nodes or use the fallback.
+-func (s *LeastLoadStrategy) selectLeastLoad(nodes []*node) []*node {
++func (s *LeastLoadStrategy) selectLeastLoad(nodes []*node, tr *xraytrace.Trace) []*node {
+ 	if len(nodes) == 0 {
+ 		errors.LogInfo(s.ctx, "least load: no qualified outbound")
++		if tr.On() {
++			st := tr.Begin(xraytrace.StageBaseline, "truncate", nil)
++			st.Note(xraytrace.NoteEmpty)
++			st.End(tr)
++		}
+ 		return nil
+ 	}
+ 	expected := int(s.settings.Expected)
+ 	availableCount := len(nodes)
+ 	if expected > availableCount {
++		s.traceTruncate(nodes, availableCount, tr, "expected_exceeds_available", 0)
+ 		return nodes
+ 	}
+ 
+@@ -114,10 +157,12 @@ func (s *LeastLoadStrategy) selectLeastLoad(nodes []*node) []*node {
+ 		expected = 1
+ 	}
+ 	if len(s.settings.Baselines) == 0 {
++		s.traceTruncate(nodes, expected, tr, "no_baselines", 0)
+ 		return nodes[:expected]
+ 	}
+ 
+ 	count := 0
++	var appliedBaseline time.Duration
+ 	// go through all base line until find expected selects
+ 	for _, b := range s.settings.Baselines {
+ 		baseline := time.Duration(b)
+@@ -130,32 +175,125 @@ func (s *LeastLoadStrategy) selectLeastLoad(nodes []*node) []*node {
+ 		// don't continue if find expected selects
+ 		if count >= expected {
+ 			errors.LogDebug(s.ctx, "applied baseline: ", baseline)
++			appliedBaseline = baseline
+ 			break
+ 		}
+ 	}
++	note := xraytrace.NoteBaselineApplied
++	if count == 0 {
++		// Speed-priority mode: baselines set with Expected <= 0 legitimately selects
++		// nothing and defers to fallbackTag.
++		note = xraytrace.NoteBaselineNoneQualified
++	}
+ 	if s.settings.Expected > 0 && count < expected {
+ 		count = expected
++		note = xraytrace.NoteExpectedFloor
+ 	}
++	s.traceTruncate(nodes, count, tr, note, appliedBaseline)
+ 	return nodes[:count]
+ }
+ 
+-func (s *LeastLoadStrategy) getNodes(candidates []string) []*node {
++// traceTruncate reports the baseline walk and the truncation point. Pure reporting.
++func (s *LeastLoadStrategy) traceTruncate(nodes []*node, count int, tr *xraytrace.Trace, note string, applied time.Duration) {
++	if !tr.On() {
++		return
++	}
++	in := make([]string, 0, len(nodes))
++	for _, n := range nodes {
++		in = append(in, n.Tag)
++	}
++	st := tr.Begin(xraytrace.StageBaseline, "truncate", in)
++	for i, n := range nodes {
++		if i < count {
++			st.Keep(n.Tag)
++			continue
++		}
++		reason := xraytrace.ReasonBeyondExpected
++		if len(s.settings.Baselines) > 0 {
++			reason = xraytrace.ReasonAboveBaseline
++		}
++		st.Drop(n.Tag, reason, map[string]int64{
++			"score_ns": int64(n.RTTDeviationCost),
++			"rank":     int64(i),
++		})
++	}
++	st.Param("expected", int64(s.settings.Expected))
++	st.Param("available", int64(len(nodes)))
++	st.Param("selected", int64(count))
++	if applied > 0 {
++		st.Param("applied_baseline_ns", int64(applied))
++	}
++	// Baselines are walked in CONFIG order, not sorted. A non-ascending list silently
++	// wastes iterations, so flag it rather than letting it look intentional.
++	for i := 1; i < len(s.settings.Baselines); i++ {
++		if s.settings.Baselines[i] < s.settings.Baselines[i-1] {
++			st.Param("baselines_unsorted", 1)
++			break
++		}
++	}
++	st.Note(note)
++	st.End(tr)
++}
++
++func (s *LeastLoadStrategy) getNodes(candidates []string, tr *xraytrace.Trace) []*node {
+ 	if s.observer == nil {
+ 		errors.LogError(s.ctx, "observer is nil")
++		if tr.On() {
++			st := tr.Begin(xraytrace.StageObservation, "note", candidates)
++			st.Note(xraytrace.NoteObservatoryNil)
++			st.End(tr)
++		}
+ 		return make([]*node, 0)
+ 	}
+ 	observeResult, err := s.observer.GetObservation(s.ctx)
+ 	if err != nil {
+ 		errors.LogInfoInner(s.ctx, err, "cannot get observation")
++		if tr.On() {
++			st := tr.Begin(xraytrace.StageObservation, "note", candidates)
++			st.Note(xraytrace.NoteObservationError)
++			st.End(tr)
++		}
+ 		return make([]*node, 0)
+ 	}
+ 
+ 	results := observeResult.(*observatory.ObservationResult)
++	tr.SetObservation(observationRows(results))
++
++	filter := tr.Begin(xraytrace.StageNodeFilter, "filter", candidates)
++	if tr.On() {
++		filter.Param("max_rtt_ms", time.Duration(s.settings.MaxRTT).Milliseconds())
++		// Tolerance is only consulted when HealthPing exists (burst observatory),
++		// All > 0 and tolerance > 0 — so it is inert under the plain observatory even
++		// though it parses and clamps fine.
++		filter.Param("tolerance_pct", int64(s.settings.Tolerance*100))
++		seen := make(map[string]bool, len(results.Status))
++		for _, v := range results.Status {
++			seen[v.OutboundTag] = true
++		}
++		// Upstream iterates the observation, not the candidate list, so a candidate
++		// that was never probed is invisible rather than rejected. Surface it.
++		for _, c := range candidates {
++			if !seen[c] {
++				filter.Drop(c, xraytrace.ReasonNotInObservation, nil)
++			}
++		}
++	}
+ 
+ 	var ret []*node
+ 
+ 	for _, v := range results.Status {
+-		if s.shouldSelectNode(v, candidates) {
++		if reason := s.nodeRejection(v, candidates); reason != "" {
++			if tr.On() && reason != xraytrace.ReasonNotCandidate {
++				vals := map[string]int64{"delay_ms": v.Delay}
++				if hp := v.HealthPing; hp != nil {
++					vals["all"], vals["fail"] = hp.All, hp.Fail
++				}
++				filter.Drop(v.OutboundTag, reason, vals)
++			}
++			continue
++		}
++		filter.Keep(v.OutboundTag)
++		{
+ 			record := &node{
+ 				Tag:              v.OutboundTag,
+ 				CountAll:         1,
+@@ -176,26 +314,103 @@ func (s *LeastLoadStrategy) getNodes(candidates []string) []*node {
+ 			ret = append(ret, record)
+ 		}
+ 	}
++	filter.End(tr)
+ 
+ 	leastloadSort(ret)
++	s.traceScoreAndSort(ret, tr)
+ 	return ret
+ }
+ 
+-func (s *LeastLoadStrategy) shouldSelectNode(v *observatory.OutboundStatus, candidates []string) bool {
++// nodeRejection returns the reason this status is not eligible, or "" if it is.
++//
++// shouldSelectNode is expressed in terms of this so there is a single decision
++// procedure — the trace cannot disagree with the filter it is describing.
++func (s *LeastLoadStrategy) nodeRejection(v *observatory.OutboundStatus, candidates []string) string {
+ 	maxRTT := time.Duration(s.settings.MaxRTT)
+ 	if !v.Alive {
+-		return false
++		return xraytrace.ReasonNotAlive
+ 	}
+ 	if maxRTT != 0 && v.Delay >= maxRTT.Milliseconds() {
+-		return false
++		return xraytrace.ReasonMaxRTT
+ 	}
+ 	if !slices.Contains(candidates, v.OutboundTag) {
+-		return false
++		return xraytrace.ReasonNotCandidate
+ 	}
+ 	if v.HealthPing != nil && v.HealthPing.All > 0 && s.settings.Tolerance > 0 && float64(v.HealthPing.Fail)/float64(v.HealthPing.All) > float64(s.settings.Tolerance) {
+-		return false
++		return xraytrace.ReasonTolerance
++	}
++	return ""
++}
++
++func (s *LeastLoadStrategy) shouldSelectNode(v *observatory.OutboundStatus, candidates []string) bool {
++	return s.nodeRejection(v, candidates) == ""
++}
++
++// traceScoreAndSort records the score arithmetic and the resulting rank order.
++//
++// The score is RTTDeviation * sqrt(costWeight). Exposing the weight separately is the
++// point: the cost rules have three behaviours that routinely surprise people, all of
++// which the UI can now show inline.
++//   - findValue takes the FIRST matching rule in declaration order; later, more
++//     specific rules are dead.
++//   - In non-regexp mode getMatch returns the NEEDLE, so an auto-weight scrapes its
++//     digits out of the pattern rather than out of the tag.
++//   - Get(tag) is memoised permanently, so editing costs at runtime has no effect.
++func (s *LeastLoadStrategy) traceScoreAndSort(nodes []*node, tr *xraytrace.Trace) {
++	if !tr.On() {
++		return
++	}
++	order := make([]string, 0, len(nodes))
++	for _, n := range nodes {
++		order = append(order, n.Tag)
++	}
++
++	score := tr.Begin(xraytrace.StageScore, "rank", order)
++	noHP := false
++	for _, n := range nodes {
++		score.Score(n.Tag, int64(n.RTTDeviationCost))
++		score.Param("w:"+n.Tag, int64(s.costs.Get(n.Tag)*1000)) // milli-units
++		score.Param("dev_ns:"+n.Tag, int64(n.RTTDeviation))
++		score.Param("avg_ns:"+n.Tag, int64(n.RTTAverage))
++		// CountAll==1 && CountFail==1 is the sentinel getNodes uses when HealthPing is
++		// absent, i.e. the plain observatory. Deviation is then the raw delay and
++		// leastLoad degenerates into leastPing with a cost multiplier.
++		if n.CountAll == 1 && n.CountFail == 1 {
++			noHP = true
++		}
++	}
++	score.SetOut(order)
++	if noHP {
++		score.Note(xraytrace.NoteNoHealthPing)
++	}
++	score.End(tr)
++
++	sortSt := tr.Begin(xraytrace.StageSort, "rank", order)
++	sortSt.SetOut(order)
++	// The comparator is a total order (RTTDeviationCost, RTTAverage, CountFail,
++	// CountAll desc, Tag), so for every adjacent pair we can say exactly which key
++	// decided it — no "it just came out that way".
++	for i := 1; i < len(nodes); i++ {
++		sortSt.Param("tiebreak:"+nodes[i-1].Tag+">"+nodes[i].Tag, int64(tiebreakKey(nodes[i-1], nodes[i])))
++	}
++	sortSt.End(tr)
++}
++
++// tiebreakKey reports which comparator key separated two adjacent nodes:
++// 0 cost, 1 average, 2 fail count, 3 sample count, 4 tag.
++func tiebreakKey(a, b *node) int {
++	switch {
++	case a.RTTDeviationCost != b.RTTDeviationCost:
++		return 0
++	case a.RTTAverage != b.RTTAverage:
++		return 1
++	case a.CountFail != b.CountFail:
++		return 2
++	case a.CountAll != b.CountAll:
++		return 3
++	default:
++		return 4
+ 	}
+-	return true
+ }
+ 
+ func leastloadSort(nodes []*node) {
+diff --git a/app/router/strategy_leastload_test.go b/app/router/strategy_leastload_test.go
+index 5f7fab4..1f8e270 100644
+--- a/app/router/strategy_leastload_test.go
++++ b/app/router/strategy_leastload_test.go
+@@ -80,7 +80,7 @@ func TestSelectLeastExpected(t *testing.T) {
+ 		{Tag: "d", RTTDeviationCost: 350},
+ 	}
+ 	expected := 3
+-	ns := strategy.selectLeastLoad(nodes)
++	ns := strategy.selectLeastLoad(nodes, nil)
+ 	if len(ns) != expected {
+ 		t.Errorf("expected: %v, actual: %v", expected, len(ns))
+ 	}
+@@ -98,7 +98,7 @@ func TestSelectLeastExpected2(t *testing.T) {
+ 		{Tag: "b", RTTDeviationCost: 200},
+ 	}
+ 	expected := 2
+-	ns := strategy.selectLeastLoad(nodes)
++	ns := strategy.selectLeastLoad(nodes, nil)
+ 	if len(ns) != expected {
+ 		t.Errorf("expected: %v, actual: %v", expected, len(ns))
+ 	}
+@@ -119,7 +119,7 @@ func TestSelectLeastExpectedAndBaselines(t *testing.T) {
+ 		{Tag: "e", RTTDeviationCost: 310},
+ 	}
+ 	expected := 3
+-	ns := strategy.selectLeastLoad(nodes)
++	ns := strategy.selectLeastLoad(nodes, nil)
+ 	if len(ns) != expected {
+ 		t.Errorf("expected: %v, actual: %v", expected, len(ns))
+ 	}
+@@ -140,7 +140,7 @@ func TestSelectLeastExpectedAndBaselines2(t *testing.T) {
+ 		{Tag: "e", RTTDeviationCost: 900},
+ 	}
+ 	expected := 3
+-	ns := strategy.selectLeastLoad(nodes)
++	ns := strategy.selectLeastLoad(nodes, nil)
+ 	if len(ns) != expected {
+ 		t.Errorf("expected: %v, actual: %v", expected, len(ns))
+ 	}
+@@ -159,7 +159,7 @@ func TestSelectLeastLoadBaselines(t *testing.T) {
+ 		{Tag: "c", RTTDeviationCost: 300},
+ 	}
+ 	expected := 1
+-	ns := strategy.selectLeastLoad(nodes)
++	ns := strategy.selectLeastLoad(nodes, nil)
+ 	if len(ns) != expected {
+ 		t.Errorf("expected: %v, actual: %v", expected, len(ns))
+ 	}
+@@ -177,7 +177,7 @@ func TestSelectLeastLoadBaselinesNoQualified(t *testing.T) {
+ 		{Tag: "b", RTTDeviationCost: 1000},
+ 	}
+ 	expected := 0
+-	ns := strategy.selectLeastLoad(nodes)
++	ns := strategy.selectLeastLoad(nodes, nil)
+ 	if len(ns) != expected {
+ 		t.Errorf("expected: %v, actual: %v", expected, len(ns))
+ 	}
+diff --git a/app/router/strategy_leastping.go b/app/router/strategy_leastping.go
+index ada3492..7ddd6d0 100644
+--- a/app/router/strategy_leastping.go
++++ b/app/router/strategy_leastping.go
+@@ -8,6 +8,7 @@ import (
+ 	"github.com/xtls/xray-core/common/errors"
+ 	"github.com/xtls/xray-core/core"
+ 	"github.com/xtls/xray-core/features/extension"
++	"github.com/xtls/xray-core/xraytrace"
+ )
+ 
+ type LeastPingStrategy struct {
+@@ -28,17 +29,33 @@ func (l *LeastPingStrategy) InjectContext(ctx context.Context) {
+ }
+ 
+ func (l *LeastPingStrategy) PickOutbound(strings []string) string {
++	return l.PickOutboundTraced(strings, nil)
++}
++
++// PickOutboundTraced implements TracingStrategy. Same code path as PickOutbound.
++func (l *LeastPingStrategy) PickOutboundTraced(strings []string, tr *xraytrace.Trace) string {
+ 	if l.observatory == nil {
+ 		errors.LogError(l.ctx, "observer is nil")
++		if tr.On() {
++			st := tr.Begin(xraytrace.StageObservation, "note", strings)
++			st.Note(xraytrace.NoteObservatoryNil)
++			st.End(tr)
++		}
+ 		return ""
+ 	}
+ 	observeReport, err := l.observatory.GetObservation(l.ctx)
+ 	if err != nil {
+ 		errors.LogInfoInner(l.ctx, err, "cannot get observer report")
++		if tr.On() {
++			st := tr.Begin(xraytrace.StageObservation, "note", strings)
++			st.Note(xraytrace.NoteObservationError)
++			st.End(tr)
++		}
+ 		return ""
+ 	}
+ 	outboundsList := outboundList(strings)
+ 	if result, ok := observeReport.(*observatory.ObservationResult); ok {
++		tr.SetObservation(observationRows(result))
+ 		status := result.Status
+ 		leastPing := int64(99999999)
+ 		selectedOutboundName := ""
+@@ -48,13 +65,74 @@ func (l *LeastPingStrategy) PickOutbound(strings []string) string {
+ 				leastPing = v.Delay
+ 			}
+ 		}
++
++		if tr.On() {
++			l.traceMinScan(strings, status, selectedOutboundName, leastPing, tr)
++		}
+ 		return selectedOutboundName
+ 	}
+ 
+ 	// No way to understand observeReport
++	if tr.On() {
++		st := tr.Begin(xraytrace.StageObservation, "note", strings)
++		st.Note(xraytrace.NoteObservationError)
++		st.End(tr)
++	}
+ 	return ""
+ }
+ 
++// traceMinScan explains the linear minimum scan above. It is pure reporting — it
++// re-derives nothing that affects the choice.
++//
++// The important thing it surfaces is the asymmetry in upstream's loop: it iterates
++// the OBSERVATION, not the candidate list. An outbound that has never been probed
++// therefore never appears and can never be picked, with no error and no log line.
++func (l *LeastPingStrategy) traceMinScan(candidates []string, status []*observatory.OutboundStatus, winner string, winnerDelay int64, tr *xraytrace.Trace) {
++	byTag := make(map[string]*observatory.OutboundStatus, len(status))
++	for _, v := range status {
++		byTag[v.OutboundTag] = v
++	}
++
++	st := tr.Begin(xraytrace.StageMinScan, "rank", candidates)
++	ties := 0
++	for _, tag := range candidates {
++		v, found := byTag[tag]
++		if !found {
++			st.Drop(tag, xraytrace.ReasonNotInObservation, nil)
++			continue
++		}
++		st.Score(tag, v.Delay)
++		if !v.Alive {
++			st.Drop(tag, xraytrace.ReasonNotAlive, map[string]int64{"delay_ms": v.Delay})
++			continue
++		}
++		if tag == winner {
++			st.Keep(tag)
++			continue
++		}
++		st.Drop(tag, xraytrace.ReasonOutranked, map[string]int64{
++			"delay_ms": v.Delay, "winner_delay_ms": winnerDelay,
++		})
++		if v.Delay == winnerDelay {
++			ties++
++		}
++	}
++	if winner != "" {
++		st.Param("winner_delay_ms", winnerDelay)
++	}
++	if ties > 0 {
++		// The scan uses a strict `<`, so the FIRST entry at the winning delay wins —
++		// and under the burst observatory the iteration order comes from a Go map
++		// range, which is re-randomised on every call. Tie order is not stable.
++		st.Param("tied_with_winner", int64(ties))
++		st.Note(xraytrace.NoteTie)
++	}
++	if winner == "" {
++		st.Note(xraytrace.NoteEmpty)
++	}
++	st.End(tr)
++}
++
+ type outboundList []string
+ 
+ func (o outboundList) contains(name string) bool {
+diff --git a/app/router/strategy_random.go b/app/router/strategy_random.go
+index ea9b7ad..10b4ef5 100644
+--- a/app/router/strategy_random.go
++++ b/app/router/strategy_random.go
+@@ -3,11 +3,11 @@ package router
+ import (
+ 	"context"
+ 
+-	"github.com/xtls/xray-core/app/observatory"
+ 	"github.com/xtls/xray-core/common"
+ 	"github.com/xtls/xray-core/common/dice"
+ 	"github.com/xtls/xray-core/core"
+ 	"github.com/xtls/xray-core/features/extension"
++	"github.com/xtls/xray-core/xraytrace"
+ )
+ 
+ // RandomStrategy represents a random balancing strategy
+@@ -33,35 +33,38 @@ func (s *RandomStrategy) GetPrincipleTarget(strings []string) []string {
+ }
+ 
+ func (s *RandomStrategy) PickOutbound(candidates []string) string {
+-	if s.observatory != nil {
+-		observeReport, err := s.observatory.GetObservation(s.ctx)
+-		if err == nil {
+-			aliveTags := make([]string, 0)
+-			if result, ok := observeReport.(*observatory.ObservationResult); ok {
+-				status := result.Status
+-				statusMap := make(map[string]*observatory.OutboundStatus)
+-				for _, outboundStatus := range status {
+-					statusMap[outboundStatus.OutboundTag] = outboundStatus
+-				}
+-				for _, candidate := range candidates {
+-					if outboundStatus, found := statusMap[candidate]; found {
+-						if outboundStatus.Alive {
+-							aliveTags = append(aliveTags, candidate)
+-						}
+-					} else {
+-						// unfound candidate is considered alive
+-						aliveTags = append(aliveTags, candidate)
+-					}
+-				}
+-				candidates = aliveTags
+-			}
+-		}
+-	}
++	return s.PickOutboundTraced(candidates, nil)
++}
++
++// PickOutboundTraced implements TracingStrategy. Same code path as PickOutbound;
++// the liveness filter is shared with RoundRobinStrategy via aliveFilter.
++func (s *RandomStrategy) PickOutboundTraced(candidates []string, tr *xraytrace.Trace) string {
++	candidates = aliveFilter(s.observatory, s.ctx, s.FallbackTag, candidates, tr)
+ 
+ 	count := len(candidates)
+ 	if count == 0 {
+ 		// goes to fallbackTag
++		if tr.On() {
++			st := tr.Begin(xraytrace.StageDice, "choose", candidates)
++			st.Note(xraytrace.NoteEmpty)
++			st.End(tr)
++		}
+ 		return ""
+ 	}
+-	return candidates[dice.Roll(count)]
++	idx := dice.Roll(count)
++	picked := candidates[idx]
++
++	if tr.On() {
++		st := tr.Begin(xraytrace.StageDice, "choose", candidates)
++		st.Keep(picked)
++		st.Param("n", int64(count))
++		st.Param("index", int64(idx))
++		for i, c := range candidates {
++			if i != idx {
++				st.Drop(c, xraytrace.ReasonNotChosenByDice, nil)
++			}
++		}
++		st.End(tr)
++	}
++	return picked
+ }
+diff --git a/app/router/strategy_trace_test.go b/app/router/strategy_trace_test.go
+new file mode 100644
+index 0000000..db2c216
+--- /dev/null
++++ b/app/router/strategy_trace_test.go
+@@ -0,0 +1,420 @@
++package router
++
++import (
++	"context"
++	"math"
++	"testing"
++	"time"
++
++	"github.com/xtls/xray-core/app/observatory"
++	"github.com/xtls/xray-core/features/extension"
++	"github.com/xtls/xray-core/features/outbound"
++	"github.com/xtls/xray-core/xraytrace"
++	"google.golang.org/protobuf/proto"
++)
++
++// These tests guard the property the whole UI rests on: the decision trace describes
++// the decision that was actually made.
++//
++// That property is mostly structural — PickOutbound and PickOutboundTraced are the
++// same function, so there is no second implementation to drift. What still needs
++// testing is that (a) enabling tracing does not change the outcome, and (b) the
++// stages report the right reasons and the right arithmetic.
++
++// fakeOhm is an outbound.Manager that only implements what a Balancer needs:
++// HandlerSelector.Select. Everything else panics loudly rather than silently
++// returning a zero value, so a future change that starts using them is obvious.
++type fakeOhm struct{ tags []string }
++
++func (f *fakeOhm) Select([]string) []string                           { return f.tags }
++func (f *fakeOhm) Type() interface{}                                  { return outbound.ManagerType() }
++func (f *fakeOhm) Start() error                                       { return nil }
++func (f *fakeOhm) Close() error                                       { return nil }
++func (f *fakeOhm) GetHandler(string) outbound.Handler                 { panic("unused") }
++func (f *fakeOhm) GetDefaultHandler() outbound.Handler                { panic("unused") }
++func (f *fakeOhm) AddHandler(context.Context, outbound.Handler) error { panic("unused") }
++func (f *fakeOhm) RemoveHandler(context.Context, string) error        { panic("unused") }
++func (f *fakeOhm) ListHandlers(context.Context) []outbound.Handler    { panic("unused") }
++
++// newBalancer builds a Balancer over a fixed candidate set, exercising the real
++// PickOutboundWithConn path rather than calling the strategy directly.
++func newBalancer(strategy BalancingStrategy, name, fallback string, candidates []string) *Balancer {
++	return &Balancer{
++		selectors:    []string{"*"},
++		strategy:     strategy,
++		ohm:          &fakeOhm{tags: candidates},
++		fallbackTag:  fallback,
++		tag:          "bal",
++		strategyName: name,
++	}
++}
++
++type fakeObservatory struct {
++	result *observatory.ObservationResult
++}
++
++func (f *fakeObservatory) Type() interface{} { return extension.ObservatoryType() }
++func (f *fakeObservatory) Start() error      { return nil }
++func (f *fakeObservatory) Close() error      { return nil }
++func (f *fakeObservatory) GetObservation(context.Context) (proto.Message, error) {
++	return f.result, nil
++}
++
++func status(tag string, alive bool, delayMs int64, all, fail int64, devNs, avgNs int64) *observatory.OutboundStatus {
++	s := &observatory.OutboundStatus{OutboundTag: tag, Alive: alive, Delay: delayMs}
++	if all > 0 {
++		s.HealthPing = &observatory.HealthPingMeasurementResult{
++			All: all, Fail: fail, Deviation: devNs, Average: avgNs,
++		}
++	}
++	return s
++}
++
++// withTracing enables the hook for the duration of fn and returns the traces seen.
++func withTracing(t *testing.T, fn func()) []*xraytrace.Trace {
++	t.Helper()
++	var got []*xraytrace.Trace
++	xraytrace.OnBalancerEval = func(tr *xraytrace.Trace) { got = append(got, tr) }
++	t.Cleanup(func() { xraytrace.OnBalancerEval = nil })
++	fn()
++	return got
++}
++
++func newLeastLoad(t *testing.T, settings *StrategyLeastLoadConfig, st ...*observatory.OutboundStatus) *LeastLoadStrategy {
++	t.Helper()
++	s := NewLeastLoadStrategy(settings)
++	s.ctx = context.Background()
++	s.observer = &fakeObservatory{result: &observatory.ObservationResult{Status: st}}
++	return s
++}
++
++func findStage(tr *xraytrace.Trace, id string) *xraytrace.Stage {
++	for i := range tr.Stages {
++		if tr.Stages[i].ID == id {
++			return &tr.Stages[i]
++		}
++	}
++	return nil
++}
++
++func rejectionReason(st *xraytrace.Stage, tag string) string {
++	if st == nil {
++		return ""
++	}
++	for _, r := range st.Rejected {
++		if r.Tag == tag {
++			return r.Reason
++		}
++	}
++	return ""
++}
++
++// TestTracingDoesNotChangeOutcome is the important one: for a configuration that is
++// fully deterministic, the tag chosen must be identical with tracing on and off.
++func TestTracingDoesNotChangeOutcome(t *testing.T) {
++	mk := func() *LeastLoadStrategy {
++		return newLeastLoad(t,
++			&StrategyLeastLoadConfig{Expected: 1},
++			status("a", true, 100, 10, 0, int64(40*time.Millisecond), int64(100*time.Millisecond)),
++			status("b", true, 50, 10, 0, int64(20*time.Millisecond), int64(50*time.Millisecond)),
++			status("c", true, 200, 10, 0, int64(90*time.Millisecond), int64(200*time.Millisecond)),
++		)
++	}
++	candidates := []string{"a", "b", "c"}
++
++	untraced := mk().PickOutbound(candidates)
++
++	var traced string
++	traces := withTracing(t, func() {
++		// Route through the Balancer so the full path is exercised, not just the strategy.
++		b := newBalancer(mk(), "leastload", "", candidates)
++		var err error
++		traced, err = b.PickOutboundWithConn(7)
++		if err != nil {
++			t.Fatalf("traced pick: %v", err)
++		}
++	})
++
++	if untraced != traced {
++		t.Fatalf("tracing changed the outcome: untraced=%q traced=%q", untraced, traced)
++	}
++	if untraced != "b" {
++		t.Fatalf("expected lowest deviation 'b', got %q", untraced)
++	}
++	if len(traces) != 1 {
++		t.Fatalf("expected exactly 1 trace, got %d", len(traces))
++	}
++	if traces[0].Selected != traced {
++		t.Fatalf("trace reports %q but pick returned %q", traces[0].Selected, traced)
++	}
++	if traces[0].Source != xraytrace.SourceStrategy {
++		t.Fatalf("unexpected source %q", traces[0].Source)
++	}
++}
++
++// TestLeastLoadRejectionReasons checks every filter arm reports the right code,
++// including the synthesized one upstream has no concept of.
++func TestLeastLoadRejectionReasons(t *testing.T) {
++	s := newLeastLoad(t,
++		&StrategyLeastLoadConfig{
++			Expected:  1,
++			MaxRTT:    int64(300 * time.Millisecond),
++			Tolerance: 0.3,
++		},
++		status("ok", true, 100, 10, 0, int64(10*time.Millisecond), int64(100*time.Millisecond)),
++		status("dead", false, 100, 10, 10, int64(10*time.Millisecond), int64(100*time.Millisecond)),
++		status("slow", true, 400, 10, 0, int64(10*time.Millisecond), int64(400*time.Millisecond)),
++		status("flaky", true, 100, 10, 5, int64(10*time.Millisecond), int64(100*time.Millisecond)),
++		status("elsewhere", true, 10, 10, 0, int64(1*time.Millisecond), int64(10*time.Millisecond)),
++	)
++	// "never-probed" is a candidate with no observation record at all.
++	candidates := []string{"ok", "dead", "slow", "flaky", "never-probed"}
++
++	traces := withTracing(t, func() {
++		b := newBalancer(s, "leastload", "", candidates)
++		if _, err := b.PickOutboundWithConn(7); err != nil {
++			t.Fatalf("pick: %v", err)
++		}
++	})
++	if len(traces) != 1 {
++		t.Fatalf("expected 1 trace, got %d", len(traces))
++	}
++	filter := findStage(traces[0], xraytrace.StageNodeFilter)
++	if filter == nil {
++		t.Fatal("no node_filter stage")
++	}
++
++	for tag, want := range map[string]string{
++		"dead":         xraytrace.ReasonNotAlive,
++		"slow":         xraytrace.ReasonMaxRTT,
++		"flaky":        xraytrace.ReasonTolerance,
++		"never-probed": xraytrace.ReasonNotInObservation,
++	} {
++		if got := rejectionReason(filter, tag); got != want {
++			t.Errorf("%s: reason = %q, want %q", tag, got, want)
++		}
++	}
++	if len(filter.Out) != 1 || filter.Out[0] != "ok" {
++		t.Errorf("survivors = %v, want [ok]", filter.Out)
++	}
++	// "elsewhere" is in the observation but outside the candidate set. It is not a
++	// rejection the user cares about, so it must not clutter the funnel.
++	if r := rejectionReason(filter, "elsewhere"); r != "" {
++		t.Errorf("non-candidate should not be reported as rejected, got %q", r)
++	}
++}
++
++// TestLeastLoadScoreArithmetic pins the score formula: deviation * sqrt(costWeight).
++func TestLeastLoadScoreArithmetic(t *testing.T) {
++	const devA = int64(100 * time.Millisecond)
++	const devB = int64(100 * time.Millisecond)
++
++	s := newLeastLoad(t,
++		&StrategyLeastLoadConfig{
++			Expected: 2,
++			// Weight 4 on "a" => score multiplied by sqrt(4) = 2, so "a" ranks worse
++			// than "b" despite identical deviation.
++			Costs: []*StrategyWeight{{Match: "a", Value: 4}},
++		},
++		status("a", true, 100, 10, 0, devA, int64(100*time.Millisecond)),
++		status("b", true, 100, 10, 0, devB, int64(100*time.Millisecond)),
++	)
++
++	traces := withTracing(t, func() {
++		candidates := []string{"a", "b"}
++		b := newBalancer(s, "leastload", "", candidates)
++		if _, err := b.PickOutboundWithConn(7); err != nil {
++			t.Fatalf("pick: %v", err)
++		}
++	})
++	score := findStage(traces[0], xraytrace.StageScore)
++	if score == nil {
++		t.Fatal("no score stage")
++	}
++
++	wantA := int64(float64(devA) * math.Sqrt(4))
++	if got := score.Scores["a"]; got != wantA {
++		t.Errorf("score[a] = %d, want %d (dev * sqrt(4))", got, wantA)
++	}
++	if got := score.Scores["b"]; got != devB {
++		t.Errorf("score[b] = %d, want %d (dev * sqrt(1))", got, devB)
++	}
++	// Ranking must put the cheaper one first.
++	if len(score.Out) != 2 || score.Out[0] != "b" {
++		t.Errorf("rank order = %v, want b first", score.Out)
++	}
++	// The weight is surfaced in milli-units so the UI can show the arithmetic.
++	if got := score.Params["w:a"]; got != 4000 {
++		t.Errorf("weight[a] = %d, want 4000 (=4.0)", got)
++	}
++}
++
++// TestLeastLoadDeterminismBoundary encodes exactly where determinism ends, which is
++// the same claim the UI makes. Expected=1 with no baselines is a single survivor and
++// must never vary; anything wider goes through dice.Roll and must not be asserted
++// stable.
++func TestLeastLoadDeterminismBoundary(t *testing.T) {
++	mk := func(expected int32) *LeastLoadStrategy {
++		return newLeastLoad(t,
++			&StrategyLeastLoadConfig{Expected: expected},
++			status("a", true, 100, 10, 0, int64(10*time.Millisecond), int64(100*time.Millisecond)),
++			status("b", true, 100, 10, 0, int64(20*time.Millisecond), int64(100*time.Millisecond)),
++			status("c", true, 100, 10, 0, int64(30*time.Millisecond), int64(100*time.Millisecond)),
++		)
++	}
++	candidates := []string{"a", "b", "c"}
++
++	for i := 0; i < 200; i++ {
++		if got := mk(1).PickOutbound(candidates); got != "a" {
++			t.Fatalf("Expected=1 must be deterministic, run %d gave %q", i, got)
++		}
++	}
++
++	seen := map[string]bool{}
++	for i := 0; i < 400; i++ {
++		seen[mk(3).PickOutbound(candidates)] = true
++	}
++	if len(seen) < 2 {
++		t.Fatalf("Expected=3 should draw from all survivors, only ever saw %v", seen)
++	}
++}
++
++// TestLeastPingReportsUnprobedCandidates covers the single most common real-world
++// confusion: leastPing iterates the observation, not the candidate list, so an
++// outbound that was never probed is invisible rather than rejected.
++func TestLeastPingReportsUnprobedCandidates(t *testing.T) {
++	s := &LeastPingStrategy{
++		ctx: context.Background(),
++		observatory: &fakeObservatory{result: &observatory.ObservationResult{
++			Status: []*observatory.OutboundStatus{
++				status("fast", true, 20, 0, 0, 0, 0),
++				status("slow", true, 300, 0, 0, 0, 0),
++			},
++		}},
++	}
++	traces := withTracing(t, func() {
++		candidates := []string{"fast", "slow", "never-probed"}
++		b := newBalancer(s, "leastping", "", candidates)
++		got, err := b.PickOutboundWithConn(7)
++		if err != nil {
++			t.Fatalf("pick: %v", err)
++		}
++		if got != "fast" {
++			t.Fatalf("picked %q, want fast", got)
++		}
++	})
++	scan := findStage(traces[0], xraytrace.StageMinScan)
++	if scan == nil {
++		t.Fatal("no min_scan stage")
++	}
++	if got := rejectionReason(scan, "never-probed"); got != xraytrace.ReasonNotInObservation {
++		t.Errorf("never-probed reason = %q, want %q", got, xraytrace.ReasonNotInObservation)
++	}
++	if got := rejectionReason(scan, "slow"); got != xraytrace.ReasonOutranked {
++		t.Errorf("slow reason = %q, want %q", got, xraytrace.ReasonOutranked)
++	}
++}
++
++// TestRandomWithoutFallbackIgnoresObservatory documents the gate that surprises
++// people: random and roundRobin only consult the observatory when fallbackTag is
++// set, so without it they will happily pick a dead outbound.
++func TestRandomWithoutFallbackIgnoresObservatory(t *testing.T) {
++	// No FallbackTag => InjectContext never wires an observatory => nil.
++	s := &RandomStrategy{ctx: context.Background()}
++
++	traces := withTracing(t, func() {
++		candidates := []string{"a", "b"}
++		b := newBalancer(s, "random", "", candidates)
++		if _, err := b.PickOutboundWithConn(7); err != nil {
++			t.Fatalf("pick: %v", err)
++		}
++	})
++	alive := findStage(traces[0], xraytrace.StageAliveFilter)
++	if alive == nil {
++		t.Fatal("no alive_filter stage")
++	}
++	if alive.Note != xraytrace.NoteObservatoryIgnored {
++		t.Errorf("note = %q, want %q", alive.Note, xraytrace.NoteObservatoryIgnored)
++	}
++	if len(alive.Out) != 2 {
++		t.Errorf("both candidates should survive an ignored filter, got %v", alive.Out)
++	}
++}
++
++// TestRoundRobinUnfoundIsAlive covers the other half of that filter: a candidate the
++// observatory has no record of is treated as ALIVE, not dead.
++func TestRoundRobinUnfoundIsAlive(t *testing.T) {
++	s := &RoundRobinStrategy{
++		FallbackTag: "fb",
++		ctx:         context.Background(),
++		observatory: &fakeObservatory{result: &observatory.ObservationResult{
++			Status: []*observatory.OutboundStatus{
++				status("known-dead", false, 0, 0, 0, 0, 0),
++			},
++		}},
++	}
++	traces := withTracing(t, func() {
++		candidates := []string{"known-dead", "unknown"}
++		b := newBalancer(s, "roundrobin", "fb", candidates)
++		if _, err := b.PickOutboundWithConn(7); err != nil {
++			t.Fatalf("pick: %v", err)
++		}
++	})
++	alive := findStage(traces[0], xraytrace.StageAliveFilter)
++	if alive == nil {
++		t.Fatal("no alive_filter stage")
++	}
++	if len(alive.Out) != 1 || alive.Out[0] != "unknown" {
++		t.Errorf("survivors = %v, want [unknown]", alive.Out)
++	}
++	if alive.Note != xraytrace.NoteUnfoundAssumedAlive {
++		t.Errorf("note = %q, want %q", alive.Note, xraytrace.NoteUnfoundAssumedAlive)
++	}
++	if got := rejectionReason(alive, "known-dead"); got != xraytrace.ReasonNotAlive {
++		t.Errorf("known-dead reason = %q", got)
++	}
++}
++
++// TestBalancerFallbackAndErrorAreTraced covers the terminal paths, including the one
++// whose error text upstream used to discard entirely.
++func TestBalancerFallbackAndErrorAreTraced(t *testing.T) {
++	// A leastLoad with no observatory returns "" for everything.
++	broken := func() *LeastLoadStrategy {
++		s := NewLeastLoadStrategy(&StrategyLeastLoadConfig{Expected: 1})
++		s.ctx = context.Background()
++		return s // observer stays nil
++	}
++
++	t.Run("fallback", func(t *testing.T) {
++		traces := withTracing(t, func() {
++			candidates := []string{"a"}
++			b := newBalancer(broken(), "leastload", "fb", candidates)
++			got, err := b.PickOutboundWithConn(7)
++			if err != nil || got != "fb" {
++				t.Fatalf("got %q, %v; want fb, nil", got, err)
++			}
++		})
++		if traces[0].Source != xraytrace.SourceFallback {
++			t.Errorf("source = %q, want %q", traces[0].Source, xraytrace.SourceFallback)
++		}
++		if obs := findStage(traces[0], xraytrace.StageObservation); obs == nil || obs.Note != xraytrace.NoteObservatoryNil {
++			t.Errorf("expected an observatory_nil note, stages=%v", traces[0].Stages)
++		}
++	})
++
++	t.Run("error", func(t *testing.T) {
++		traces := withTracing(t, func() {
++			candidates := []string{"a"}
++			b := newBalancer(broken(), "leastload", "", candidates)
++			if _, err := b.PickOutboundWithConn(7); err == nil {
++				t.Fatal("expected an error with no fallbackTag")
++			}
++		})
++		if traces[0].Source != xraytrace.SourceError {
++			t.Errorf("source = %q, want %q", traces[0].Source, xraytrace.SourceError)
++		}
++		if traces[0].Err == "" {
++			t.Error("error text must reach the trace; this is what upstream used to drop")
++		}
++	})
++}

@@ -1,0 +1,2310 @@
+{
+  "source": "infra/conf @ the pinned Xray-core checkout",
+  "registries": {
+    "configLoader": {
+      "key": "type",
+      "section": "",
+      "types": {
+        "http": "HTTPResponse",
+        "none": "NoneResponse"
+      }
+    },
+    "inboundConfigLoader": {
+      "key": "protocol",
+      "section": "settings",
+      "types": {
+        "dokodemo-door": "DokodemoConfig",
+        "http": "HTTPServerConfig",
+        "hysteria": "HysteriaServerConfig",
+        "mixed": "SocksServerConfig",
+        "shadowsocks": "ShadowsocksServerConfig",
+        "socks": "SocksServerConfig",
+        "trojan": "TrojanServerConfig",
+        "tun": "TunConfig",
+        "tunnel": "DokodemoConfig",
+        "vless": "VLessInboundConfig",
+        "vmess": "VMessInboundConfig",
+        "wireguard": "WireGuardConfig"
+      }
+    },
+    "outboundConfigLoader": {
+      "key": "protocol",
+      "section": "settings",
+      "types": {
+        "blackhole": "BlackholeConfig",
+        "block": "BlackholeConfig",
+        "direct": "FreedomConfig",
+        "dns": "DNSOutboundConfig",
+        "freedom": "FreedomConfig",
+        "http": "HTTPClientConfig",
+        "hysteria": "HysteriaClientConfig",
+        "loopback": "LoopbackConfig",
+        "shadowsocks": "ShadowsocksClientConfig",
+        "socks": "SocksClientConfig",
+        "trojan": "TrojanClientConfig",
+        "vless": "VLessOutboundConfig",
+        "vmess": "VMessOutboundConfig",
+        "wireguard": "WireGuardConfig"
+      }
+    },
+    "strategyConfigLoader": {
+      "key": "type",
+      "section": "settings",
+      "types": {
+        "leastload": "strategyLeastLoadConfig",
+        "leastping": "strategyEmptyConfig",
+        "random": "strategyEmptyConfig",
+        "roundrobin": "strategyEmptyConfig"
+      }
+    },
+    "tcpHeaderLoader": {
+      "key": "type",
+      "section": "",
+      "types": {
+        "http": "Authenticator",
+        "none": "NoOpConnectionAuthenticator"
+      }
+    },
+    "tcpmaskLoader": {
+      "key": "type",
+      "section": "settings",
+      "types": {
+        "fragment": "FragmentMask",
+        "header-custom": "HeaderCustomTCP",
+        "sudoku": "Sudoku",
+        "xmc": "XMC"
+      }
+    },
+    "udpmaskLoader": {
+      "key": "type",
+      "section": "settings",
+      "types": {
+        "header-custom": "HeaderCustomUDP",
+        "mkcp-legacy": "MkcpLegacy",
+        "noise": "NoiseMask",
+        "realm": "Realm",
+        "salamander": "Salamander",
+        "sudoku": "Sudoku",
+        "xdns": "Xdns",
+        "xicmp": "Xicmp"
+      }
+    }
+  },
+  "types": {
+    "Address": {
+      "name": "Address",
+      "fields": []
+    },
+    "Authenticator": {
+      "name": "Authenticator",
+      "fields": [
+        {
+          "name": "request",
+          "type": "AuthenticatorRequest",
+          "ref": "AuthenticatorRequest"
+        },
+        {
+          "name": "response",
+          "type": "AuthenticatorResponse",
+          "ref": "AuthenticatorResponse"
+        }
+      ]
+    },
+    "AuthenticatorRequest": {
+      "name": "AuthenticatorRequest",
+      "fields": [
+        {
+          "name": "headers",
+          "type": "map[string]*StringList"
+        },
+        {
+          "name": "method",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "path",
+          "type": "StringList",
+          "ref": "StringList"
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "AuthenticatorResponse": {
+      "name": "AuthenticatorResponse",
+      "fields": [
+        {
+          "name": "headers",
+          "type": "map[string]*StringList"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "BlackholeConfig": {
+      "name": "BlackholeConfig",
+      "fields": [
+        {
+          "name": "response",
+          "type": "json.RawMessage"
+        }
+      ]
+    },
+    "CustomSockoptConfig": {
+      "name": "CustomSockoptConfig",
+      "fields": [
+        {
+          "name": "level",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "network",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "opt",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "system",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "CustomTransform": {
+      "name": "CustomTransform",
+      "fields": [
+        {
+          "name": "args",
+          "type": "[]CustomTransformArg",
+          "ref": "CustomTransformArg",
+          "list": true
+        },
+        {
+          "name": "op",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "CustomTransformArg": {
+      "name": "CustomTransformArg",
+      "fields": [
+        {
+          "name": "bytes",
+          "type": "json.RawMessage"
+        },
+        {
+          "name": "metadata",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "reuse",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "transform",
+          "type": "*CustomTransform",
+          "ref": "CustomTransform"
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "u64",
+          "type": "*uint64",
+          "ref": "uint64"
+        }
+      ]
+    },
+    "DNSOutboundConfig": {
+      "name": "DNSOutboundConfig",
+      "fields": [
+        {
+          "name": "address",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "blockTypes",
+          "type": "*[]int32",
+          "doc": "todo: remove legacy",
+          "ref": "int32",
+          "list": true
+        },
+        {
+          "name": "network",
+          "type": "Network",
+          "ref": "Network"
+        },
+        {
+          "name": "nonIPQuery",
+          "type": "*string",
+          "doc": "todo: remove legacy",
+          "ref": "string"
+        },
+        {
+          "name": "port",
+          "type": "uint16",
+          "ref": "uint16"
+        },
+        {
+          "name": "rewriteAddress",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "rewriteNetwork",
+          "type": "Network",
+          "ref": "Network"
+        },
+        {
+          "name": "rewritePort",
+          "type": "uint16",
+          "ref": "uint16"
+        },
+        {
+          "name": "rules",
+          "type": "[]*DNSOutboundRuleConfig",
+          "ref": "DNSOutboundRuleConfig",
+          "list": true
+        },
+        {
+          "name": "userLevel",
+          "type": "uint32",
+          "ref": "uint32"
+        }
+      ]
+    },
+    "DNSOutboundRuleConfig": {
+      "name": "DNSOutboundRuleConfig",
+      "fields": [
+        {
+          "name": "action",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "domain",
+          "type": "*StringList",
+          "ref": "StringList"
+        },
+        {
+          "name": "qType",
+          "type": "*PortList",
+          "ref": "PortList"
+        },
+        {
+          "name": "rCode",
+          "type": "uint32",
+          "ref": "uint32"
+        }
+      ]
+    },
+    "DokodemoConfig": {
+      "name": "DokodemoConfig",
+      "fields": [
+        {
+          "name": "address",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "allowedNetwork",
+          "type": "*NetworkList",
+          "ref": "NetworkList"
+        },
+        {
+          "name": "followRedirect",
+          "type": "bool",
+          "ref": "bool"
+        },
+        {
+          "name": "network",
+          "type": "*NetworkList",
+          "ref": "NetworkList"
+        },
+        {
+          "name": "port",
+          "type": "uint16",
+          "ref": "uint16"
+        },
+        {
+          "name": "portMap",
+          "type": "map[string]string"
+        },
+        {
+          "name": "rewriteAddress",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "rewritePort",
+          "type": "uint16",
+          "ref": "uint16"
+        },
+        {
+          "name": "userLevel",
+          "type": "uint32",
+          "ref": "uint32"
+        }
+      ]
+    },
+    "Fragment": {
+      "name": "Fragment",
+      "fields": [
+        {
+          "name": "interval",
+          "type": "*Int32Range",
+          "ref": "Int32Range"
+        },
+        {
+          "name": "length",
+          "type": "*Int32Range",
+          "ref": "Int32Range"
+        },
+        {
+          "name": "maxSplit",
+          "type": "*Int32Range",
+          "ref": "Int32Range"
+        },
+        {
+          "name": "packets",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "FragmentMask": {
+      "name": "FragmentMask",
+      "fields": [
+        {
+          "name": "delay",
+          "type": "Int32Range",
+          "ref": "Int32Range"
+        },
+        {
+          "name": "delays",
+          "type": "[]Int32Range",
+          "ref": "Int32Range",
+          "list": true
+        },
+        {
+          "name": "length",
+          "type": "Int32Range",
+          "ref": "Int32Range"
+        },
+        {
+          "name": "lengths",
+          "type": "[]Int32Range",
+          "ref": "Int32Range",
+          "list": true
+        },
+        {
+          "name": "maxSplit",
+          "type": "Int32Range",
+          "ref": "Int32Range"
+        },
+        {
+          "name": "packets",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "FreedomConfig": {
+      "name": "FreedomConfig",
+      "fields": [
+        {
+          "name": "domainStrategy",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "finalRules",
+          "type": "[]*FreedomFinalRuleConfig",
+          "ref": "FreedomFinalRuleConfig",
+          "list": true
+        },
+        {
+          "name": "fragment",
+          "type": "*Fragment",
+          "ref": "Fragment"
+        },
+        {
+          "name": "ipsBlocked",
+          "type": "*StringList",
+          "ref": "StringList"
+        },
+        {
+          "name": "noise",
+          "type": "*Noise",
+          "ref": "Noise"
+        },
+        {
+          "name": "noises",
+          "type": "[]*Noise",
+          "ref": "Noise",
+          "list": true
+        },
+        {
+          "name": "proxyProtocol",
+          "type": "uint32",
+          "ref": "uint32"
+        },
+        {
+          "name": "redirect",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "targetStrategy",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "userLevel",
+          "type": "uint32",
+          "ref": "uint32"
+        }
+      ]
+    },
+    "FreedomFinalRuleConfig": {
+      "name": "FreedomFinalRuleConfig",
+      "fields": [
+        {
+          "name": "action",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "blockDelay",
+          "type": "*Int32Range",
+          "ref": "Int32Range"
+        },
+        {
+          "name": "ip",
+          "type": "*StringList",
+          "ref": "StringList"
+        },
+        {
+          "name": "network",
+          "type": "*NetworkList",
+          "ref": "NetworkList"
+        },
+        {
+          "name": "port",
+          "type": "*PortList",
+          "ref": "PortList"
+        }
+      ]
+    },
+    "HTTPAccount": {
+      "name": "HTTPAccount",
+      "fields": [
+        {
+          "name": "pass",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "user",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "HTTPClientConfig": {
+      "name": "HTTPClientConfig",
+      "fields": [
+        {
+          "name": "address",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "headers",
+          "type": "map[string]string"
+        },
+        {
+          "name": "level",
+          "type": "uint32",
+          "ref": "uint32"
+        },
+        {
+          "name": "pass",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "port",
+          "type": "uint16",
+          "ref": "uint16"
+        },
+        {
+          "name": "servers",
+          "type": "[]*HTTPRemoteConfig",
+          "ref": "HTTPRemoteConfig",
+          "list": true
+        },
+        {
+          "name": "user",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "HTTPRemoteConfig": {
+      "name": "HTTPRemoteConfig",
+      "fields": [
+        {
+          "name": "address",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "port",
+          "type": "uint16",
+          "ref": "uint16"
+        },
+        {
+          "name": "users",
+          "type": "[]json.RawMessage",
+          "list": true
+        }
+      ]
+    },
+    "HTTPResponse": {
+      "name": "HTTPResponse",
+      "fields": []
+    },
+    "HTTPServerConfig": {
+      "name": "HTTPServerConfig",
+      "fields": [
+        {
+          "name": "accounts",
+          "type": "[]*HTTPAccount",
+          "ref": "HTTPAccount",
+          "list": true
+        },
+        {
+          "name": "allowTransparent",
+          "type": "bool",
+          "ref": "bool"
+        },
+        {
+          "name": "userLevel",
+          "type": "uint32",
+          "ref": "uint32"
+        },
+        {
+          "name": "users",
+          "type": "[]*HTTPAccount",
+          "ref": "HTTPAccount",
+          "list": true
+        }
+      ]
+    },
+    "HappyEyeballsConfig": {
+      "name": "HappyEyeballsConfig",
+      "fields": [
+        {
+          "name": "interleave",
+          "type": "uint32",
+          "ref": "uint32"
+        },
+        {
+          "name": "maxConcurrentTry",
+          "type": "uint32",
+          "ref": "uint32"
+        },
+        {
+          "name": "prioritizeIPv6",
+          "type": "bool",
+          "ref": "bool"
+        },
+        {
+          "name": "tryDelayMs",
+          "type": "uint64",
+          "ref": "uint64"
+        }
+      ]
+    },
+    "HeaderCustomTCP": {
+      "name": "HeaderCustomTCP",
+      "fields": [
+        {
+          "name": "clients",
+          "type": "[][]TCPItem",
+          "ref": "TCPItem",
+          "list": true
+        },
+        {
+          "name": "errors",
+          "type": "[][]TCPItem",
+          "ref": "TCPItem",
+          "list": true
+        },
+        {
+          "name": "servers",
+          "type": "[][]TCPItem",
+          "ref": "TCPItem",
+          "list": true
+        }
+      ]
+    },
+    "HeaderCustomUDP": {
+      "name": "HeaderCustomUDP",
+      "fields": [
+        {
+          "name": "client",
+          "type": "[]UDPItem",
+          "ref": "UDPItem",
+          "list": true
+        },
+        {
+          "name": "mode",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "server",
+          "type": "[]UDPItem",
+          "ref": "UDPItem",
+          "list": true
+        }
+      ]
+    },
+    "HysteriaClientConfig": {
+      "name": "HysteriaClientConfig",
+      "fields": [
+        {
+          "name": "address",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "port",
+          "type": "uint16",
+          "ref": "uint16"
+        },
+        {
+          "name": "version",
+          "type": "int32",
+          "ref": "int32"
+        }
+      ]
+    },
+    "HysteriaServerConfig": {
+      "name": "HysteriaServerConfig",
+      "fields": [
+        {
+          "name": "clients",
+          "type": "[]*HysteriaUserConfig",
+          "ref": "HysteriaUserConfig",
+          "list": true
+        },
+        {
+          "name": "users",
+          "type": "[]*HysteriaUserConfig",
+          "ref": "HysteriaUserConfig",
+          "list": true
+        },
+        {
+          "name": "version",
+          "type": "int32",
+          "ref": "int32"
+        }
+      ]
+    },
+    "HysteriaUserConfig": {
+      "name": "HysteriaUserConfig",
+      "fields": [
+        {
+          "name": "auth",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "level",
+          "type": "uint32",
+          "ref": "uint32"
+        }
+      ]
+    },
+    "Int32Range": {
+      "name": "Int32Range",
+      "doc": "Int32Range deserializes from \"1-2\" or 1, so can deserialize from both int and number.\nNegative integers can be passed as sentinel values, but do not parse as ranges.\nValue will be exchanged if From \u003e To, use .Left and .Right to get original value if need.",
+      "fields": []
+    },
+    "LoopbackConfig": {
+      "name": "LoopbackConfig",
+      "fields": [
+        {
+          "name": "inboundTag",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "sniffing",
+          "type": "*SniffingConfig",
+          "ref": "SniffingConfig"
+        }
+      ]
+    },
+    "MkcpLegacy": {
+      "name": "MkcpLegacy",
+      "fields": [
+        {
+          "name": "header",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "NoOpConnectionAuthenticator": {
+      "name": "NoOpConnectionAuthenticator",
+      "fields": []
+    },
+    "Noise": {
+      "name": "Noise",
+      "fields": [
+        {
+          "name": "applyTo",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "delay",
+          "type": "*Int32Range",
+          "ref": "Int32Range"
+        },
+        {
+          "name": "packet",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "NoiseItem": {
+      "name": "NoiseItem",
+      "fields": [
+        {
+          "name": "delay",
+          "type": "Int32Range",
+          "ref": "Int32Range"
+        },
+        {
+          "name": "packet",
+          "type": "json.RawMessage"
+        },
+        {
+          "name": "rand",
+          "type": "Int32Range",
+          "ref": "Int32Range"
+        },
+        {
+          "name": "randRange",
+          "type": "*Int32Range",
+          "ref": "Int32Range"
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "NoiseMask": {
+      "name": "NoiseMask",
+      "fields": [
+        {
+          "name": "noise",
+          "type": "[]NoiseItem",
+          "ref": "NoiseItem",
+          "list": true
+        },
+        {
+          "name": "reset",
+          "type": "Int32Range",
+          "ref": "Int32Range"
+        }
+      ]
+    },
+    "NoneResponse": {
+      "name": "NoneResponse",
+      "fields": []
+    },
+    "PortList": {
+      "name": "PortList",
+      "fields": []
+    },
+    "Realm": {
+      "name": "Realm",
+      "fields": [
+        {
+          "name": "stunServers",
+          "type": "[]string",
+          "ref": "string",
+          "list": true
+        },
+        {
+          "name": "tlsConfig",
+          "type": "*TLSConfig",
+          "ref": "TLSConfig"
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "Salamander": {
+      "name": "Salamander",
+      "fields": [
+        {
+          "name": "packetSize",
+          "type": "Int32Range",
+          "ref": "Int32Range"
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "ShadowsocksClientConfig": {
+      "name": "ShadowsocksClientConfig",
+      "fields": [
+        {
+          "name": "address",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "level",
+          "type": "byte",
+          "ref": "byte"
+        },
+        {
+          "name": "method",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "port",
+          "type": "uint16",
+          "ref": "uint16"
+        },
+        {
+          "name": "servers",
+          "type": "[]*ShadowsocksServerTarget",
+          "ref": "ShadowsocksServerTarget",
+          "list": true
+        }
+      ]
+    },
+    "ShadowsocksServerConfig": {
+      "name": "ShadowsocksServerConfig",
+      "fields": [
+        {
+          "name": "clients",
+          "type": "[]*ShadowsocksUserConfig",
+          "ref": "ShadowsocksUserConfig",
+          "list": true
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "level",
+          "type": "byte",
+          "ref": "byte"
+        },
+        {
+          "name": "method",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "network",
+          "type": "*NetworkList",
+          "ref": "NetworkList"
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "users",
+          "type": "[]*ShadowsocksUserConfig",
+          "ref": "ShadowsocksUserConfig",
+          "list": true
+        }
+      ]
+    },
+    "ShadowsocksServerTarget": {
+      "name": "ShadowsocksServerTarget",
+      "fields": [
+        {
+          "name": "address",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "level",
+          "type": "byte",
+          "ref": "byte"
+        },
+        {
+          "name": "method",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "port",
+          "type": "uint16",
+          "ref": "uint16"
+        }
+      ]
+    },
+    "ShadowsocksUserConfig": {
+      "name": "ShadowsocksUserConfig",
+      "fields": [
+        {
+          "name": "address",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "level",
+          "type": "byte",
+          "ref": "byte"
+        },
+        {
+          "name": "method",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "port",
+          "type": "uint16",
+          "ref": "uint16"
+        }
+      ]
+    },
+    "SniffingConfig": {
+      "name": "SniffingConfig",
+      "fields": [
+        {
+          "name": "destOverride",
+          "type": "StringList",
+          "ref": "StringList"
+        },
+        {
+          "name": "domainsExcluded",
+          "type": "StringList",
+          "ref": "StringList"
+        },
+        {
+          "name": "enabled",
+          "type": "bool",
+          "ref": "bool"
+        },
+        {
+          "name": "ipsExcluded",
+          "type": "StringList",
+          "ref": "StringList"
+        },
+        {
+          "name": "metadataOnly",
+          "type": "bool",
+          "ref": "bool"
+        },
+        {
+          "name": "routeOnly",
+          "type": "bool",
+          "ref": "bool"
+        }
+      ]
+    },
+    "SocketConfig": {
+      "name": "SocketConfig",
+      "fields": [
+        {
+          "name": "acceptProxyProtocol",
+          "type": "bool",
+          "ref": "bool"
+        },
+        {
+          "name": "addressPortStrategy",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "customSockopt",
+          "type": "[]*CustomSockoptConfig",
+          "ref": "CustomSockoptConfig",
+          "list": true
+        },
+        {
+          "name": "dialerProxy",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "domainStrategy",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "happyEyeballs",
+          "type": "*HappyEyeballsConfig",
+          "ref": "HappyEyeballsConfig"
+        },
+        {
+          "name": "interface",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "mark",
+          "type": "int32",
+          "ref": "int32"
+        },
+        {
+          "name": "penetrate",
+          "type": "bool",
+          "ref": "bool"
+        },
+        {
+          "name": "tcpCongestion",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "tcpFastOpen",
+          "type": "any"
+        },
+        {
+          "name": "tcpKeepAliveIdle",
+          "type": "int32",
+          "ref": "int32"
+        },
+        {
+          "name": "tcpKeepAliveInterval",
+          "type": "int32",
+          "ref": "int32"
+        },
+        {
+          "name": "tcpMaxSeg",
+          "type": "int32",
+          "ref": "int32"
+        },
+        {
+          "name": "tcpMptcp",
+          "type": "bool",
+          "ref": "bool"
+        },
+        {
+          "name": "tcpUserTimeout",
+          "type": "int32",
+          "ref": "int32"
+        },
+        {
+          "name": "tcpWindowClamp",
+          "type": "int32",
+          "ref": "int32"
+        },
+        {
+          "name": "tproxy",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "trustedXForwardedFor",
+          "type": "[]string",
+          "ref": "string",
+          "list": true
+        },
+        {
+          "name": "v6only",
+          "type": "bool",
+          "ref": "bool"
+        }
+      ]
+    },
+    "SocksAccount": {
+      "name": "SocksAccount",
+      "fields": [
+        {
+          "name": "pass",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "user",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "SocksClientConfig": {
+      "name": "SocksClientConfig",
+      "fields": [
+        {
+          "name": "address",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "level",
+          "type": "uint32",
+          "ref": "uint32"
+        },
+        {
+          "name": "pass",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "port",
+          "type": "uint16",
+          "ref": "uint16"
+        },
+        {
+          "name": "servers",
+          "type": "[]*SocksRemoteConfig",
+          "ref": "SocksRemoteConfig",
+          "list": true
+        },
+        {
+          "name": "user",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "SocksRemoteConfig": {
+      "name": "SocksRemoteConfig",
+      "fields": [
+        {
+          "name": "address",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "port",
+          "type": "uint16",
+          "ref": "uint16"
+        },
+        {
+          "name": "users",
+          "type": "[]json.RawMessage",
+          "list": true
+        }
+      ]
+    },
+    "SocksServerConfig": {
+      "name": "SocksServerConfig",
+      "fields": [
+        {
+          "name": "accounts",
+          "type": "[]*SocksAccount",
+          "ref": "SocksAccount",
+          "list": true
+        },
+        {
+          "name": "auth",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "ip",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "udp",
+          "type": "bool",
+          "ref": "bool"
+        },
+        {
+          "name": "userLevel",
+          "type": "uint32",
+          "ref": "uint32"
+        },
+        {
+          "name": "users",
+          "type": "[]*SocksAccount",
+          "ref": "SocksAccount",
+          "list": true
+        }
+      ]
+    },
+    "Sudoku": {
+      "name": "Sudoku",
+      "fields": [
+        {
+          "name": "ascii",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "customTable",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "customTables",
+          "type": "[]string",
+          "ref": "string",
+          "list": true
+        },
+        {
+          "name": "custom_table",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "custom_tables",
+          "type": "[]string",
+          "ref": "string",
+          "list": true
+        },
+        {
+          "name": "paddingMax",
+          "type": "uint32",
+          "ref": "uint32"
+        },
+        {
+          "name": "paddingMin",
+          "type": "uint32",
+          "ref": "uint32"
+        },
+        {
+          "name": "padding_max",
+          "type": "uint32",
+          "ref": "uint32"
+        },
+        {
+          "name": "padding_min",
+          "type": "uint32",
+          "ref": "uint32"
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "TCPItem": {
+      "name": "TCPItem",
+      "fields": [
+        {
+          "name": "capture",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "delay",
+          "type": "Int32Range",
+          "ref": "Int32Range"
+        },
+        {
+          "name": "packet",
+          "type": "json.RawMessage"
+        },
+        {
+          "name": "rand",
+          "type": "int32",
+          "ref": "int32"
+        },
+        {
+          "name": "randRange",
+          "type": "*Int32Range",
+          "ref": "Int32Range"
+        },
+        {
+          "name": "reuse",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "transform",
+          "type": "*CustomTransform",
+          "ref": "CustomTransform"
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "TLSCertConfig": {
+      "name": "TLSCertConfig",
+      "fields": [
+        {
+          "name": "buildChain",
+          "type": "bool",
+          "ref": "bool"
+        },
+        {
+          "name": "certificate",
+          "type": "[]string",
+          "ref": "string",
+          "list": true
+        },
+        {
+          "name": "certificateFile",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "key",
+          "type": "[]string",
+          "ref": "string",
+          "list": true
+        },
+        {
+          "name": "keyFile",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "ocspStapling",
+          "type": "uint64",
+          "ref": "uint64"
+        },
+        {
+          "name": "oneTimeLoading",
+          "type": "bool",
+          "ref": "bool"
+        },
+        {
+          "name": "usage",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "TLSConfig": {
+      "name": "TLSConfig",
+      "fields": [
+        {
+          "name": "allowInsecure",
+          "type": "bool",
+          "ref": "bool"
+        },
+        {
+          "name": "alpn",
+          "type": "*StringList",
+          "ref": "StringList"
+        },
+        {
+          "name": "certificates",
+          "type": "[]*TLSCertConfig",
+          "ref": "TLSCertConfig",
+          "list": true
+        },
+        {
+          "name": "cipherSuites",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "curvePreferences",
+          "type": "*StringList",
+          "ref": "StringList"
+        },
+        {
+          "name": "disableSystemRoot",
+          "type": "bool",
+          "ref": "bool"
+        },
+        {
+          "name": "echConfigList",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "echServerKeys",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "echSockopt",
+          "type": "*SocketConfig",
+          "ref": "SocketConfig"
+        },
+        {
+          "name": "enableSessionResumption",
+          "type": "bool",
+          "ref": "bool"
+        },
+        {
+          "name": "fingerprint",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "masterKeyLog",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "maxVersion",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "minVersion",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "pinnedPeerCertSha256",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "rejectUnknownSni",
+          "type": "bool",
+          "ref": "bool"
+        },
+        {
+          "name": "serverName",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "verifyPeerCertByName",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "TrojanClientConfig": {
+      "name": "TrojanClientConfig",
+      "doc": "TrojanClientConfig is configuration of trojan servers",
+      "fields": [
+        {
+          "name": "address",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "flow",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "level",
+          "type": "byte",
+          "ref": "byte"
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "port",
+          "type": "uint16",
+          "ref": "uint16"
+        },
+        {
+          "name": "servers",
+          "type": "[]*TrojanServerTarget",
+          "ref": "TrojanServerTarget",
+          "list": true
+        }
+      ]
+    },
+    "TrojanInboundFallback": {
+      "name": "TrojanInboundFallback",
+      "doc": "TrojanInboundFallback is fallback configuration",
+      "fields": [
+        {
+          "name": "alpn",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "dest",
+          "type": "json.RawMessage"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "path",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "xver",
+          "type": "uint64",
+          "ref": "uint64"
+        }
+      ]
+    },
+    "TrojanServerConfig": {
+      "name": "TrojanServerConfig",
+      "doc": "TrojanServerConfig is Inbound configuration",
+      "fields": [
+        {
+          "name": "clients",
+          "type": "[]*TrojanUserConfig",
+          "ref": "TrojanUserConfig",
+          "list": true
+        },
+        {
+          "name": "fallbacks",
+          "type": "[]*TrojanInboundFallback",
+          "ref": "TrojanInboundFallback",
+          "list": true
+        },
+        {
+          "name": "users",
+          "type": "[]*TrojanUserConfig",
+          "ref": "TrojanUserConfig",
+          "list": true
+        }
+      ]
+    },
+    "TrojanServerTarget": {
+      "name": "TrojanServerTarget",
+      "doc": "TrojanServerTarget is configuration of a single trojan server",
+      "fields": [
+        {
+          "name": "address",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "flow",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "level",
+          "type": "byte",
+          "ref": "byte"
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "port",
+          "type": "uint16",
+          "ref": "uint16"
+        }
+      ]
+    },
+    "TrojanUserConfig": {
+      "name": "TrojanUserConfig",
+      "doc": "TrojanUserConfig is user configuration",
+      "fields": [
+        {
+          "name": "email",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "flow",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "level",
+          "type": "byte",
+          "ref": "byte"
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "TunConfig": {
+      "name": "TunConfig",
+      "fields": [
+        {
+          "name": "autoOutboundsInterface",
+          "type": "*string",
+          "ref": "string"
+        },
+        {
+          "name": "autoSystemRoutingTable",
+          "type": "[]string",
+          "ref": "string",
+          "list": true
+        },
+        {
+          "name": "desc",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "dns",
+          "type": "[]string",
+          "ref": "string",
+          "list": true
+        },
+        {
+          "name": "gateway",
+          "type": "[]string",
+          "ref": "string",
+          "list": true
+        },
+        {
+          "name": "mtu",
+          "type": "uint32",
+          "ref": "uint32"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "userLevel",
+          "type": "uint32",
+          "ref": "uint32"
+        }
+      ]
+    },
+    "UDPItem": {
+      "name": "UDPItem",
+      "fields": [
+        {
+          "name": "capture",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "packet",
+          "type": "json.RawMessage"
+        },
+        {
+          "name": "rand",
+          "type": "int32",
+          "ref": "int32"
+        },
+        {
+          "name": "randRange",
+          "type": "*Int32Range",
+          "ref": "Int32Range"
+        },
+        {
+          "name": "reuse",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "transform",
+          "type": "*CustomTransform",
+          "ref": "CustomTransform"
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "VLessInboundConfig": {
+      "name": "VLessInboundConfig",
+      "fields": [
+        {
+          "name": "clients",
+          "type": "[]json.RawMessage",
+          "list": true
+        },
+        {
+          "name": "decryption",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "fallbacks",
+          "type": "[]*VLessInboundFallback",
+          "ref": "VLessInboundFallback",
+          "list": true
+        },
+        {
+          "name": "flow",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "testseed",
+          "type": "[]uint32",
+          "ref": "uint32",
+          "list": true
+        },
+        {
+          "name": "users",
+          "type": "[]json.RawMessage",
+          "list": true
+        }
+      ]
+    },
+    "VLessInboundFallback": {
+      "name": "VLessInboundFallback",
+      "fields": [
+        {
+          "name": "alpn",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "dest",
+          "type": "json.RawMessage"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "path",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "xver",
+          "type": "uint64",
+          "ref": "uint64"
+        }
+      ]
+    },
+    "VLessOutboundConfig": {
+      "name": "VLessOutboundConfig",
+      "fields": [
+        {
+          "name": "address",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "encryption",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "flow",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "id",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "level",
+          "type": "uint32",
+          "ref": "uint32"
+        },
+        {
+          "name": "port",
+          "type": "uint16",
+          "ref": "uint16"
+        },
+        {
+          "name": "reverse",
+          "type": "*VLessReverseConfig",
+          "ref": "VLessReverseConfig"
+        },
+        {
+          "name": "seed",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "testpre",
+          "type": "uint32",
+          "ref": "uint32"
+        },
+        {
+          "name": "testseed",
+          "type": "[]uint32",
+          "ref": "uint32",
+          "list": true
+        },
+        {
+          "name": "vnext",
+          "type": "[]*VLessOutboundVnext",
+          "ref": "VLessOutboundVnext",
+          "list": true
+        }
+      ]
+    },
+    "VLessOutboundVnext": {
+      "name": "VLessOutboundVnext",
+      "fields": [
+        {
+          "name": "address",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "port",
+          "type": "uint16",
+          "ref": "uint16"
+        },
+        {
+          "name": "users",
+          "type": "[]json.RawMessage",
+          "list": true
+        }
+      ]
+    },
+    "VLessReverseConfig": {
+      "name": "VLessReverseConfig",
+      "fields": [
+        {
+          "name": "sniffing",
+          "type": "*SniffingConfig",
+          "ref": "SniffingConfig"
+        },
+        {
+          "name": "tag",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "VMessDefaultConfig": {
+      "name": "VMessDefaultConfig",
+      "fields": [
+        {
+          "name": "level",
+          "type": "byte",
+          "ref": "byte"
+        }
+      ]
+    },
+    "VMessInboundConfig": {
+      "name": "VMessInboundConfig",
+      "fields": [
+        {
+          "name": "clients",
+          "type": "[]json.RawMessage",
+          "list": true
+        },
+        {
+          "name": "default",
+          "type": "*VMessDefaultConfig",
+          "ref": "VMessDefaultConfig"
+        },
+        {
+          "name": "users",
+          "type": "[]json.RawMessage",
+          "list": true
+        }
+      ]
+    },
+    "VMessOutboundConfig": {
+      "name": "VMessOutboundConfig",
+      "fields": [
+        {
+          "name": "address",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "experiments",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "id",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "level",
+          "type": "uint32",
+          "ref": "uint32"
+        },
+        {
+          "name": "port",
+          "type": "uint16",
+          "ref": "uint16"
+        },
+        {
+          "name": "security",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "vnext",
+          "type": "[]*VMessOutboundTarget",
+          "ref": "VMessOutboundTarget",
+          "list": true
+        }
+      ]
+    },
+    "VMessOutboundTarget": {
+      "name": "VMessOutboundTarget",
+      "fields": [
+        {
+          "name": "address",
+          "type": "*Address",
+          "ref": "Address"
+        },
+        {
+          "name": "port",
+          "type": "uint16",
+          "ref": "uint16"
+        },
+        {
+          "name": "users",
+          "type": "[]json.RawMessage",
+          "list": true
+        }
+      ]
+    },
+    "WireGuardConfig": {
+      "name": "WireGuardConfig",
+      "fields": [
+        {
+          "name": "address",
+          "type": "[]string",
+          "ref": "string",
+          "list": true
+        },
+        {
+          "name": "domainStrategy",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "mtu",
+          "type": "int32",
+          "ref": "int32"
+        },
+        {
+          "name": "noKernelTun",
+          "type": "bool",
+          "ref": "bool"
+        },
+        {
+          "name": "peers",
+          "type": "[]*WireGuardPeerConfig",
+          "ref": "WireGuardPeerConfig",
+          "list": true
+        },
+        {
+          "name": "reserved",
+          "type": "[]byte",
+          "ref": "byte",
+          "list": true
+        },
+        {
+          "name": "secretKey",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "WireGuardPeerConfig": {
+      "name": "WireGuardPeerConfig",
+      "fields": [
+        {
+          "name": "allowedIPs",
+          "type": "[]string",
+          "ref": "string",
+          "list": true
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "endpoint",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "keepAlive",
+          "type": "uint32",
+          "ref": "uint32"
+        },
+        {
+          "name": "level",
+          "type": "uint32",
+          "ref": "uint32"
+        },
+        {
+          "name": "preSharedKey",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "publicKey",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "XMC": {
+      "name": "XMC",
+      "fields": [
+        {
+          "name": "hostname",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "profiles",
+          "type": "[]XMCProfile",
+          "ref": "XMCProfile",
+          "list": true
+        }
+      ]
+    },
+    "XMCProfile": {
+      "name": "XMCProfile",
+      "fields": [
+        {
+          "name": "texturesSignature",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "texturesValue",
+          "type": "string",
+          "ref": "string"
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "doc": "Resolve the UUID by username, then request the session profile with\nunsigned=false. Client and server must use the same signed profile.",
+          "ref": "string"
+        },
+        {
+          "name": "uuid",
+          "type": "string",
+          "ref": "string"
+        }
+      ]
+    },
+    "Xdns": {
+      "name": "Xdns",
+      "fields": [
+        {
+          "name": "domain",
+          "type": "json.RawMessage"
+        },
+        {
+          "name": "domains",
+          "type": "[]string",
+          "ref": "string",
+          "list": true
+        },
+        {
+          "name": "resolvers",
+          "type": "[]string",
+          "ref": "string",
+          "list": true
+        }
+      ]
+    },
+    "Xicmp": {
+      "name": "Xicmp",
+      "fields": [
+        {
+          "name": "dgram",
+          "type": "bool",
+          "ref": "bool"
+        },
+        {
+          "name": "ips",
+          "type": "[]string",
+          "ref": "string",
+          "list": true
+        }
+      ]
+    },
+    "strategyEmptyConfig": {
+      "name": "strategyEmptyConfig",
+      "fields": []
+    },
+    "strategyLeastLoadConfig": {
+      "name": "strategyLeastLoadConfig",
+      "fields": [
+        {
+          "name": "baselines",
+          "type": "[]duration.Duration",
+          "doc": "ping rtt baselines",
+          "list": true
+        },
+        {
+          "name": "costs",
+          "type": "[]*router.StrategyWeight",
+          "doc": "weight settings",
+          "list": true
+        },
+        {
+          "name": "expected",
+          "type": "int32",
+          "doc": "expected nodes count to select",
+          "ref": "int32"
+        },
+        {
+          "name": "maxRTT",
+          "type": "duration.Duration",
+          "doc": "max acceptable rtt, filter away high delay nodes. default 0"
+        },
+        {
+          "name": "tolerance",
+          "type": "float64",
+          "doc": "acceptable failure rate",
+          "ref": "float64"
+        }
+      ]
+    }
+  }
+}

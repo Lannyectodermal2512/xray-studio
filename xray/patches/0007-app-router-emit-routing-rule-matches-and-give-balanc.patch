@@ -1,0 +1,171 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: xray-studio <xray-studio@localhost>
+Date: Fri, 14 Aug 2026 05:03:34 +0300
+Subject: [PATCH 7/9] app/router: emit routing rule matches and give balancers
+ an identity
+
+Adds the loop index upstream does not keep, and reports both ErrNoClue returns
+so 'no rule matched, falling through to the default outbound' stops being
+invisible. Balancer tag and strategy name are set where the BalancingRule that
+produced the balancer is still in scope.
+---
+ app/router/config.go |  8 ++++++-
+ app/router/router.go | 57 ++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 59 insertions(+), 6 deletions(-)
+
+diff --git a/app/router/config.go b/app/router/config.go
+index 0a76905..88259c1 100644
+--- a/app/router/config.go
++++ b/app/router/config.go
+@@ -19,8 +19,14 @@ type Rule struct {
+ }
+ 
+ func (r *Rule) GetTag() (string, error) {
++	return r.GetTagWithConn(0)
++}
++
++// GetTagWithConn is GetTag, attributing any balancer decision to a connection id so
++// the resulting trace can be joined to that connection's other events.
++func (r *Rule) GetTagWithConn(connID uint32) (string, error) {
+ 	if r.Balancer != nil {
+-		return r.Balancer.PickOutbound()
++		return r.Balancer.PickOutboundWithConn(connID)
+ 	}
+ 	return r.Tag, nil
+ }
+diff --git a/app/router/router.go b/app/router/router.go
+index 97a1d0d..99c9f43 100644
+--- a/app/router/router.go
++++ b/app/router/router.go
+@@ -2,9 +2,11 @@ package router
+ 
+ import (
+ 	"context"
++	"strings"
+ 	"sync"
+ 
+ 	"github.com/xtls/xray-core/common"
++	xctx "github.com/xtls/xray-core/common/ctx"
+ 	"github.com/xtls/xray-core/common/errors"
+ 	"github.com/xtls/xray-core/common/serial"
+ 	"github.com/xtls/xray-core/core"
+@@ -12,6 +14,7 @@ import (
+ 	"github.com/xtls/xray-core/features/outbound"
+ 	"github.com/xtls/xray-core/features/routing"
+ 	routing_dns "github.com/xtls/xray-core/features/routing/dns"
++	"github.com/xtls/xray-core/xraytrace"
+ )
+ 
+ // Router is an implementation of routing.Router.
+@@ -50,6 +53,10 @@ func (r *Router) Init(ctx context.Context, config *Config, d dns.Client, ohm out
+ 			return err
+ 		}
+ 		balancer.InjectContext(ctx)
++		// Identity for telemetry. This is the only place the BalancingRule that
++		// produced this Balancer is still in scope.
++		balancer.tag = rule.Tag
++		balancer.strategyName = strings.ToLower(rule.Strategy)
+ 		r.balancers[rule.Tag] = balancer
+ 	}
+ 
+@@ -94,11 +101,12 @@ func (r *Router) Init(ctx context.Context, config *Config, d dns.Client, ohm out
+ // PickRoute implements routing.Router.
+ func (r *Router) PickRoute(ctx routing.Context) (routing.Route, error) {
+ 	originalCtx := ctx
+-	rule, ctx, err := r.pickRouteInternal(ctx)
++	connID := connIDOf(ctx)
++	rule, ctx, err := r.pickRouteInternal(ctx, connID)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	tag, err := rule.GetTag()
++	tag, err := rule.GetTagWithConn(connID)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -143,6 +151,8 @@ func (r *Router) ReloadRules(config *Config, shouldAppend bool) error {
+ 			return err
+ 		}
+ 		balancer.InjectContext(r.ctx)
++		balancer.tag = rule.Tag
++		balancer.strategyName = strings.ToLower(rule.Strategy)
+ 		r.balancers[rule.Tag] = balancer
+ 	}
+ 
+@@ -242,7 +252,7 @@ func (r *Router) ListRule() []routing.Route {
+ 	return ruleList
+ }
+ 
+-func (r *Router) pickRouteInternal(ctx routing.Context) (*Rule, routing.Context, error) {
++func (r *Router) pickRouteInternal(ctx routing.Context, connID uint32) (*Rule, routing.Context, error) {
+ 	// SkipDNSResolve is set from DNS module.
+ 	// the DOH remote server maybe a domain name,
+ 	// this prevents cycle resolving dead loop
+@@ -252,28 +262,65 @@ func (r *Router) pickRouteInternal(ctx routing.Context) (*Rule, routing.Context,
+ 		ctx = routing_dns.ContextWithDNSClient(ctx, r.dns)
+ 	}
+ 
+-	for _, rule := range r.rules {
++	for i, rule := range r.rules {
+ 		if rule.Apply(ctx) {
++			reportRuleMatch(connID, 1, i, rule)
+ 			return rule, ctx, nil
+ 		}
+ 	}
+ 
+ 	if r.domainStrategy != Config_IpIfNonMatch || len(ctx.GetTargetDomain()) == 0 || skipDNSResolve {
++		reportRuleMatch(connID, 1, -1, nil)
+ 		return nil, ctx, common.ErrNoClue
+ 	}
+ 
+ 	ctx = routing_dns.ContextWithDNSClient(ctx, r.dns)
+ 
+ 	// Try applying rules again if we have IPs.
+-	for _, rule := range r.rules {
++	// Note for the UI: with IpIfNonMatch the ENTIRE rule list is evaluated a second
++	// time, now with resolved IPs. Pass 2 events are not duplicates.
++	for i, rule := range r.rules {
+ 		if rule.Apply(ctx) {
++			reportRuleMatch(connID, 2, i, rule)
+ 			return rule, ctx, nil
+ 		}
+ 	}
+ 
++	reportRuleMatch(connID, 2, -1, nil)
+ 	return nil, ctx, common.ErrNoClue
+ }
+ 
++// reportRuleMatch emits a routing decision. rule == nil means nothing matched, which
++// is the case the dispatcher otherwise handles almost silently by falling through to
++// the default handler — that is, to the FIRST outbound in the config.
++func reportRuleMatch(connID uint32, pass, idx int, rule *Rule) {
++	if xraytrace.OnRuleMatch == nil {
++		return
++	}
++	ev := xraytrace.RuleMatch{ConnID: connID, Pass: pass, RuleIdx: idx}
++	if rule != nil {
++		ev.RuleTag = rule.RuleTag
++		ev.OutTag = rule.Tag
++		if rule.Balancer != nil {
++			ev.Balancer = rule.Balancer.tag
++		}
++	}
++	xraytrace.Rule(ev)
++}
++
++// connIDOf extracts the per-connection id that common/errors already stamps onto
++// every log line, so a balancer trace can be joined to the rest of that connection's
++// story. Zero when unavailable.
++func connIDOf(rc routing.Context) uint32 {
++	type ctxCarrier interface{ GetContext() context.Context }
++	if c, ok := rc.(ctxCarrier); ok {
++		if goCtx := c.GetContext(); goCtx != nil {
++			return uint32(xctx.IDFromContext(goCtx))
++		}
++	}
++	return 0
++}
++
+ // Start implements common.Runnable.
+ func (r *Router) Start() error {
+ 	return nil

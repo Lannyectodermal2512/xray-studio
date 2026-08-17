@@ -1,0 +1,68 @@
+{
+  "log": {
+    "loglevel": "info"
+  },
+  "inbounds": [
+    {
+      "tag": "socks-in",
+      "listen": "127.0.0.1",
+      "port": 62692,
+      "protocol": "socks",
+      "settings": {
+        "auth": "noauth",
+        "udp": false
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "proxy-a",
+      "protocol": "freedom"
+    },
+    {
+      "tag": "proxy-b",
+      "protocol": "freedom"
+    },
+    {
+      "tag": "proxy-c",
+      "protocol": "freedom"
+    },
+    {
+      "tag": "direct",
+      "protocol": "freedom"
+    }
+  ],
+  "observatory": {
+    "subjectSelector": [
+      "proxy-"
+    ],
+    "probeURL": "http://cp.cloudflare.com/generate_204",
+    "probeInterval": "2s",
+    "enableConcurrency": true
+  },
+  "routing": {
+    "balancers": [
+      {
+        "tag": "bal",
+        "selector": [
+          "proxy-"
+        ],
+        "strategy": {
+          "type": "leastLoad",
+          "settings": {
+            "expected": 2
+          }
+        },
+        "fallbackTag": "direct"
+      }
+    ],
+    "rules": [
+      {
+        "inboundTag": [
+          "socks-in"
+        ],
+        "balancerTag": "bal"
+      }
+    ]
+  }
+}

@@ -1,0 +1,66 @@
+name: release
+
+# Tag-driven. Pushing v0.1.0-alpha.1 builds the macOS app and attaches it to a draft
+# release, so the artefacts are reviewed before anyone can download them.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-14 # arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          # The sidecar's only checksummed module set; xray-core comes from the pinned
+          # clone via a directory replace and is deliberately not in the cache key.
+          cache-dependency-path: sidecar/go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install app dependencies
+        run: npm --prefix app ci
+
+      # Fails loudly if the checkout does not match xray/PIN plus the patch series,
+      # which is the only integrity check there is — a directory `replace` bypasses
+      # go.sum for xray-core.
+      - name: Build and package
+        run: ./scripts/package.sh
+
+      - name: Verify the bundle is what it claims
+        run: |
+          APP=".build/dist/mac-arm64/Xray Studio.app"
+          test -x "$APP/Contents/Resources/xray-studio-sidecar" || { echo "sidecar missing from bundle"; exit 1; }
+          test -f "$APP/Contents/Resources/docs-en/params.json"  || { echo "docs missing from bundle"; exit 1; }
+          test -f "$APP/Contents/Resources/schema/protocols.json" || { echo "schema missing from bundle"; exit 1; }
+          plutil -p "$APP/Contents/Info.plist" | grep -q '"CFBundleName" => "Xray Studio"'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          path: |
+            .build/dist/*.dmg
+            .build/dist/*.zip
+
+      - name: Draft release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --draft \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file CHANGELOG.md \
+            --prerelease \
+            .build/dist/*.dmg .build/dist/*.zip
