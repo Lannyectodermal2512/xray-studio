@@ -129,6 +129,14 @@ the sidecar's real loader first. Renames follow their references (`fallbackTag`,
 selectors — a selector is a prefix pattern, not a reference, so the editor reports that
 the outbound has left the balancer instead of guessing.
 
+The **Editor** tab is the config as text, with a hint for whatever the pointer is over.
+Hover resolution is exact rather than heuristic: the text is monospace, so a pointer
+position maps arithmetically to a character offset, and `getLocation` turns that offset
+into the JSON path the documentation is keyed by. It is not Monaco — that would be ~5 MB
+and a CSP widened for web workers, in exchange for a JSON language service that knows
+nothing about Xray. Highlighting comes from the same `jsonc-parser` scanner used for
+every surgical edit, so it cannot disagree with the parser about what a token is.
+
 The **Protocols** tab covers the one part of a config the rest of the tool is blind to.
 The validator derives its known keys by *reflecting* over `conf.Config`, which is exact
 and can never drift from the linked core — but `inbounds[].settings` and

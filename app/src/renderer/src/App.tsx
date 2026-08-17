@@ -11,10 +11,12 @@ import { Reference } from './panels/Reference'
 import { Protocols } from './panels/Protocols'
 import { LogPanel } from './panels/LogPanel'
 import { Build } from './panels/Build'
+import { Editor } from './panels/Editor'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'observe', label: 'Observe' },
   { id: 'build', label: 'Graph' },
+  { id: 'editor', label: 'Editor' },
   { id: 'faults', label: 'Faults' },
   { id: 'whatif', label: 'What-if' },
   { id: 'validate', label: 'Validate' },
@@ -151,6 +153,7 @@ export function App(): React.JSX.Element {
           <div className="tab-body">
             {tab === 'observe' && <Observe />}
             {tab === 'build' && <Build />}
+            {tab === 'editor' && <Editor />}
             {tab === 'whatif' && <WhatIf />}
             {tab === 'validate' && <Validate />}
             {tab === 'selfcheck' && <SelfCheck />}

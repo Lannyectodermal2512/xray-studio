@@ -155,7 +155,9 @@ input:focus, select:focus { outline: 1px solid var(--accent); border-color: var(
   background: var(--bg-panel); border: 1px solid var(--border);
   border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;
 }
-.panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+/* gap, not just space-between: heads with more than two children (the graph's title,
+   hint, spacer and density control) would otherwise butt the first two together. */
+.panel-head { display: flex; align-items: center; gap: 10px; justify-content: space-between; margin-bottom: 10px; }
 .panel-head h3 { margin: 0; }
 .panel.empty { color: var(--fg-dim); text-align: center; padding: 28px; }
 .panel.empty p { margin: 4px 0; }
@@ -795,3 +797,130 @@ button.ghost.on { border-color: var(--bad); color: var(--bad); }
 .jslice-area:focus { border-color: var(--accent); outline: none; }
 .jslice-foot { align-items: center; display: flex; gap: 6px; }
 .jslice-foot button.tiny { font-size: 11px; padding: 3px 9px; }
+
+/* ── text editor ───────────────────────────────────────────────────────────── */
+
+.editor { display: flex; flex-direction: column; gap: 8px; height: 100%; min-height: 0; }
+.ed-bar { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.ed-path { max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ed-wrap {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex: 1;
+  min-height: 360px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* The three layers below MUST agree on font, size, line height and padding to the
+   pixel. Any drift and the highlight slides away from the characters it colours, and
+   the hover mapping points at the wrong key. */
+.ed-gutter,
+.ed-hl,
+.ed-input {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 19px;
+  tab-size: 2;
+}
+
+.ed-gutter {
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  color: var(--fg-faint);
+  flex: none;
+  overflow: hidden;
+  padding: 8px 8px 8px 12px;
+  text-align: right;
+  user-select: none;
+  min-width: 52px;
+}
+
+.ed-code { flex: 1; min-width: 0; position: relative; }
+
+.ed-hl,
+.ed-input {
+  border: 0;
+  inset: 0;
+  margin: 0;
+  padding: 8px 10px;
+  position: absolute;
+  white-space: pre;
+  word-wrap: normal;
+}
+
+.ed-hl { overflow: hidden; pointer-events: none; }
+
+/* Transparent text over the highlight layer, with the caret and selection left
+   visible. This is what lets one element own editing and another own colour. */
+.ed-input {
+  background: transparent;
+  caret-color: var(--fg);
+  color: transparent;
+  outline: none;
+  overflow: auto;
+  resize: none;
+}
+
+.ed-input::selection { background: rgb(76 154 255 / 28%); }
+
+/* Off-screen, but laid out — getBoundingClientRect needs a real box. */
+.ed-metrics {
+  font-family: var(--mono);
+  font-size: 12px;
+  left: -9999px;
+  line-height: 19px;
+  position: absolute;
+  top: 0;
+  visibility: hidden;
+  white-space: pre;
+}
+
+.tk-key { color: #79c0ff; }
+.tk-str { color: #a5d6ff; }
+.tk-num { color: #f0883e; }
+.tk-lit { color: #d2a8ff; }
+.tk-com { color: #6e7781; font-style: italic; }
+.tk-pun { color: #8b96a5; }
+
+.ed-hint {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 55%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 380px;
+  padding: 9px 11px;
+  pointer-events: none;
+  position: fixed;
+  z-index: 70;
+}
+
+.ed-hint-head { display: flex; gap: 8px; justify-content: space-between; }
+
+/* ── graph grouping and density ────────────────────────────────────────────── */
+
+.graph-density { align-items: center; display: flex; gap: 6px; }
+.graph-density input[type='range'] { accent-color: var(--accent); width: 110px; }
+
+/* Bands sit behind everything. Filled rather than outlined: an outline reads as another
+   node, which is the opposite of what a background grouping should do. */
+.graph-band rect {
+  fill: rgb(255 255 255 / 3%);
+  stroke: rgb(255 255 255 / 6%);
+  stroke-width: 1;
+}
+
+.graph-band-label {
+  fill: var(--fg-faint);
+  font: 600 10px var(--sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}

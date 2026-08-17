@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { effectiveConfigPath, useApp } from '../store/app'
+import { natural, splitTag } from '../lib/tags'
 
 import type { Selection } from './Inspector'
 
@@ -11,9 +12,22 @@ interface Node {
   sub: string
   col: number
   row: number
+  /** Band this node belongs to within its column. Nodes sharing one are drawn together
+   *  under a heading, with a gap to the next — a column of twenty identical boxes reads
+   *  as one undifferentiated list otherwise. */
+  group: string
   kind: 'inbound' | 'rule' | 'balancer' | 'outbound' | 'observatory' | 'dns'
   status?: 'ok' | 'bad' | 'idle' | 'fault' | undefined
   warn?: string | undefined
+}
+
+/** A drawn band: one group's extent within a column. */
+interface Band {
+  col: number
+  label: string
+  count: number
+  y: number
+  h: number
 }
 
 interface Edge {
@@ -22,10 +36,23 @@ interface Edge {
   kind: 'route' | 'select' | 'observe' | 'fallback' | 'active'
 }
 
-const COL_X = [40, 300, 580, 860]
-const ROW_H = 74
 const NODE_W = 200
 const NODE_H = 52
+const PAD_X = 40
+const PAD_Y = 34
+
+/**
+ * Vertical room per node and horizontal room per column, at density 1.
+ *
+ * Both are scaled by the density control rather than fixed. With sixteen outbounds fed
+ * by one balancer, sixteen edges converge on the same 200px-wide box: at the old fixed
+ * spacing their curves overlapped into a solid band, and no amount of styling fixes
+ * that — only distance does.
+ */
+const ROW_H_BASE = 74
+const COL_GAP_BASE = 80
+/** Extra vertical space between two groups in the same column, plus room for a heading. */
+const GROUP_GAP = 30
 
 /**
  * Read-only structural view of the config, laid out by semantic column rather than by
@@ -51,6 +78,9 @@ export function ConfigGraph({
   const snap = useApp((s) => s.snap)
   const [raw, setRaw] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  // Density is a view setting, not config state: it belongs to the person reading the
+  // diagram, and what "readable" means depends entirely on how many outbounds they have.
+  const [density, setDensity] = useState(1)
 
   useEffect(() => {
     if (source !== undefined || !configPath) return
@@ -78,7 +108,23 @@ export function ConfigGraph({
     )
   }
 
-  const height = Math.max(320, (model.maxRow + 1) * ROW_H + 40)
+  const { pos, bands, width, height } = layout(model.nodes, density)
+
+  // Give every edge leaving the same node its own departure lane.
+  //
+  // Twenty edges from one balancer all started at the same point with the same bend, so
+  // they overlapped into a single opaque ribbon and you could not tell twenty apart from
+  // two. Spreading the first control point across the horizontal gap makes each curve
+  // leave at a different angle, which is what actually separates them — there is nothing
+  // to route around here, the columns are already disjoint.
+  const fanTotal = new Map<string, number>()
+  for (const e of model.edges) fanTotal.set(e.from, (fanTotal.get(e.from) ?? 0) + 1)
+  const seen = new Map<string, number>()
+  const fanIndex = model.edges.map((e) => {
+    const k = seen.get(e.from) ?? 0
+    seen.set(e.from, k + 1)
+    return k
+  })
 
   return (
     <div className="panel graph-panel">
@@ -87,6 +133,19 @@ export function ConfigGraph({
         <span className="dim">
           {onSelect ? 'click a node to edit it' : 'read-only — use the Build tab to edit'}
         </span>
+        <span className="spacer" />
+        <label className="graph-density" title="Spreads the diagram out. With many outbounds feeding one balancer the edges overlap; distance is the only thing that separates them.">
+          <span className="tiny dim">spacing</span>
+          <input
+            type="range"
+            min={0.6}
+            max={2.4}
+            step={0.1}
+            value={density}
+            onChange={(e) => setDensity(Number(e.target.value))}
+          />
+          <span className="tiny mono dim">{density.toFixed(1)}×</span>
+        </label>
       </div>
       {/* Scales to fit rather than scrolling. The diagram is only four columns wide and
           its value is seeing the whole path at once; a min-width made it overflow the
@@ -95,7 +154,7 @@ export function ConfigGraph({
         className="graph"
         width="100%"
         height={height}
-        viewBox={`0 0 1100 ${height}`}
+        viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="xMinYMin meet"
       >
         <defs>
@@ -107,33 +166,62 @@ export function ConfigGraph({
           </marker>
         </defs>
 
+        {/* Group bands first, so every edge and node draws over them. */}
+        {bands.map((b, i) => (
+          <g key={`band-${i}`} className="graph-band">
+            <rect
+              x={PAD_X + b.col * (NODE_W + COL_GAP_BASE * density) - 10}
+              y={b.y - 4}
+              width={NODE_W + 20}
+              height={b.h}
+              rx={10}
+            />
+            <text
+              x={PAD_X + b.col * (NODE_W + COL_GAP_BASE * density) - 2}
+              y={b.y + 8}
+              className="graph-band-label"
+            >
+              {b.label} · {b.count}
+            </text>
+          </g>
+        ))}
+
         {model.edges.map((e, i) => {
-          const a = model.nodes.find((n) => n.id === e.from)
-          const b = model.nodes.find((n) => n.id === e.to)
+          const a = pos.get(e.from)
+          const b = pos.get(e.to)
           if (!a || !b) return null
-          const x1 = COL_X[a.col]! + NODE_W
-          const y1 = 20 + a.row * ROW_H + NODE_H / 2
-          const x2 = COL_X[b.col]!
-          const y2 = 20 + b.row * ROW_H + NODE_H / 2
-          const mid = (x1 + x2) / 2
+          const x1 = a.x + NODE_W
+          const y1 = a.y + NODE_H / 2
+          const x2 = b.x
+          const y2 = b.y + NODE_H / 2
           const active = e.kind === 'active'
+
+          const n = fanTotal.get(e.from) ?? 1
+          const k = fanIndex[i] ?? 0
+          // Lane within the gap: 0.15..0.7 of the way across, so curves stay inside the
+          // corridor between the two columns and never cross a node.
+          const lane = n > 1 ? 0.15 + 0.55 * ((k + 1) / (n + 1)) : 0.35
+          const c1 = x1 + (x2 - x1) * lane
+          const c2 = x2 - (x2 - x1) * 0.28
+
           return (
             <path
               key={i}
-              d={`M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2},${y2}`}
+              d={`M${x1},${y1} C${c1},${y1} ${c2},${y2} ${x2},${y2}`}
               fill="none"
               stroke={active ? 'var(--ok)' : e.kind === 'observe' ? '#5d6875' : '#3a4250'}
               strokeWidth={active ? 2.4 : 1.2}
               strokeDasharray={e.kind === 'observe' ? '4 3' : e.kind === 'fallback' ? '2 3' : undefined}
               markerEnd={active ? 'url(#arrowd)' : 'url(#arrow)'}
-              opacity={active ? 1 : 0.65}
+              opacity={active ? 1 : 0.55}
             />
           )
         })}
 
         {model.nodes.map((n) => {
-          const x = COL_X[n.col]!
-          const y = 20 + n.row * ROW_H
+          const p = pos.get(n.id)
+          if (!p) return null
+          const { x, y } = p
           const stroke =
             n.status === 'bad' || n.status === 'fault'
               ? 'var(--bad)'
@@ -210,6 +298,68 @@ interface Model {
   error?: string
 }
 
+/**
+ * Turns per-column ordering into coordinates.
+ *
+ * Kept separate from buildModel so density is a pure re-layout: changing the slider must
+ * not re-parse the config or disturb which node is selected. Groups are laid out in the
+ * order buildModel emitted them, so a column's reading order still follows the config.
+ */
+function layout(
+  nodes: Node[],
+  density: number,
+): { pos: Map<string, { x: number; y: number }>; bands: Band[]; width: number; height: number } {
+  const rowH = ROW_H_BASE * density
+  const colW = NODE_W + COL_GAP_BASE * density
+  const pos = new Map<string, { x: number; y: number }>()
+  const bands: Band[] = []
+
+  const cols = new Map<number, Node[]>()
+  for (const n of nodes) {
+    const arr = cols.get(n.col)
+    if (arr) arr.push(n)
+    else cols.set(n.col, [n])
+  }
+
+  let maxY = 0
+  let maxCol = 0
+  for (const [col, list] of cols) {
+    maxCol = Math.max(maxCol, col)
+    const ordered = [...list].sort((a, b) => a.row - b.row)
+    let y = PAD_Y
+    let i = 0
+    while (i < ordered.length) {
+      const group = ordered[i]!.group
+      const members: Node[] = []
+      while (i < ordered.length && ordered[i]!.group === group) members.push(ordered[i++]!)
+
+      // A band is only worth drawing when it names something. A single-member group in a
+      // column of one is just a node, and a heading over it is noise.
+      const banded = members.length > 1 || cols.get(col)!.length > members.length
+      const top = y
+      if (banded) y += 16
+
+      for (const n of members) {
+        pos.set(n.id, { x: PAD_X + col * colW, y })
+        y += rowH
+      }
+
+      if (banded) {
+        bands.push({ col, label: group, count: members.length, y: top, h: y - top - (rowH - NODE_H) + 6 })
+      }
+      y += GROUP_GAP * density
+      maxY = Math.max(maxY, y)
+    }
+  }
+
+  return {
+    pos,
+    bands,
+    width: PAD_X * 2 + maxCol * colW + NODE_W,
+    height: Math.max(320, maxY + 10),
+  }
+}
+
 function buildModel(raw: string, snap: ReturnType<typeof useApp.getState>['snap']): Model {
   const nodes: Node[] = []
   const edges: Edge[] = []
@@ -240,6 +390,7 @@ function buildModel(raw: string, snap: ReturnType<typeof useApp.getState>['snap'
       sub: `${ib['protocol'] ?? '?'} :${ib['port'] ?? '?'}`,
       col: 0,
       row: row++,
+      group: 'inbounds',
       kind: 'inbound',
     })
   })
@@ -249,7 +400,16 @@ function buildModel(raw: string, snap: ReturnType<typeof useApp.getState>['snap'
     const id = `rule:${i}`
     const tag = String(r['ruleTag'] ?? `rule ${i}`)
     const target = r['balancerTag'] ? `→ ${r['balancerTag']}` : `→ ${r['outboundTag'] ?? '?'}`
-    nodes.push({ id, label: tag, sub: target, col: 1, row: rrow++, kind: 'rule', sel: { kind: 'rule', index: i } })
+    nodes.push({
+      id,
+      label: tag,
+      sub: target,
+      col: 1,
+      row: rrow++,
+      group: 'routing rules',
+      kind: 'rule',
+      sel: { kind: 'rule', index: i },
+    })
 
     const inTags = (r['inboundTag'] as string[]) ?? []
     for (const it of inTags) edges.push({ from: `in:${it}`, to: id, kind: 'route' })
@@ -280,6 +440,7 @@ function buildModel(raw: string, snap: ReturnType<typeof useApp.getState>['snap'
       sub: `${strategy} · ${matched.length} candidate${matched.length === 1 ? '' : 's'}`,
       col: 2,
       row: brow++,
+      group: 'balancers',
       kind: 'balancer',
       status: matched.length === 0 ? 'bad' : undefined,
       ...(matched.length === 0
@@ -325,7 +486,10 @@ function buildModel(raw: string, snap: ReturnType<typeof useApp.getState>['snap'
       label: tag || '(untagged)',
       sub: String(o['protocol'] ?? '?') + (i === 0 ? ' · default' : ''),
       col: 3,
+      // Same prefix split as the rail and the RTT legend. Agreeing matters: moving your
+      // eye between the diagram and the outbound list should not need a re-read.
       row: orow++,
+      group: splitTag(tag).group,
       kind: 'outbound',
       status: live?.faultKind ? 'fault' : live?.alive === false ? 'bad' : live?.alive ? 'ok' : 'idle',
       ...(live?.faultKind ? { warn: `fault active: ${live.faultKind}` } : {}),
@@ -347,6 +511,7 @@ function buildModel(raw: string, snap: ReturnType<typeof useApp.getState>['snap'
       sub: `${subjects.length} subject${subjects.length === 1 ? '' : 's'}`,
       col: 2,
       row: brow++,
+      group: 'services',
       kind: 'observatory',
       status: subjects.length === 0 ? 'bad' : undefined,
     })
@@ -387,6 +552,7 @@ function buildModel(raw: string, snap: ReturnType<typeof useApp.getState>['snap'
       sub: `${servers.length} server${servers.length === 1 ? '' : 's'} · ${strategy}`,
       col: 2,
       row: brow++,
+      group: 'services',
       kind: 'dns',
       status: servers.length === 0 ? 'bad' : undefined,
     })
@@ -426,6 +592,19 @@ function buildModel(raw: string, snap: ReturnType<typeof useApp.getState>['snap'
       )
     }
   }
+
+  // Order the outbound column by group, then naturally within it.
+  //
+  // Config order is not grouped order: an author is free to write REGULAR-1, LTE-1,
+  // REGULAR-2, and laying that out verbatim would split one group across several bands.
+  // Reordering rows is safe because a node's identity for the inspector is `sel.index`,
+  // which still points at the real position in the config.
+  const outNodes = nodes.filter((n) => n.col === 3)
+  outNodes
+    .sort((a, b) => natural(a.group, b.group) || natural(a.label, b.label))
+    .forEach((n, i) => {
+      n.row = i
+    })
 
   const maxRow = Math.max(row, rrow, brow, orow)
   return { nodes, edges, maxRow, warnings }

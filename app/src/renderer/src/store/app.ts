@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type { FaultRule, Snapshot } from '@shared/events'
 import { emptySnapshot } from '@shared/events'
 
-export type Tab = 'observe' | 'graph' | 'build' | 'faults' | 'whatif' | 'validate' | 'selfcheck' | 'reference' | 'protocols' | 'log'
+export type Tab = 'observe' | 'graph' | 'build' | 'editor' | 'faults' | 'whatif' | 'validate' | 'selfcheck' | 'reference' | 'protocols' | 'log'
 
 interface AppState {
   snap: Snapshot

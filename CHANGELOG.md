@@ -41,9 +41,17 @@ uses a bare HTTP client outside Xray, and there is no TCP segment loss, ICMP or 
   selector matching nothing, a `fallbackTag` pointing nowhere, `tolerance` without
   `burstObservatory`, and traps that make faults look broken. The known-key set is
   derived by reflecting over `conf.Config`, so it cannot drift from the parser.
+- **Editor** — the whole config as text, with a documentation hint for whatever the
+  pointer is over. The pointer position maps arithmetically to a character offset
+  (the font is monospace), and `getLocation` turns that into the JSON path the docs are
+  keyed by — so hints are exact rather than guessed from the nearest word, including
+  inside protocol `settings`, which are keyed by protocol.
 - **Graph** — the config as a diagram, editable: click a node and change it. Every edit
   is a minimal text patch, so protocol settings, TLS, Reality, `mux`, comments and
   formatting survive untouched. Individual nodes can also be edited as raw JSON.
+  Nodes are banded by group — the same tag-prefix split the rail and the RTT legend use
+  — and a spacing control spreads the diagram out, because with sixteen outbounds fed by
+  one balancer only distance separates the edges.
 - **Reference / Protocols** — 311 documented parameters and the generated
   `settings` schema for every protocol in the registry.
 - **What-if** — runs the real strategy against a frozen observation and reports the
