@@ -18,6 +18,10 @@ import type {
  * filesystem, and never sees Node. Everything is a typed IPC call.
  */
 const api = {
+  /** The renderer lays out its title bar differently per platform; this is the only
+   *  thing it needs to know about the host. */
+  platform: process.platform,
+
   getVersions: (): Promise<{ app: string; electron: string; chrome: string; node: string }> =>
     ipcRenderer.invoke('app:versions'),
 
@@ -71,6 +75,12 @@ const api = {
     const h = (_e: unknown, line: string): void => cb(line)
     ipcRenderer.on('core:log', h)
     return () => ipcRenderer.off('core:log', h)
+  },
+
+  onMenuOpenConfig: (cb: () => void): (() => void) => {
+    const h = (): void => cb()
+    ipcRenderer.on('menu:open-config', h)
+    return () => ipcRenderer.off('menu:open-config', h)
   },
 
   onConfigOpened: (cb: (path: string) => void): (() => void) => {

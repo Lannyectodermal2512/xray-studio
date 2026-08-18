@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { watch, type FSWatcher } from 'node:fs'
@@ -54,7 +54,10 @@ function createWindow(): BrowserWindow {
     minHeight: 700,
     show: false,
     backgroundColor: '#0e1116',
-    titleBarStyle: 'hiddenInset',
+    // macOS only. On Windows this maps to a frameless window: no title bar and no menu
+    // bar, which is both unlike every other app on that platform and how the Paste
+    // dialog ended up with no working Ctrl+V — the accelerators live on the menu.
+    ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' as const } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       // The renderer displays tags, domains and error text originating from the
@@ -427,8 +430,56 @@ if (isDev) {
 
 trace('main module loaded')
 
+/**
+ * The application menu.
+ *
+ * Set explicitly rather than left to Electron's default, because the default is where
+ * Cut/Copy/Paste and their accelerators come from — and on Windows the frameless window
+ * this app used to request left no menu bar to carry them, so Ctrl+V did nothing in the
+ * Paste dialog. Roles are used throughout: Electron wires them to the native clipboard
+ * and localises the labels, which hand-rolled handlers would not.
+ */
+function buildMenu(): void {
+  const isMac = process.platform === 'darwin'
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      ...(isMac
+        ? ([{ role: 'appMenu' }] as Electron.MenuItemConstructorOptions[])
+        : []),
+      {
+        label: 'File',
+        submenu: [
+          {
+            label: 'Open config…',
+            accelerator: 'CmdOrCtrl+O',
+            click: () => win?.webContents.send('menu:open-config'),
+          },
+          { type: 'separator' },
+          isMac ? { role: 'close' } : { role: 'quit' },
+        ],
+      },
+      { role: 'editMenu' },
+      {
+        label: 'View',
+        submenu: [
+          { role: 'reload' },
+          { role: 'toggleDevTools' },
+          { type: 'separator' },
+          { role: 'resetZoom' },
+          { role: 'zoomIn' },
+          { role: 'zoomOut' },
+          { type: 'separator' },
+          { role: 'togglefullscreen' },
+        ],
+      },
+      { role: 'windowMenu' },
+    ]),
+  )
+}
+
 void app.whenReady().then(async () => {
   trace('app ready')
+  buildMenu()
   registerIpc()
   win = createWindow()
   startSnapshotLoop()

@@ -48,18 +48,25 @@ export function App(): React.JSX.Element {
   } = useApp()
   const [pasting, setPasting] = useState(false)
 
+  // The topbar reserves room for the macOS traffic lights, which do not exist elsewhere.
+  useEffect(() => {
+    document.documentElement.dataset['platform'] = window.xraystudio.platform
+  }, [])
+
   useEffect(() => {
     const offSnap = window.xraystudio.onSnapshot(setSnapshot)
     const offLog = window.xraystudio.onCoreLog(appendCoreLog)
     const offCfg = window.xraystudio.onConfigChanged(() => setConfigDirty(true))
     const offOpen = window.xraystudio.onConfigOpened((p) => setConfigPath(p))
+    const offMenu = window.xraystudio.onMenuOpenConfig(() => void openConfig())
     return () => {
       offSnap()
       offLog()
       offCfg()
       offOpen()
+      offMenu()
     }
-  }, [setSnapshot, appendCoreLog, setConfigDirty, setConfigPath])
+  }, [setSnapshot, appendCoreLog, setConfigDirty, setConfigPath, openConfig])
 
   const shownPath = effectiveConfigPath({ configPath, snap })
   const state = snap.state?.state ?? (snap.sidecarUp ? 'stopped' : 'stopped')

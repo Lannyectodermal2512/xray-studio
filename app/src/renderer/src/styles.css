@@ -43,12 +43,15 @@ h3 { margin-bottom: 10px; }
 
 .topbar {
   display: flex; align-items: center; gap: 16px;
-  padding: 8px 14px 8px 90px;   /* leaves room for the macOS traffic lights */
+  /* Room for the macOS traffic lights, which sit over the window on that platform
+     only. Elsewhere the window has a real title bar and this would just be a gap. */
+  padding: 8px 14px;
   background: var(--bg-panel);
   border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;
   min-height: 44px;
 }
+:root[data-platform='darwin'] .topbar { padding-left: 90px; }
 .topbar button, .topbar input, .topbar select, .topbar .pill { -webkit-app-region: no-drag; }
 .tb-left, .tb-mid, .tb-right { display: flex; align-items: center; gap: 8px; }
 .tb-right { margin-left: auto; }
