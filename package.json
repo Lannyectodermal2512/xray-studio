@@ -19,5 +19,14 @@
     "node": ">=22"
   },
   "productName": "Xray Studio",
-  "license": "MPL-2.0"
+  "license": "MPL-2.0",
+  "homepage": "https://github.com/NotACircle/xray-studio",
+  "author": {
+    "name": "NotACircle",
+    "email": "notacircle@protonmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NotACircle/xray-studio.git"
+  }
 }

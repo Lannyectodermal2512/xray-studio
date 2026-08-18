@@ -1,5 +1,5 @@
 {
-  "name": "xray-studio-app",
+  "name": "xray-studio",
   "version": "0.1.0-alpha.1",
   "private": true,
   "type": "module",
@@ -35,5 +35,14 @@
   },
   "productName": "Xray Studio",
   "description": "Xray Studio \u2014 desktop tester for Xray-core configurations",
-  "license": "MPL-2.0"
+  "license": "MPL-2.0",
+  "homepage": "https://github.com/NotACircle/xray-studio",
+  "author": {
+    "name": "NotACircle",
+    "email": "notacircle@protonmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NotACircle/xray-studio.git"
+  }
 }

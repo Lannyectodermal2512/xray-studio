@@ -74,6 +74,21 @@ linux:
       arch: [x64, arm64]
     - target: tar.gz
       arch: [x64, arm64]
+    - target: pacman
+      arch: [x64, arm64]
+
+# Arch Linux. fpm's default for pacman is xz; zstd is what pacman itself has used since
+# 2020, so the file is a .pkg.tar.zst that `pacman -U` takes without complaint.
+pacman:
+  compression: zstd
+  # ".pacman" says nothing about what the file is; it is a zstd-compressed package
+  # tarball, so name it the way pacman itself names them.
+  #
+  # ${arch} resolves to aarch64 here rather than the arm64 used by the other artefacts,
+  # and that is left alone deliberately: aarch64 is Arch's own name for the
+  # architecture, and it is what this package declares in .PKGINFO. Matching the
+  # metadata matters more than matching the neighbouring filenames.
+  artifactName: XrayStudio-${version}-linux-${arch}.pkg.tar.zst
 
 dmg:
   title: Xray Studio ${version}

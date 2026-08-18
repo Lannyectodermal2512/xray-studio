@@ -46,11 +46,18 @@ the first row.
 |---|---|
 | `linux-x86_64.AppImage` | **the normal one.** `chmod +x` it and run — no install, no dependencies |
 | `linux-arm64.AppImage` | ARM boards and ARM VMs |
+| `linux-x64.pkg.tar.zst`, `linux-aarch64.pkg.tar.zst` | **Arch Linux and derivatives** — `sudo pacman -U <file>`. Installs to `/opt`, with a desktop entry and icons |
 | `linux-x64.tar.gz`, `linux-arm64.tar.gz` | plain directory, for packaging it yourself or putting it under a service manager |
 
-`x86_64` and `x64` are the same architecture — AppImage names it the way the AppImage
-tooling does, and the tarball the way electron-builder does. There is one build behind
-both.
+`x86_64`, `x64` and `aarch64` are not different builds. Each format uses the naming its
+own tooling uses — AppImage says `x86_64`, the tarball says `x64`, and the Arch package
+says `aarch64` for ARM because that is what `pacman` calls it and what the package
+declares in its metadata.
+
+The Arch package declares the usual Electron runtime dependencies (`gtk3`, `nss`,
+`libnotify`, `libappindicator-gtk3` and friends), so `pacman` will pull anything missing.
+The AppImage bundles them instead, which is why it is larger and why it runs on
+distributions this package would not.
 
 ### Everything else in the release
 
