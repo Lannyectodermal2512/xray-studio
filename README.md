@@ -31,6 +31,15 @@ universal binary format on Linux — no fat binary, no equivalent — so a packa
 for one architecture or the other. The names are exactly what `uname -m` prints, so run
 that if you are unsure.
 
+The AppImage is the one to reach for when a dependency is missing or the wrong version:
+it never resolves packages, so it cannot fail the way an install can. It is not fully
+self-contained though — Electron and its private libraries travel with it, but `gtk3`,
+`nss` and `glibc` still come from the host. Only Flatpak or a container would remove
+that last dependency, and neither is built here.
+
+If it refuses to start with a FUSE error, run it as
+`./XrayStudio-*.AppImage --appimage-extract-and-run`.
+
 The Arch package installs to `/opt` with a desktop entry and icons. Its dependencies are
 derived from the shipped binary's own `DT_NEEDED` entries rather than copied from an
 Electron boilerplate list — `gtk3`, `nss`, `alsa-lib`, `libcups`, `mesa`, `systemd-libs`,

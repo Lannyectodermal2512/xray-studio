@@ -73,6 +73,17 @@ linux:
   # one place a single file per OS is not achievable. Two remain, named with exactly
   # what `uname -m` prints so choosing between them takes no thought.
   target:
+    # AppImage first: there is no install step, so there is no dependency RESOLUTION,
+    # so a retired or renamed package cannot stop it the way http-parser stopped the
+    # pacman build. It also runs on distributions that do not use pacman at all.
+    #
+    # It is not fully self-contained, and it would be wrong to claim otherwise: it
+    # carries Electron and its private libraries, but gtk3, nss and glibc still come
+    # from the host. Genuinely bundling those would mean Flatpak or a container.
+    - target: AppImage
+      arch: [x64, arm64]
+    # The Arch package remains for people who want a real install — desktop entry,
+    # icons, /opt, and pacman tracking the files.
     - target: pacman
       arch: [x64, arm64]
 
