@@ -45,6 +45,14 @@ export function RttTimeline(): React.JSX.Element {
   const userChoseScale = useRef(false)
   const [autoLog, setAutoLog] = useState(false)
   const [hidden, setHidden] = useState<Set<string>>(new Set())
+  const [hover, setHover] = useState<HoverPoint | null>(null)
+  // The uPlot config is built once, but the cursor hook needs the CURRENT series and
+  // visibility. Refs rather than a rebuild: recreating the plot on every sample would
+  // throw away the zoom and flash the canvas.
+  const seriesRef = useRef<RttSeries | null>(null)
+  const hiddenRef = useRef<Set<string>>(hidden)
+  seriesRef.current = series
+  hiddenRef.current = hidden
   // Bumped whenever the plot geometry changes, so the failure lane recomputes its
   // pixel positions against the same axis the chart just drew.
   const [geom, setGeom] = useState(0)
@@ -120,6 +128,9 @@ export function RttTimeline(): React.JSX.Element {
             // mapping the failure lane depends on.
             setSize: [() => setGeom((g) => g + 1)],
             setScale: [() => setGeom((g) => g + 1)],
+            setCursor: [
+              (u: uPlot) => setHover(nearestLine(u, seriesRef.current, hiddenRef.current)),
+            ],
           },
           // x carries seconds since sidecar start, not a unix timestamp. Without
           // time:false uPlot renders it as 1970 dates, which is both wrong and useless
@@ -289,7 +300,25 @@ export function RttTimeline(): React.JSX.Element {
         </div>
       </div>
 
-      <div ref={hostRef} className="chart" />
+      <div className="chart-wrap">
+        <div ref={hostRef} className="chart" />
+        {hover && (
+          <div
+            className="rtt-tip"
+            style={{
+              left: hover.left,
+              top: hover.top,
+              // Flip to the other side of the cursor near the right edge so the tip is
+              // never clipped by the panel.
+              transform: hover.flip ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
+            }}
+          >
+            <span className="rtt-tip-swatch" style={{ background: hover.color }} />
+            <span className="mono">{hover.tag}</span>
+            <span className="mono dim">{hover.value.toFixed(1)}ms</span>
+          </div>
+        )}
+      </div>
 
       {series && (
         <ProbeLane
@@ -394,6 +423,130 @@ export function RttTimeline(): React.JSX.Element {
  * Positions come from uPlot's own valToPos against the live x scale, so the lane stays
  * aligned through resizes and zoom-drags instead of approximating the axis geometry.
  */
+interface HoverPoint {
+  tag: string
+  value: number
+  color: string
+  left: number
+  top: number
+  flip: boolean
+}
+
+/** How close, in pixels, the pointer must be to a line before it is named. */
+const HOVER_PROX = 22
+
+/**
+ * Which line is under the pointer.
+ *
+ * uPlot's own `cursor.focus` snaps to the nearest data POINT, which is the wrong answer
+ * here: probes are interleaved, so at any given x exactly one series has a sample and
+ * every other series is a drawn-but-empty span. Asking "which point is nearest" would
+ * name whichever outbound happened to be probed last, no matter which line the pointer
+ * is actually on.
+ *
+ * So each series is interpolated at the cursor's x — between its own neighbouring
+ * samples, which is exactly what spanGaps draws — and the closest resulting y wins.
+ * That names the line you are pointing at, which is the question being asked.
+ */
+function nearestLine(
+  u: uPlot,
+  series: RttSeries | null,
+  hidden: Set<string>,
+): HoverPoint | null {
+  const { left, top } = u.cursor
+  // uPlot parks the cursor off-canvas when the pointer leaves.
+  if (series == null || left == null || top == null || left < 0 || top < 0) return null
+
+  const xVal = u.posToVal(left, 'x')
+  // The cursor and valToPos work in PLOT-AREA coordinates; the tip is positioned inside
+  // the chart wrapper, which also contains the axis gutter and padding. Same offset the
+  // probe lane needed — getting it wrong shifts the tip off the line it names.
+  const offX = u.bbox.left / devicePixelRatio
+  const offY = u.bbox.top / devicePixelRatio
+  let best: HoverPoint | null = null
+  let bestDist = HOVER_PROX
+
+  for (let i = 0; i < series.tags.length; i++) {
+    const tag = series.tags[i]!
+    if (hidden.has(tag)) continue
+    const col = series.values[i]
+    if (!col) continue
+
+    // On the line: vertical distance to the interpolated path. Past either end of the
+    // series there is no path — spanGaps connects samples, it does not extend beyond
+    // them — so fall back to the straight-line distance to its nearest endpoint, which
+    // is what lets the newest sample still be named.
+    let y = interpolateAt(series.t, col, xVal)
+    let dist: number
+    if (y != null) {
+      dist = Math.abs(u.valToPos(y, 'y') - top)
+    } else {
+      const near = nearestSample(u, series.t, col, left, top)
+      if (near == null) continue
+      y = near.v
+      dist = near.dist
+    }
+
+    const py = u.valToPos(y, 'y')
+    if (dist < bestDist) {
+      bestDist = dist
+      best = {
+        tag,
+        value: y,
+        color: PALETTE[i % PALETTE.length]!,
+        left: offX + left + 12,
+        top: offY + py,
+        flip: left > u.bbox.width / devicePixelRatio - 150,
+      }
+    }
+  }
+  return best
+}
+
+/** Straight-line pixel distance to a series' closest actual sample. */
+function nearestSample(
+  u: uPlot,
+  t: number[],
+  col: (number | null)[],
+  left: number,
+  top: number,
+): { v: number; dist: number } | null {
+  let best: { v: number; dist: number } | null = null
+  for (let k = 0; k < col.length; k++) {
+    const v = col[k]
+    if (v == null) continue
+    const dx = u.valToPos(t[k]!, 'x') - left
+    const dy = u.valToPos(v, 'y') - top
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    if (!best || dist < best.dist) best = { v, dist }
+  }
+  return best
+}
+
+/** Linear interpolation between a series' own non-null neighbours, or null outside them. */
+function interpolateAt(t: number[], col: (number | null)[], x: number): number | null {
+  let lo = -1
+  let hi = -1
+  for (let k = 0; k < col.length; k++) {
+    if (col[k] == null) continue
+    if (t[k]! <= x) lo = k
+    else {
+      hi = k
+      break
+    }
+  }
+  if (lo < 0 && hi < 0) return null
+  // Beyond the series' own ends there is no line to be near — spanGaps connects
+  // samples, it does not extend past them.
+  if (lo < 0 || hi < 0) return null
+  const t0 = t[lo]!
+  const t1 = t[hi]!
+  const v0 = col[lo]!
+  const v1 = col[hi]!
+  if (t1 === t0) return v0
+  return v0 + ((v1 - v0) * (x - t0)) / (t1 - t0)
+}
+
 function ProbeLane({
   series,
   plot,

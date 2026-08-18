@@ -1017,3 +1017,27 @@ button.ghost.on { border-color: var(--bad); color: var(--bad); }
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+
+/* ── RTT hover tip ─────────────────────────────────────────────────────────── */
+
+.chart-wrap { position: relative; }
+
+/* Positioned in the plot's own coordinates by the cursor hook, and pointer-events:none
+   so it can never sit between the pointer and the chart it is describing. */
+.rtt-tip {
+  align-items: center;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 45%);
+  display: flex;
+  font-size: 11px;
+  gap: 6px;
+  padding: 3px 7px;
+  pointer-events: none;
+  position: absolute;
+  white-space: nowrap;
+  z-index: 5;
+}
+
+.rtt-tip-swatch { border-radius: 2px; flex: none; height: 8px; width: 8px; }
