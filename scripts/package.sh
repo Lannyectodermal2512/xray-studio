@@ -63,6 +63,7 @@ while read -r plat arch; do
   ./scripts/build-sidecar.sh "$plat" "$arch" >/dev/null \
     || die "the sidecar does not build for $plat/$arch"
 done <<'TARGETS'
+mac x64
 mac arm64
 linux x64
 linux arm64
@@ -112,6 +113,15 @@ else
      Reproducibility is the point: an archive of whatever happened to be on disk
      cannot be checked against anything."
 fi
+
+# electron-builder's ${arch} macro yields "x64" for Intel but "aarch64" for ARM in the
+# pacman target, so the pair looks like it came from two different naming schemes — and
+# the x64 file does not match the x86_64 its own .PKGINFO declares. Rename to what
+# `uname -m` prints, which is the string a user actually compares against.
+for f in .build/dist/*-linux-x64.pkg.tar.zst; do
+  [[ -e "$f" ]] || continue
+  mv "$f" "${f/-linux-x64.pkg.tar.zst/-linux-x86_64.pkg.tar.zst}"
+done
 
 printf '\033[32m✓\033[0m artifacts in .build/dist/\n'
 ls -lh .build/dist/* 2>/dev/null | grep -vE '/(mac|win|linux)-' | sed 's/^/  /' || true

@@ -59,10 +59,16 @@ jobs:
           set -euo pipefail
           case "${{ matrix.target }}" in
             mac)
-              APP=".build/dist/mac-arm64/Xray Studio.app/Contents"
+              APP=".build/dist/mac-universal/Xray Studio.app/Contents"
               RES="$APP/Resources"
               SIDECAR="$RES/xray-studio-sidecar"
               plutil -p "$APP/Info.plist" | grep -q '"CFBundleName" => "Xray Studio"'
+              # Universal means universal all the way down: an arm64-only sidecar in a
+              # fat app fails on Intel at runtime, with nothing in the build to catch it.
+              lipo -info "$SIDECAR" | grep -q 'x86_64 arm64' \
+                || { echo "sidecar is not universal"; exit 1; }
+              lipo -info "$APP/MacOS/Xray Studio" | grep -q 'x86_64 arm64' \
+                || { echo "app binary is not universal"; exit 1; }
               ;;
             linux)
               RES=".build/dist/linux-unpacked/resources"
@@ -84,10 +90,10 @@ jobs:
           # The unpacked trees are build scratch, not artefacts.
           path: |
             .build/dist/*.dmg
-            .build/dist/*.zip
             .build/dist/*.exe
-            .build/dist/*.AppImage
-            .build/dist/*.tar.gz
+            .build/dist/*.pkg.tar.zst
+            .build/dist/*-src.tar.gz
+            .build/dist/*.blockmap
 
   release:
     needs: build

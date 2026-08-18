@@ -72,8 +72,10 @@ uses a bare HTTP client outside Xray, and there is no TCP segment loss, ICMP or 
 
 ### Known limits
 
-- macOS (Apple Silicon), Windows (x64/arm64) and Linux (x64/arm64). Intel Macs are not
-  built. The fault dialer's errno layer is build-tagged per platform; the Windows variant
+- One artefact per system: a universal macOS `.dmg` (Intel and Apple Silicon), a
+  Windows installer carrying both x64 and arm64, and an Arch Linux `.pkg.tar.zst` per
+  architecture — Linux has no universal binary format, so that is the one place a single
+  file is not possible. The fault dialer's errno layer is build-tagged per platform; the Windows variant
   synthesises WSA* errors through ConnectEx and WSARecv so an injected failure is
   indistinguishable from a real one there too.
 - Unsigned and un-notarised — see the README for the one-time quarantine removal.

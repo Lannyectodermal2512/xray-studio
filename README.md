@@ -17,62 +17,35 @@ Built against **Xray-core v26.7.28**.
 
 ## Install
 
-Download from [Releases](../../releases). One line per case:
+Download from [Releases](../../releases). One file per system:
 
-### macOS — Apple Silicon only
+| system | file | how |
+|---|---|---|
+| **macOS** 14+ | `macos-universal.dmg` | open, drag to Applications. Intel and Apple Silicon in one build |
+| **Windows** 10+ | `windows-setup.exe` | run it. Carries x64 and arm64 and picks at install time |
+| **Arch Linux** x86_64 | `linux-x86_64.pkg.tar.zst` | `sudo pacman -U <file>` |
+| **Arch Linux** ARM | `linux-aarch64.pkg.tar.zst` | `sudo pacman -U <file>` |
 
-| file | when |
-|---|---|
-| `mac-arm64.dmg` | **the normal one.** Open, drag to Applications |
-| `mac-arm64.zip` | the same app with no installer, for running from anywhere |
+Linux is the one system that needs two files, and it is not an oversight: there is no
+universal binary format on Linux — no fat binary, no equivalent — so a package is built
+for one architecture or the other. The names are exactly what `uname -m` prints, so run
+that if you are unsure.
 
-Intel Macs are not built.
+The Arch package installs to `/opt` with a desktop entry and icons, and declares the
+usual Electron runtime dependencies, so `pacman` pulls anything missing.
 
-### Windows 10+
-
-| file | when |
-|---|---|
-| `win-x64-setup.exe` | **the normal one** on any ordinary PC |
-| `win-arm64-setup.exe` | Snapdragon machines — Surface Pro X, Dev Kit, recent ARM laptops |
-| `win-setup.exe` | both architectures in one installer. Twice the download; use it when handing one file to people on mixed hardware |
-| `win-x64.zip`, `win-arm64.zip` | portable: unpack and run, nothing is installed and nothing is written outside the folder |
-
-Not sure which architecture? Settings → System → About → *System type*. "x64-based" is
-the first row.
-
-### Linux
-
-| file | when |
-|---|---|
-| `linux-x86_64.AppImage` | **the normal one.** `chmod +x` it and run — no install, no dependencies |
-| `linux-arm64.AppImage` | ARM boards and ARM VMs |
-| `linux-x64.pkg.tar.zst`, `linux-aarch64.pkg.tar.zst` | **Arch Linux and derivatives** — `sudo pacman -U <file>`. Installs to `/opt`, with a desktop entry and icons |
-| `linux-x64.tar.gz`, `linux-arm64.tar.gz` | plain directory, for packaging it yourself or putting it under a service manager |
-
-`x86_64`, `x64` and `aarch64` are not different builds. Each format uses the naming its
-own tooling uses — AppImage says `x86_64`, the tarball says `x64`, and the Arch package
-says `aarch64` for ARM because that is what `pacman` calls it and what the package
-declares in its metadata.
-
-The Arch package declares the usual Electron runtime dependencies (`gtk3`, `nss`,
-`libnotify`, `libappindicator-gtk3` and friends), so `pacman` will pull anything missing.
-The AppImage bundles them instead, which is why it is larger and why it runs on
-distributions this package would not.
-
-### Everything else in the release
+Also in the release:
 
 | file | what |
 |---|---|
 | `src.tar.gz` | the sources this release was built from, straight out of `git archive` at the tag |
-| `*.blockmap` | not for downloading. A map of content-defined chunks and their hashes, which a future auto-updater uses to fetch only the parts of an installer that changed instead of all 200 MB. Kept so that history exists once updates are switched on |
+| `*.blockmap` | not for downloading — a map of content-defined chunks and their hashes, which a future auto-updater uses to fetch only the parts of an installer that changed instead of all 200 MB |
 
-None of the builds are signed. macOS needs the quarantine flag cleared once, Windows
-will show a SmartScreen warning about an unknown publisher, and the Linux AppImage needs
-its executable bit:
+None of the builds are signed. macOS needs the quarantine flag cleared once, and Windows
+will warn about an unknown publisher:
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/Xray Studio.app"   # macOS
-chmod +x XrayStudio-*-linux-x86_64.AppImage                      # Linux
+xattr -dr com.apple.quarantine "/Applications/Xray Studio.app"
 ```
 
 To build from source instead, see [Getting started](#getting-started).

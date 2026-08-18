@@ -34,10 +34,11 @@ mac:
       to: xray-studio-sidecar
   category: public.app-category.developer-tools
   target:
+    # universal = one app carrying both Intel and Apple Silicon. The sidecar inside is
+    # lipo'd to match; a single-arch one would fail on exactly one of the two, at
+    # runtime, with nothing in the build to warn about it.
     - target: dmg
-      arch: [arm64]
-    - target: zip
-      arch: [arm64]
+      arch: [universal]
   # Alpha builds are unsigned: signing needs a paid Apple Developer identity, and
   # shipping an ad-hoc signature would only make Gatekeeper's refusal more confusing.
   # The README documents the one-time quarantine removal this requires.
@@ -52,15 +53,14 @@ win:
     - from: ../.build/bin/win-${arch}/xray-studio-sidecar.exe
       to: xray-studio-sidecar.exe
   target:
+    # One installer holding both architectures; it picks at install time.
     - target: nsis
-      arch: [x64, arm64]
-    - target: zip
       arch: [x64, arm64]
 
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  artifactName: XrayStudio-${version}-win-${arch}-setup.${ext}
+  artifactName: XrayStudio-${version}-windows-setup.${ext}
 
 linux:
   icon: ../assets/icon.png
@@ -69,11 +69,10 @@ linux:
   extraResources:
     - from: ../.build/bin/linux-${arch}/xray-studio-sidecar
       to: xray-studio-sidecar
+  # Linux has no universal binary format — no fat binary, no equivalent — so this is the
+  # one place a single file per OS is not achievable. Two remain, named with exactly
+  # what `uname -m` prints so choosing between them takes no thought.
   target:
-    - target: AppImage
-      arch: [x64, arm64]
-    - target: tar.gz
-      arch: [x64, arm64]
     - target: pacman
       arch: [x64, arm64]
 
@@ -92,7 +91,7 @@ pacman:
 
 dmg:
   title: Xray Studio ${version}
-  artifactName: XrayStudio-${version}-mac-${arch}.dmg
+  artifactName: XrayStudio-${version}-macos-universal.dmg
 
 # ${os} is not decoration: without it the macOS and Windows zips are both
 # "XrayStudio-<version>-arm64.zip", and uploading both to one release silently
