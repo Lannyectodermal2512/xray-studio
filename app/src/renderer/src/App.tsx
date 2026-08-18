@@ -150,7 +150,10 @@ export function App(): React.JSX.Element {
               </button>
             ))}
           </nav>
-          <div className="tab-body">
+          {/* The graph is a canvas: it fills the window and navigates internally, so the
+              tab body must not also scroll. Every other tab is a document and keeps the
+              default scrolling behaviour. */}
+          <div className={tab === 'build' ? 'tab-body tab-body-fill' : 'tab-body'}>
             {tab === 'observe' && <Observe />}
             {tab === 'build' && <Build />}
             {tab === 'editor' && <Editor />}
