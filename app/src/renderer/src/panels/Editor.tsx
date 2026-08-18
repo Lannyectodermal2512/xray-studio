@@ -7,6 +7,7 @@ import { effectiveConfigPath, useApp } from '../store/app'
 import { fragmentErrors } from '../graph/edit'
 import { lookup, useDocs } from '../lib/docs'
 import { Prose } from '../components/Prose'
+import { AiChat } from './AiChat'
 
 /**
  * jsonc-parser declares SyntaxKind as an ambient `const enum`, which
@@ -268,6 +269,8 @@ export function Editor(): React.JSX.Element {
           />
         </div>
       </div>
+
+      <AiChat configPath={configPath} configText={draft} diags={diags} />
 
       {hint && <HintPopup hint={hint} />}
     </div>

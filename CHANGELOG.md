@@ -56,6 +56,15 @@ uses a bare HTTP client outside Xray, and there is no TCP segment loss, ICMP or 
   claim about what matters in a particular config. The one spacing control widens the
   gap between COLUMNS, which is the only dimension where more room buys legibility —
   every edge crosses it.
+- **Assistant** — a collapsible chat under the editor (Claude or ChatGPT), given both
+  the config and the live telemetry: which outbounds the observatory calls alive, their
+  deviation, the balancer's decision funnel with the core's own rejection reasons, armed
+  faults and validator findings. That is the difference between this and pasting a config
+  into a browser tab — "why is this outbound never picked?" has an answer here.
+  The API key is encrypted with the OS keychain and lives only in the main process; the
+  window never receives it. Credentials in the config are masked by default before
+  anything is sent. Provider calls go through a configurable proxy, because Chromium
+  ignores `HTTPS_PROXY` and a direct request is refused outright in some regions.
 - **Reference / Protocols** — 311 documented parameters and the generated
   `settings` schema for every protocol in the registry.
 - **What-if** — runs the real strategy against a frozen observation and reports the

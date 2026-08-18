@@ -1041,3 +1041,102 @@ button.ghost.on { border-color: var(--bad); color: var(--bad); }
 }
 
 .rtt-tip-swatch { border-radius: 2px; flex: none; height: 8px; width: 8px; }
+
+/* ── assistant ─────────────────────────────────────────────────────────────── */
+
+.ai {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Open, it takes a bounded share of the editor rather than a fixed height: on a short
+   window a fixed panel would leave the editor unusable. */
+.ai.open { flex: 0 1 auto; max-height: 46vh; min-height: 220px; }
+
+.ai-head {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: var(--fg-dim);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 6px;
+  padding: 7px 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.ai-head:hover { color: var(--fg); }
+.ai-body { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 0 10px 10px; }
+.ai-bar { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.ai-bar select { font-size: 11px; padding: 3px 6px; }
+.ai-key { border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
+
+.ai-log {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.ai-empty p { margin: 0 0 6px; }
+.ai-turn { display: flex; flex-direction: column; gap: 3px; }
+.ai-who { color: var(--fg-faint); text-transform: uppercase; letter-spacing: .06em; }
+
+.ai-text {
+  font-size: 12.5px;
+  line-height: 1.55;
+  /* Model replies are markdown-ish plain text with fenced JSON; preserving newlines is
+     what makes those fragments readable without pulling in a markdown renderer. */
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ai-turn.user .ai-text {
+  background: rgb(255 255 255 / 4%);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+/* Blinking caret while a reply streams, so a slow first token does not look like a
+   hang. */
+.ai-caret {
+  animation: ai-blink 1s step-end infinite;
+  background: var(--accent);
+  display: inline-block;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  width: 6px;
+}
+
+@keyframes ai-blink { 50% { opacity: 0; } }
+
+.ai-input { align-items: flex-end; display: flex; gap: 8px; }
+
+.ai-input textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg);
+  flex: 1;
+  font: inherit;
+  font-size: 12.5px;
+  min-height: 38px;
+  max-height: 120px;
+  padding: 7px 9px;
+  resize: vertical;
+}
+
+.ai-input textarea:focus { border-color: var(--accent); outline: none; }
+
+.ai-key .proxy-note { margin: 10px 0 4px; }

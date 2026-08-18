@@ -79,6 +79,32 @@ const api = {
     return () => ipcRenderer.off('config:opened', h)
   },
 
+  /* ── assistant ───────────────────────────────────────────────────────────── */
+  aiHasKey: (provider: 'anthropic' | 'openai'): Promise<boolean> =>
+    ipcRenderer.invoke('ai:hasKey', provider),
+  aiSetKey: (provider: 'anthropic' | 'openai', key: string): Promise<void> =>
+    ipcRenderer.invoke('ai:setKey', provider, key),
+  aiClearKeys: (): Promise<void> => ipcRenderer.invoke('ai:clearKeys'),
+  aiGetProxy: (): Promise<{ value: string; source: 'stored' | 'env' | 'none' }> =>
+    ipcRenderer.invoke('ai:getProxy'),
+  aiSetProxy: (url: string): Promise<void> => ipcRenderer.invoke('ai:setProxy', url),
+  aiCancel: (): Promise<void> => ipcRenderer.invoke('ai:cancel'),
+  aiSend: (req: {
+    id: string
+    provider: 'anthropic' | 'openai'
+    model: string
+    system: string
+    messages: { role: 'user' | 'assistant'; content: string }[]
+  }): Promise<void> => ipcRenderer.invoke('ai:send', req),
+
+  onAiEvent: (
+    cb: (e: { id: string; kind: string; payload: unknown }) => void,
+  ): (() => void) => {
+    const h = (_e: unknown, ev: { id: string; kind: string; payload: unknown }): void => cb(ev)
+    ipcRenderer.on('ai:event', h)
+    return () => ipcRenderer.off('ai:event', h)
+  },
+
   onConfigChanged: (cb: (path: string) => void): (() => void) => {
     const h = (_e: unknown, path: string): void => cb(path)
     ipcRenderer.on('config:changed', h)

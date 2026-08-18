@@ -6,6 +6,7 @@ import type { Envelope, FaultRule, SimRequest } from '@shared/events'
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { EventStore } from './eventStore'
 import { Sidecar, sidecarPath } from './sidecar'
+import * as ai from './ai'
 
 // Electron's main-process stdout is not reliably captured when the app is launched
 // detached, which makes "the window never appeared" impossible to diagnose. Write a
@@ -290,6 +291,43 @@ function registerIpc(): void {
   })
 
   ipcMain.handle('rtt:series', () => store.rttSeries())
+
+  /* ── assistant ─────────────────────────────────────────────────────────────
+     The renderer never sees the API key, and could not reach the provider anyway:
+     its CSP is connect-src 'self'. It sends a request and receives text deltas. */
+  ipcMain.handle('ai:hasKey', (_e, p: ai.Provider) => ai.hasKey(p))
+  ipcMain.handle('ai:setKey', (_e, p: ai.Provider, key: string) => ai.setKey(p, key))
+  ipcMain.handle('ai:clearKeys', () => ai.clearKeys())
+  ipcMain.handle('ai:getProxy', () => ai.getProxy())
+  ipcMain.handle('ai:setProxy', (_e, url: string) => ai.setProxy(url))
+
+  let inflight: AbortController | null = null
+  ipcMain.handle('ai:cancel', () => {
+    inflight?.abort()
+    inflight = null
+  })
+
+  ipcMain.handle('ai:send', async (_e, req: ai.ChatRequest & { id: string }) => {
+    // One conversation at a time: a second reply streaming into the same panel would
+    // interleave two answers into nonsense.
+    inflight?.abort()
+    const ctl = new AbortController()
+    inflight = ctl
+    const send = (kind: string, payload: unknown): void => {
+      if (!win || win.isDestroyed()) return
+      win.webContents.send('ai:event', { id: req.id, kind, payload })
+    }
+    await ai.chat(
+      req,
+      {
+        delta: (text) => send('delta', text),
+        done: (info) => send('done', info),
+        error: (message) => send('error', message),
+      },
+      ctl.signal,
+    )
+    if (inflight === ctl) inflight = null
+  })
 
   // What-if analysis. The sidecar runs the REAL strategy code against the supplied
   // observation, so the answer cannot drift from live behaviour.
