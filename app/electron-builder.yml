@@ -53,14 +53,16 @@ win:
     - from: ../.build/bin/win-${arch}/xray-studio-sidecar.exe
       to: xray-studio-sidecar.exe
   target:
-    # One installer holding both architectures; it picks at install time.
-    - target: nsis
+    # Portable: a folder you unpack and run. No installer, no registry, no uninstall
+    # entry — and the app keeps its data in XrayStudio-data next to the executable, so
+    # deleting the folder removes every trace and copying it to a stick carries the
+    # settings along.
+    #
+    # A zip rather than electron-builder's "portable" single exe: that one unpacks 200 MB
+    # into %TEMP% on every launch, which is neither fast nor as trace-free as it sounds.
+    - target: zip
       arch: [x64, arm64]
 
-nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
-  artifactName: XrayStudio-${version}-windows-setup.${ext}
 
 linux:
   icon: ../assets/icon.png

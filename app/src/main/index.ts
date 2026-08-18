@@ -1,9 +1,9 @@
 import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from 'electron'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { watch, type FSWatcher } from 'node:fs'
 import type { Envelope, FaultRule, SimRequest } from '@shared/events'
-import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'
+import { accessSync, appendFileSync, constants, mkdirSync, writeFileSync } from 'node:fs'
 import { EventStore } from './eventStore'
 import { Sidecar, sidecarPath } from './sidecar'
 import * as ai from './ai'
@@ -425,6 +425,31 @@ if (isDev) {
   } catch (err) {
     // Not fatal: the default location still works, it just prompts.
     trace(`could not relocate userData: ${(err as Error).message}`)
+  }
+} else if (process.platform === 'win32') {
+  /**
+   * Windows ships as a portable folder, so keep everything the app writes inside it.
+   *
+   * "No installer" is only half of portable. If the API key, the Chromium profile and
+   * the pasted configs still went to %APPDATA%, deleting the folder would leave those
+   * behind and copying it to a USB stick would carry none of them. Both are exactly what
+   * someone reaching for a portable build is trying to avoid.
+   *
+   * PORTABLE_EXECUTABLE_DIR is set by electron-builder's portable target; for the zip it
+   * is the directory the executable sits in. If that turns out to be unwritable — the
+   * folder was dropped in Program Files, or opened straight from a read-only mount — the
+   * default location is used instead, because failing to start would be a worse answer
+   * than writing where Windows expects.
+   */
+  const base = process.env['PORTABLE_EXECUTABLE_DIR'] ?? dirname(app.getPath('exe'))
+  const profile = join(base, 'XrayStudio-data')
+  try {
+    mkdirSync(profile, { recursive: true })
+    accessSync(profile, constants.W_OK)
+    app.setPath('userData', profile)
+    trace(`portable userData -> ${profile}`)
+  } catch (err) {
+    trace(`portable userData unavailable (${(err as Error).message}); using the default`)
   }
 }
 
