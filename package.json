@@ -11,7 +11,8 @@
     "dev": "scripts/dev.sh",
     "install:app": "npm --prefix app install",
     "package": "scripts/package.sh",
-    "icon": "scripts/make-icon.sh"
+    "icon": "scripts/make-icon.sh",
+    "test:app": "npm --prefix app run test"
   },
   "engines": {
     "node": ">=22"

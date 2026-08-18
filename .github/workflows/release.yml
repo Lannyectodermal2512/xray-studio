@@ -32,6 +32,9 @@ jobs:
       - name: Install app dependencies
         run: npm --prefix app ci
 
+      - name: App tests
+        run: npm --prefix app run test
+
       # Fails loudly if the checkout does not match xray/PIN plus the patch series,
       # which is the only integrity check there is — a directory `replace` bypasses
       # go.sum for xray-core.

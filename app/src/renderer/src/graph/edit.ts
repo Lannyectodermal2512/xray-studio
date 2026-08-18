@@ -482,9 +482,20 @@ export function simplifyDnsServer(src: string, index: number): string {
 /* ── raw slices ────────────────────────────────────────────────────────────── */
 
 export interface Slice {
+  /** The node's text as it appears in the document, indentation and all. */
   text: string
   offset: number
   length: number
+  /**
+   * The whitespace this node sits behind on its own line.
+   *
+   * An outbound nested in an array carries that indentation on every line but its
+   * first, because the first line begins at the node itself. Shown raw in a narrow
+   * editor the block looks shunted to the right and ragged, which is a property of
+   * where it lives in the file, not of the value — so display dedents by this and
+   * applying re-indents by it.
+   */
+  indent: string
 }
 
 /**
@@ -507,7 +518,43 @@ export function sliceAt(src: string, path: JSONPath): Slice | null {
   if (!root) return null
   const node = findNodeAtLocation(root, path)
   if (!node) return null
-  return { text: src.slice(node.offset, node.offset + node.length), offset: node.offset, length: node.length }
+  const lineStart = src.lastIndexOf('\n', node.offset - 1) + 1
+  const lead = src.slice(lineStart, node.offset)
+  return {
+    text: src.slice(node.offset, node.offset + node.length),
+    offset: node.offset,
+    length: node.length,
+    // Only whitespace counts. `"tag": {` puts other text before the node, and there is
+    // no indentation to strip in that case.
+    indent: /^[ \t]*$/.test(lead) ? lead : '',
+  }
+}
+
+/**
+ * Removes one level of document indentation for display.
+ *
+ * The first line is left alone: it starts at the node, so it never carried the indent
+ * in the first place. Lines that are shorter than the indent, or indented differently
+ * from the rest, are left as they are rather than being forced — guessing there would
+ * corrupt deliberate formatting.
+ */
+export function dedent(text: string, indent: string): string {
+  if (!indent) return text
+  return text
+    .split('\n')
+    .map((line, i) => (i === 0 ? line : line.startsWith(indent) ? line.slice(indent.length) : line))
+    .join('\n')
+}
+
+/** Puts the document's indentation back, so the file stays correctly formatted. */
+export function reindent(text: string, indent: string): string {
+  if (!indent) return text
+  return text
+    .split('\n')
+    // A blank line stays blank: padding it out would leave trailing whitespace on
+    // every empty line in the block.
+    .map((line, i) => (i === 0 || line.trim() === '' ? line : indent + line))
+    .join('\n')
 }
 
 /**

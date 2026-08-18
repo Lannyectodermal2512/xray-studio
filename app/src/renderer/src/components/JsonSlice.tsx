@@ -33,28 +33,33 @@ export function JsonSlice({
   onChange: (text: string) => void
 }): React.JSX.Element | null {
   const slice = useMemo(() => E.sliceAt(src, path), [src, path])
-  const [text, setText] = useState(slice?.text ?? '')
+  // Shown without the document's indentation, so the block reads as a value rather than
+  // as a fragment torn out of somewhere deeper. Put back on Apply.
+  const shown = useMemo(
+    () => (slice ? E.dedent(slice.text, slice.indent) : ''),
+    [slice],
+  )
+  const [text, setText] = useState(shown)
   // Open by default. This is the only place most of an outbound can be edited at all —
   // the fields above it reach the tag and nothing else — so hiding it behind a
   // disclosure made the inspector look like it could not edit the thing it was showing.
   const [open, setOpen] = useState(true)
   // What the document said when this editor was last synced. Used to tell an external
   // change (another field, a reload) from the user's own unapplied typing.
-  const base = useRef(slice?.text ?? '')
+  const base = useRef(shown)
 
   useEffect(() => {
-    const current = slice?.text ?? ''
-    if (current === base.current) return
+    if (shown === base.current) return
     // The document moved underneath us — adopt it, since the alternative is applying
     // an edit computed against text that no longer exists.
-    base.current = current
-    setText(current)
-  }, [slice?.text])
+    base.current = shown
+    setText(shown)
+  }, [shown])
 
   if (!slice) return null
 
   const errors = text.trim() === '' ? ['empty'] : E.fragmentErrors(text)
-  const dirty = text !== slice.text
+  const dirty = text !== shown
 
   return (
     <div className="jslice">
@@ -63,7 +68,7 @@ export function JsonSlice({
         <span>{label} JSON</span>
         {dirty && <span className="chip tiny warn">edited</span>}
         <span className="spacer" />
-        <span className="tiny faint">{slice.text.split('\n').length} lines</span>
+        <span className="tiny faint">{shown.split('\n').length} lines</span>
       </button>
 
       {open && (
@@ -99,8 +104,8 @@ export function JsonSlice({
               className="tiny"
               disabled={!dirty}
               onClick={() => {
-                setText(slice.text)
-                base.current = slice.text
+                setText(shown)
+                base.current = shown
               }}
             >
               Reset
@@ -109,7 +114,9 @@ export function JsonSlice({
               className="tiny primary"
               disabled={!dirty || errors.length > 0}
               onClick={() => {
-                const next = E.replaceSlice(src, path, text)
+                // Re-indent on the way back in, so the file keeps the shape it had and
+                // the diff is confined to what was actually changed.
+                const next = E.replaceSlice(src, path, E.reindent(text, slice.indent))
                 base.current = text
                 onChange(next)
               }}

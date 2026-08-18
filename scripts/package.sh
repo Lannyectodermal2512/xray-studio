@@ -26,6 +26,7 @@ go -C sidecar build -o "$ROOT/.build/bin/xray-studio-sidecar" ./cmd/sidecar
 # A release that ships a broken engine is worse than no release.
 info "running tests"
 go -C sidecar test ./... >/dev/null || die "sidecar tests failed — refusing to package"
+npm --prefix app run test >/dev/null || die "app tests failed — refusing to package"
 
 [[ -f assets/icon.icns ]] || { info "generating icon"; ./scripts/make-icon.sh >/dev/null; }
 
