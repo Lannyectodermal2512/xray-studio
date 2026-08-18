@@ -199,16 +199,40 @@ export function ConfigGraph({
     setView({ k, x: pad - minX * k, y: pad - minY * k })
   }, [placed, configPath])
 
+  /**
+   * Wheel = move, pinch = zoom.
+   *
+   * This follows the platform rather than inventing a scheme: a two-finger trackpad
+   * scroll is how every map and canvas on macOS is panned, and a pinch arrives as a
+   * wheel event with ctrlKey set — that flag is the browser's way of reporting the
+   * gesture, not a modifier the user is holding. Ctrl/⌘ with a mouse wheel lands in the
+   * same branch, which is the long-standing convention for zoom on a device with no
+   * pinch.
+   *
+   * Both axes are honoured, so a horizontal trackpad swipe moves across the columns.
+   */
   const onWheel = (e: React.WheelEvent<SVGSVGElement>): void => {
     const svg = svgRef.current
     if (!svg) return
-    const r = svg.getBoundingClientRect()
-    const px = e.clientX - r.left
-    const py = e.clientY - r.top
-    // Zoom toward the pointer: the point under the cursor must not move, which is what
-    // makes zooming feel like moving a map rather than rescaling a picture.
-    const k = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, view.k * Math.exp(-e.deltaY * 0.0015)))
-    setView({ k, x: px - ((px - view.x) / view.k) * k, y: py - ((py - view.y) / view.k) * k })
+
+    // Some mice report deltas in lines rather than pixels; a raw 3 would be an
+    // imperceptible nudge.
+    const unit = e.deltaMode === 1 ? 16 : 1
+    const dx = e.deltaX * unit
+    const dy = e.deltaY * unit
+
+    if (e.ctrlKey || e.metaKey) {
+      const r = svg.getBoundingClientRect()
+      const px = e.clientX - r.left
+      const py = e.clientY - r.top
+      // Zoom toward the pointer: the point under it must not move, which is what makes
+      // this feel like moving a map rather than rescaling a picture.
+      const k = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, view.k * Math.exp(-dy * 0.0015)))
+      setView({ k, x: px - ((px - view.x) / view.k) * k, y: py - ((py - view.y) / view.k) * k })
+      return
+    }
+
+    setView({ ...view, x: view.x - dx, y: view.y - dy })
   }
 
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>): void => {
@@ -283,8 +307,8 @@ export function ConfigGraph({
       <div className="panel-head">
         <h3>Structure</h3>
         <span className="dim tiny graph-hint">
-          {onSelect ? 'click a node to edit' : 'read-only'} · drag to pan · scroll to zoom ·
-          drag a heading to move its group
+          {onSelect ? 'click a node to edit' : 'read-only'} · scroll or drag to pan ·
+          pinch or ⌘-scroll to zoom · drag a heading to move its group
         </span>
         <span className="spacer" />
         <label
