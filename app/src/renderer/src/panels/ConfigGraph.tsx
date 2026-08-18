@@ -261,6 +261,11 @@ export function ConfigGraph({
   const { pos, bands } = placed
   const movedCount = Object.keys(moved).length
 
+  // Grid spacing in WORLD units, chosen so the on-screen tile stays near 24px at any
+  // zoom. A fixed world spacing degenerates at both ends: a dense unreadable mesh when
+  // zoomed out, and four huge cells when zoomed in.
+  const gridStep = 24 * Math.pow(2, Math.max(0, Math.round(Math.log2(1 / view.k))))
+
   // Fan every edge leaving the same node into its own departure lane. Twenty edges from
   // one balancer previously left at the same point with the same bend and overlapped
   // into a solid ribbon; you could not tell twenty apart from two.
@@ -326,20 +331,34 @@ export function ConfigGraph({
           <marker id="arrowd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
             <path d="M0,0 L10,5 L0,10 z" fill="#3fb950" />
           </marker>
-          <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
-            <path d="M24 0 L0 0 0 24" fill="none" stroke="#1b212b" strokeWidth="1" />
+          {/* The view transform lives on patternTransform, not on the rect that paints
+              it. Scaling the rect shrank the painted area with the zoom, so at 0.6x the
+              grid covered only the top-left half of the canvas; and offsetting the rect
+              before its scale applied a screen-space number in world space, so the grid
+              slid out of step with the nodes it is supposed to register against.
+
+              strokeWidth is divided by the zoom so a grid line stays one screen pixel
+              instead of fading out as you zoom away. */}
+          <pattern
+            id="grid"
+            width={gridStep}
+            height={gridStep}
+            patternUnits="userSpaceOnUse"
+            patternTransform={`translate(${view.x},${view.y}) scale(${view.k})`}
+          >
+            <path
+              d={`M${gridStep} 0 L0 0 0 ${gridStep}`}
+              fill="none"
+              stroke="#1b212b"
+              strokeWidth={1 / view.k}
+            />
           </pattern>
         </defs>
 
         {/* The grid is what makes panning legible — without a fixed reference the canvas
-            looks static while the content slides. Drawn in screen space with the pattern
-            offset by the view, so it scrolls with the diagram at any zoom. */}
-        <rect
-          width="100%"
-          height="100%"
-          fill="url(#grid)"
-          transform={`translate(${view.x % (24 * view.k)},${view.y % (24 * view.k)}) scale(${view.k})`}
-        />
+            looks static while the content slides. This rect stays in screen space and
+            simply covers the viewport; all the movement is in the pattern. */}
+        <rect width="100%" height="100%" fill="url(#grid)" />
 
         <g transform={`translate(${view.x},${view.y}) scale(${view.k})`}>
           {bands.map((b) => (
