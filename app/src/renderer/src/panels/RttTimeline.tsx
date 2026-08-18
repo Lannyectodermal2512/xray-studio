@@ -165,7 +165,7 @@ export function RttTimeline(): React.JSX.Element {
               // area to the pixel. Buying that alignment with ~35px of chart width is
               // the right trade: a lane whose marks do not line up with the samples
               // above them is worse than a slightly narrower chart.
-              size: 96,
+              size: 108,
               values: (_u, vals) => vals.map((v) => `${v}ms`),
             },
           ],
@@ -438,7 +438,7 @@ function ProbeLane({
 
   if (rows.length === 0) return null
 
-  const left = plot?.bbox ? plot.bbox.left / devicePixelRatio : 96
+  const left = plot?.bbox ? plot.bbox.left / devicePixelRatio : 108
   const width = plot?.bbox ? plot.bbox.width / devicePixelRatio : 0
   const xOf = (t: number): number | null => {
     if (!plot) return null

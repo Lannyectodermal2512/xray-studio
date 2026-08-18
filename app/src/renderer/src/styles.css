@@ -350,7 +350,7 @@ input:focus, select:focus { outline: 1px solid var(--accent); border-color: var(
   align-items: center;
   display: flex;
   flex: none;
-  gap: 6px;
+  gap: 7px;
   justify-content: flex-end;
   min-width: 0;
   overflow: hidden;
@@ -388,15 +388,25 @@ input:focus, select:focus { outline: 1px solid var(--accent); border-color: var(
 .probe-mark.ok { background: var(--ok); opacity: .55; }
 .probe-mark.bad { background: var(--bad); }
 
-/* Always both numbers, so a zero is visible as a zero rather than as an absence. */
+/* Always both numbers, so a zero is visible as a zero rather than as an absence.
+   Set in its own recessed pill: sitting bare next to the name, two small coloured
+   numbers read as part of the tag — "LTE-1 27/0" scans as one string. The pill and the
+   tabular figures also line the counts up into a column, which is what makes them
+   comparable down twenty rows. */
 .probe-count {
+  background: rgb(255 255 255 / 5%);
+  border-radius: 3px;
   display: flex;
   flex: none;
   font-size: 10px;
-  gap: 1px;
-  line-height: 11px;
   font-variant-numeric: tabular-nums;
+  gap: 1px;
+  justify-content: flex-end;
+  line-height: 11px;
+  padding: 1px 4px;
 }
+
+.probe-count .faint { opacity: 0.55; }
 
 /* Liveness, carried on the row so the name, the numbers and the track all say the same
    thing at a glance. Only "up" is emphasised: a live outbound is the thing being looked
