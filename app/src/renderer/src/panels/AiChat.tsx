@@ -106,12 +106,21 @@ export function AiChat({
     const text = input.trim()
     if (!text || busy) return
 
+    /* The context goes in the SYSTEM prompt, rebuilt on every send.
+     *
+     * It used to ride on the first user turn instead, which was wrong twice over. The
+     * turn stored for the history was the bare question without the context appended,
+     * so from the second message onward the model was answering with no config at all —
+     * it would help with one question and then say it had never been shown the config.
+     * And even had that worked, the config it saw would have been frozen at the moment
+     * the conversation started, while the editor above it kept changing.
+     *
+     * Rebuilding it per message costs tokens on every turn. That is the right trade: an
+     * assistant that is confidently reasoning about a config you edited ten minutes ago
+     * is worse than no assistant.
+     */
     const context = buildContext(snap, { path: configPath, text: configText }, diags, opts)
-    // The context rides on the FIRST user turn only. Re-sending a snapshot of the world
-    // with every message would both cost a fortune on a long conversation and leave the
-    // model with several contradictory versions of the same config to reconcile.
-    const isFirst = turns.length === 0
-    const content = isFirst ? `${context}\n\n---\n\n${text}` : text
+    const content = text
 
     const history = turns
       .filter((t) => !t.error)
@@ -128,7 +137,7 @@ export function AiChat({
         id,
         provider,
         model,
-        system: SYSTEM_PROMPT,
+        system: `${SYSTEM_PROMPT}\n\n${context}`,
         messages: [...history, { role: 'user', content }],
       })
     } catch (e) {
