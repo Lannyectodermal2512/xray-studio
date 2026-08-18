@@ -210,11 +210,24 @@ export function ConfigGraph({
    * pinch.
    *
    * Both axes are honoured, so a horizontal trackpad swipe moves across the columns.
+   *
+   * Attached natively with `passive: false` rather than through React's onWheel, and
+   * this is not a style choice. React registers wheel listeners as PASSIVE, so
+   * preventDefault() from a JSX handler is silently ignored: the gesture panned the
+   * canvas and then went on to scroll the enclosing panel and zoom the page underneath
+   * it. The only way to actually consume the event is to bind it ourselves.
    */
-  const onWheel = (e: React.WheelEvent<SVGSVGElement>): void => {
+  const viewRef = useRef(view)
+  viewRef.current = view
+
+  const onWheelNative = useCallback((e: WheelEvent): void => {
     const svg = svgRef.current
     if (!svg) return
+    // Consume it. Everything below is this component's job, and nothing above should
+    // also react to the same gesture.
+    e.preventDefault()
 
+    const v = viewRef.current
     // Some mice report deltas in lines rather than pixels; a raw 3 would be an
     // imperceptible nudge.
     const unit = e.deltaMode === 1 ? 16 : 1
@@ -227,13 +240,25 @@ export function ConfigGraph({
       const py = e.clientY - r.top
       // Zoom toward the pointer: the point under it must not move, which is what makes
       // this feel like moving a map rather than rescaling a picture.
-      const k = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, view.k * Math.exp(-dy * 0.0015)))
-      setView({ k, x: px - ((px - view.x) / view.k) * k, y: py - ((py - view.y) / view.k) * k })
+      const k = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.k * Math.exp(-dy * 0.0015)))
+      setView({ k, x: px - ((px - v.x) / v.k) * k, y: py - ((py - v.y) / v.k) * k })
       return
     }
 
-    setView({ ...view, x: view.x - dx, y: view.y - dy })
-  }
+    setView({ ...v, x: v.x - dx, y: v.y - dy })
+  }, [])
+
+  /** Callback ref, so the listener follows the element through the panel's early
+   *  returns — an effect keyed on mount would miss the SVG entirely while the config is
+   *  still loading. */
+  const setSvgRef = useCallback(
+    (node: SVGSVGElement | null): void => {
+      svgRef.current?.removeEventListener('wheel', onWheelNative)
+      svgRef.current = node
+      node?.addEventListener('wheel', onWheelNative, { passive: false })
+    },
+    [onWheelNative],
+  )
 
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>): void => {
     if (e.button !== 0) return
@@ -340,9 +365,8 @@ export function ConfigGraph({
       </div>
 
       <svg
-        ref={svgRef}
+        ref={setSvgRef}
         className="graph-canvas"
-        onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
