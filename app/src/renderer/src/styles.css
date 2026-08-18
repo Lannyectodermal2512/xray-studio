@@ -344,10 +344,23 @@ input:focus, select:focus { outline: 1px solid var(--accent); border-color: var(
 .probe-lane-head { margin-bottom: 2px; }
 .probe-row { align-items: center; display: flex; gap: 6px; }
 
+/* Name and counters share the chart's y-axis gutter. Fixed width, set from the plot's
+   own bbox, so the track next to it starts exactly at the plotting area. */
+.probe-legend {
+  align-items: center;
+  display: flex;
+  flex: none;
+  gap: 6px;
+  justify-content: flex-end;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .probe-tag {
   color: var(--fg-dim);
-  flex: none;
+  flex: 0 1 auto;
   font-size: 10px;
+  min-width: 0;
   overflow: hidden;
   text-align: right;
   text-overflow: ellipsis;
@@ -375,19 +388,24 @@ input:focus, select:focus { outline: 1px solid var(--accent); border-color: var(
 .probe-mark.ok { background: var(--ok); opacity: .55; }
 .probe-mark.bad { background: var(--bad); }
 
-/* Sits inside the track so it never steals width from it, with a scrim so a mark
-   underneath stays legible. */
+/* Always both numbers, so a zero is visible as a zero rather than as an absence. */
 .probe-count {
-  background: linear-gradient(90deg, transparent, var(--bg-panel) 35%);
   display: flex;
+  flex: none;
   font-size: 10px;
-  gap: 2px;
+  gap: 1px;
   line-height: 11px;
-  padding-left: 12px;
-  position: absolute;
-  right: 0;
-  top: 0;
+  font-variant-numeric: tabular-nums;
 }
+
+/* Liveness, carried on the row so the name, the numbers and the track all say the same
+   thing at a glance. Only "up" is emphasised: a live outbound is the thing being looked
+   for, and highlighting every state highlights nothing. */
+.probe-row.up .probe-tag { color: var(--ok); }
+.probe-row.up .probe-track { background: rgb(63 185 80 / 10%); box-shadow: inset 0 0 0 1px rgb(63 185 80 / 22%); }
+.probe-row.down .probe-tag { color: var(--bad); }
+.probe-row.down .probe-track { background: rgb(248 81 73 / 7%); }
+.probe-row.unknown .probe-tag { color: var(--fg-faint); }
 
 /* --- graph ----------------------------------------------------------------- */
 

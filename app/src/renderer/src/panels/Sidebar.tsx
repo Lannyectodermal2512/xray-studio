@@ -191,8 +191,14 @@ export function Sidebar(): React.JSX.Element {
                   </span>
                 )}
                 {dead > 0 && (
-                  <span className="chip tiny bad" title="reported dead by the observatory">
-                    {dead} dead
+                  <span
+                    className="chip tiny bad"
+                    title="reported dead by the observatory, out of the group's total"
+                  >
+                    {/* Out of how many: "12 dead" reads very differently in a group of
+                        twelve than in a group of sixteen, and the count alone gave no
+                        way to tell those apart. */}
+                    {dead}/{g.items.length} dead
                   </span>
                 )}
               </button>

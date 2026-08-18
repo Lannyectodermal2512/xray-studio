@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useShallow } from 'zustand/shallow'
+import { useApp } from '../store/app'
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import type { RttSeries } from '@shared/events'
@@ -79,6 +81,20 @@ export function RttTimeline(): React.JSX.Element {
 
   const groups = useMemo(() => groupTags(series?.tags ?? []), [series?.tags])
 
+  // Liveness comes from the snapshot, not from the series: the chart carries samples,
+  // and "alive" is the observatory's own verdict over its sampling window, which is not
+  // the same as "the last probe succeeded".
+  // useShallow, because the selector builds a fresh object on every snapshot: without
+  // it zustand would see a new reference 30 times a second and re-render the chart
+  // continuously. Shallow comparison over a record of primitives is exactly right here.
+  const aliveByTag = useApp(
+    useShallow((st) => {
+      const m: Record<string, boolean | null> = {}
+      for (const o of st.snap.outbounds) m[o.tag] = o.alive
+      return m
+    }),
+  )
+
   useEffect(() => {
     const host = hostRef.current
     if (!host || !series) return
@@ -120,7 +136,20 @@ export function RttTimeline(): React.JSX.Element {
                 return [min, min + MIN_SPAN]
               },
             },
-            y: { distr: logScale ? 3 : 1 },
+            y: {
+              distr: logScale ? 3 : 1,
+              // Keep a range even with no samples at all.
+              //
+              // When every outbound is dead there are no values, uPlot draws no y ticks,
+              // and the axis collapses to zero width — taking the gutter the probe lane
+              // below borrows for its labels with it, so the names vanished exactly when
+              // the config was most broken. An empty chart with a labelled axis is also
+              // simply more honest than one with no axis at all.
+              range: (_u, min, max) =>
+                min == null || max == null || !Number.isFinite(min) || !Number.isFinite(max)
+                  ? [logScale ? 1 : 0, 100]
+                  : [logScale ? Math.max(1, min) : Math.min(0, min), max],
+            },
           },
           axes: [
             {
@@ -131,7 +160,12 @@ export function RttTimeline(): React.JSX.Element {
             {
               stroke: '#8b96a5',
               grid: { stroke: '#262d38', width: 1 },
-              size: 58,
+              // Wider than the labels need, because the probe lane below borrows this
+              // gutter for its tag and counters and must stay aligned with the plot
+              // area to the pixel. Buying that alignment with ~35px of chart width is
+              // the right trade: a lane whose marks do not line up with the samples
+              // above them is worse than a slightly narrower chart.
+              size: 96,
               values: (_u, vals) => vals.map((v) => `${v}ms`),
             },
           ],
@@ -259,6 +293,7 @@ export function RttTimeline(): React.JSX.Element {
 
       {series && (
         <ProbeLane
+          aliveByTag={aliveByTag}
           series={series}
           plot={plotRef.current}
           geom={geom}
@@ -365,12 +400,14 @@ function ProbeLane({
   geom,
   hidden,
   groups,
+  aliveByTag,
 }: {
   series: RttSeries
   plot: uPlot | null
   geom: number
   hidden: Set<string>
   groups: Group[]
+  aliveByTag: Record<string, boolean | null>
 }): React.JSX.Element | null {
   const rows = useMemo(() => {
     const fails = new Map<string, number[]>()
@@ -401,7 +438,7 @@ function ProbeLane({
 
   if (rows.length === 0) return null
 
-  const left = plot?.bbox ? plot.bbox.left / devicePixelRatio : 58
+  const left = plot?.bbox ? plot.bbox.left / devicePixelRatio : 96
   const width = plot?.bbox ? plot.bbox.width / devicePixelRatio : 0
   const xOf = (t: number): number | null => {
     if (!plot) return null
@@ -414,15 +451,32 @@ function ProbeLane({
     <div className="probe-lane">
       <div className="probe-lane-head tiny dim">
         probes <span className="ok">success</span> / <span className="bad">failure</span>
-        <span className="faint"> — a failed probe has no RTT, so it cannot appear on the chart</span>
+        <span className="faint"> — live outbounds are highlighted; a failed probe has no RTT, so it cannot appear on the chart</span>
       </div>
-      {rows.map((r) => (
-        <div key={r.tag} className="probe-row">
-          {/* Right-aligned into the chart's own y-axis gutter, so the track starts
-              exactly where the plotting area does and the marks line up with the
-              samples above them. */}
-          <span className="probe-tag mono" style={{ width: left - 6 }} title={r.tag}>
-            {r.tag}
+      {rows.map((r) => {
+        const alive = aliveByTag[r.tag]
+        return (
+        <div
+          key={r.tag}
+          className={`probe-row ${alive === true ? 'up' : alive === false ? 'down' : 'unknown'}`}
+        >
+          {/* Name and counters share the chart's y-axis gutter, so the track still
+              starts exactly where the plotting area does and every mark lines up with
+              the sample above it. Counters live here rather than at the far end of the
+              track: at twenty rows the eye reads name → numbers → timeline, and having
+              to travel to the right edge and back for each row defeats the comparison
+              the lane exists for. */}
+          <span className="probe-legend" style={{ width: left - 6 }}>
+            <span className="probe-tag mono" title={r.tag}>
+              {r.tag}
+            </span>
+            {/* Both numbers, always. A missing failure count is indistinguishable from
+                a zero one, and "0 failures" is exactly what you want to confirm. */}
+            <span className="probe-count mono">
+              <span className={r.ok.length > 0 ? 'ok' : 'faint'}>{r.ok.length}</span>
+              <span className="faint">/</span>
+              <span className={r.fail.length > 0 ? 'bad' : 'faint'}>{r.fail.length}</span>
+            </span>
           </span>
           <span className="probe-track" style={{ width: width || undefined }}>
             {r.ok.map((t, i) => {
@@ -435,20 +489,10 @@ function ProbeLane({
               const x = xOf(t)
               return x === null ? null : <span key={`f${i}`} className="probe-mark bad" style={{ left: x }} />
             })}
-            {/* Inside the track, not after it: appending a column would either push the
-                track out of alignment with the axis or sit on top of the last marks. */}
-            <span className="probe-count mono">
-              <span className="ok">{r.ok.length}</span>
-              {r.fail.length > 0 && (
-                <>
-                  <span className="faint">/</span>
-                  <span className="bad">{r.fail.length}</span>
-                </>
-              )}
-            </span>
           </span>
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
