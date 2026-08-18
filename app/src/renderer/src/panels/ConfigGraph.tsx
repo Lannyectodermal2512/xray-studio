@@ -60,6 +60,16 @@ const GROUP_GAP = 30
 const MIN_ZOOM = 0.2
 const MAX_ZOOM = 2.5
 
+/**
+ * Zoom response per unit of wheel delta, as an exponent.
+ *
+ * Exponential rather than linear so a step feels the same at every scale — zooming from
+ * 0.4 to 0.5 and from 2.0 to 2.5 are the same gesture. Doubling this constant doubles
+ * the rate in the only sense that means anything here: the factor a given gesture
+ * produces is squared, so a pinch that used to reach 1.35x now reaches 1.82x.
+ */
+const ZOOM_RATE = 0.003
+
 interface View {
   x: number
   y: number
@@ -240,7 +250,7 @@ export function ConfigGraph({
       const py = e.clientY - r.top
       // Zoom toward the pointer: the point under it must not move, which is what makes
       // this feel like moving a map rather than rescaling a picture.
-      const k = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.k * Math.exp(-dy * 0.0015)))
+      const k = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.k * Math.exp(-dy * ZOOM_RATE)))
       setView({ k, x: px - ((px - v.x) / v.k) * k, y: py - ((py - v.y) / v.k) * k })
       return
     }
