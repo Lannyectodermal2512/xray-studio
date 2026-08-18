@@ -33,11 +33,20 @@ shopt -u nullglob
 # The stamp covers the pin AND every patch byte, so editing a patch forces a rebuild.
 # Note: the `if` (rather than `[[ ]] && cat`) matters — under `pipefail` a false
 # test as the group's last command makes the whole pipeline exit 1.
+# sha256 varies by platform: macOS ships shasum, most Linux images ship sha256sum, and
+# git-bash on a Windows runner may have either. The stamp must be identical everywhere
+# or a checkout would appear to need rebuilding on every machine.
+sha256() {
+  if command -v shasum >/dev/null 2>&1; then shasum -a 256
+  elif command -v sha256sum >/dev/null 2>&1; then sha256sum
+  else die "need shasum or sha256sum"; fi
+}
+
 compute_stamp() {
   {
     printf '%s\n' "$PIN"
     if [[ ${#PATCHES[@]} -gt 0 ]]; then cat "${PATCHES[@]}"; fi
-  } | shasum -a 256 | cut -d' ' -f1
+  } | sha256 | cut -d' ' -f1
 }
 WANT_STAMP="$(compute_stamp)"
 

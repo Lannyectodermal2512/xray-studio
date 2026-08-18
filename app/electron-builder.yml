@@ -16,9 +16,10 @@ files:
 # sidecar is an executable — it has to be a real file on disk to be spawned — and the
 # data files are looked up by path. Both destinations match what src/main resolves
 # against process.resourcesPath.
+# Shared by every platform. The sidecar is added per-platform below, because its name
+# and the directory it is built into differ by target and a single `from` could only
+# ever name one of them.
 extraResources:
-  - from: ../.build/bin/xray-studio-sidecar
-    to: xray-studio-sidecar
   - from: ../data/docs-en
     to: docs-en
   - from: ../data/schema
@@ -28,6 +29,9 @@ extraResources:
 
 mac:
   icon: ../assets/icon.icns
+  extraResources:
+    - from: ../.build/bin/mac-${arch}/xray-studio-sidecar
+      to: xray-studio-sidecar
   category: public.app-category.developer-tools
   target:
     - target: dmg
@@ -42,12 +46,42 @@ mac:
   # user picks, so the hardened runtime buys nothing without notarisation.
   hardenedRuntime: false
 
+win:
+  icon: ../assets/icon.ico
+  extraResources:
+    - from: ../.build/bin/win-${arch}/xray-studio-sidecar.exe
+      to: xray-studio-sidecar.exe
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  artifactName: XrayStudio-${version}-win-${arch}-setup.${ext}
+
+linux:
+  icon: ../assets/icon.png
+  category: Development
+  synopsis: Test Xray-core configurations with live balancer tracing and fault injection
+  extraResources:
+    - from: ../.build/bin/linux-${arch}/xray-studio-sidecar
+      to: xray-studio-sidecar
+  target:
+    - target: AppImage
+      arch: [x64, arm64]
+    - target: tar.gz
+      arch: [x64, arm64]
+
 dmg:
   title: Xray Studio ${version}
-  artifactName: XrayStudio-${version}-arm64.dmg
+  artifactName: XrayStudio-${version}-mac-${arch}.dmg
 
-# The zip is what the auto-updater and CI would consume, and it is also the smaller
-# download for anyone who just wants the .app.
-artifactName: XrayStudio-${version}-arm64.${ext}
+# ${os} is not decoration: without it the macOS and Windows zips are both
+# "XrayStudio-<version>-arm64.zip", and uploading both to one release silently
+# overwrites one with the other.
+artifactName: XrayStudio-${version}-${os}-${arch}.${ext}
 
 publish: null

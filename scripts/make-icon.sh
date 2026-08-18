@@ -38,4 +38,4 @@ iconutil -c icns "$SET" -o "$OUT/icon.icns"
 rm -rf "$SET"
 
 printf '\033[32m✓\033[0m %s (%s), %s\n' \
-  "assets/icon.icns" "$(du -h "$OUT/icon.icns" | cut -f1 | tr -d ' ')" "assets/icon.png"
+  "assets/icon.icns" "$(du -h "$OUT/icon.icns" 2>/dev/null | cut -f1 | tr -d ' ' || echo '?')" "assets/icon.png"

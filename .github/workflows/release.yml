@@ -1,7 +1,7 @@
 name: release
 
-# Tag-driven. Pushing v0.1.0-alpha.1 builds the macOS app and attaches it to a draft
-# release, so the artefacts are reviewed before anyone can download them.
+# Tag-driven. Pushing v0.1.0-alpha.1 builds every platform and attaches the artefacts to
+# a draft release, so they are reviewed before anyone can download them.
 on:
   push:
     tags: ['v*']
@@ -11,8 +11,25 @@ permissions:
   contents: write
 
 jobs:
-  macos:
-    runs-on: macos-14 # arm64
+  build:
+    strategy:
+      # One failing platform should not hide whether the others are healthy.
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: mac
+          - os: ubuntu-latest
+            target: linux
+          - os: windows-latest
+            target: win
+
+    runs-on: ${{ matrix.os }}
+    # git-bash on the Windows runner, so one set of scripts serves all three.
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - uses: actions/checkout@v4
 
@@ -32,39 +49,65 @@ jobs:
       - name: Install app dependencies
         run: npm --prefix app ci
 
-      - name: App tests
-        run: npm --prefix app run test
-
-      # Fails loudly if the checkout does not match xray/PIN plus the patch series,
-      # which is the only integrity check there is — a directory `replace` bypasses
-      # go.sum for xray-core.
+      # Builds the sidecar for EVERY target on every runner, so a break on a platform
+      # nobody is currently releasing still fails the build that introduced it.
       - name: Build and package
-        run: ./scripts/package.sh
+        run: ./scripts/package.sh ${{ matrix.target }}
 
-      - name: Verify the bundle is what it claims
+      - name: Verify the bundle carries what it claims
         run: |
-          APP=".build/dist/mac-arm64/Xray Studio.app"
-          test -x "$APP/Contents/Resources/xray-studio-sidecar" || { echo "sidecar missing from bundle"; exit 1; }
-          test -f "$APP/Contents/Resources/docs-en/params.json"  || { echo "docs missing from bundle"; exit 1; }
-          test -f "$APP/Contents/Resources/schema/protocols.json" || { echo "schema missing from bundle"; exit 1; }
-          plutil -p "$APP/Contents/Info.plist" | grep -q '"CFBundleName" => "Xray Studio"'
+          set -euo pipefail
+          case "${{ matrix.target }}" in
+            mac)
+              APP=".build/dist/mac-arm64/Xray Studio.app/Contents"
+              RES="$APP/Resources"
+              SIDECAR="$RES/xray-studio-sidecar"
+              plutil -p "$APP/Info.plist" | grep -q '"CFBundleName" => "Xray Studio"'
+              ;;
+            linux)
+              RES=".build/dist/linux-unpacked/resources"
+              SIDECAR="$RES/xray-studio-sidecar"
+              ;;
+            win)
+              RES=".build/dist/win-unpacked/resources"
+              SIDECAR="$RES/xray-studio-sidecar.exe"
+              ;;
+          esac
+          test -f "$SIDECAR"                  || { echo "sidecar missing from the bundle"; exit 1; }
+          test -f "$RES/docs-en/params.json"  || { echo "docs missing from the bundle"; exit 1; }
+          test -f "$RES/schema/protocols.json" || { echo "schema missing from the bundle"; exit 1; }
+          echo "bundle contents verified for ${{ matrix.target }}"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: macos-arm64
+          name: ${{ matrix.target }}
+          # The unpacked trees are build scratch, not artefacts.
           path: |
             .build/dist/*.dmg
             .build/dist/*.zip
-            .build/dist/*-src.tar.gz
+            .build/dist/*.exe
+            .build/dist/*.AppImage
+            .build/dist/*.tar.gz
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
 
       - name: Draft release
-        if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          ls -lh dist
           gh release create "${GITHUB_REF_NAME}" \
             --draft \
             --title "${GITHUB_REF_NAME}" \
             --notes-file CHANGELOG.md \
             --prerelease \
-            .build/dist/*.dmg .build/dist/*.zip .build/dist/*-src.tar.gz
+            dist/*

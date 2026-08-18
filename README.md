@@ -17,8 +17,13 @@ Built against **Xray-core v26.7.28**.
 
 ## Install
 
-**macOS 14+, Apple Silicon.** Download the `.dmg` from
-[Releases](../../releases), open it, drag the app to Applications.
+Download from [Releases](../../releases):
+
+| | |
+|---|---|
+| **macOS** 14+, Apple Silicon | `.dmg` — open it, drag the app to Applications |
+| **Windows** 10+, x64 or arm64 | `-setup.exe` installer, or the `.zip` to run in place |
+| **Linux** x64 or arm64 | `.AppImage` — `chmod +x` and run — or the `.tar.gz` |
 
 The build is unsigned and un-notarised — signing needs a paid Apple Developer identity,
 and an ad-hoc signature would only make Gatekeeper's refusal more confusing. macOS will
@@ -28,9 +33,14 @@ refuse to open it until you clear the quarantine flag once:
 xattr -dr com.apple.quarantine "/Applications/Xray Studio.app"
 ```
 
-Intel Macs, Linux and Windows are not built yet. The fault dialer's errno layer is
-behind a build tag and only the `_unix` variant exists, so Windows will not compile at
-all; Linux should, and is untested.
+Intel Macs are not built. Everything else is: the fault dialer's errno layer is
+build-tagged per platform, and the Windows variant synthesises the WSA* errors —
+`connectex: ... actively refused it` rather than a Unix `connect: connection refused` —
+because a fault that reported the wrong platform's errno would be a tell.
+
+Only the macOS build is signed-adjacent enough to mention: none of them are signed. On
+Windows, SmartScreen will warn about an unknown publisher; on Linux the AppImage needs
+`chmod +x`.
 
 To build from source instead, see [Getting started](#getting-started).
 
@@ -274,9 +284,18 @@ neither is misattributed to the other.
 npm run package
 ```
 
-Verifies the pinned core, builds the sidecar, **runs the sidecar tests and refuses to
-package if they fail**, builds the renderer, and writes a `.dmg`, a `.zip` and a
-source archive to `.build/dist/`.
+```bash
+npm run package -- linux     # or: mac, win, all
+```
+
+Verifies the pinned core, runs the tests and **refuses to package if they fail**, builds
+the sidecar for *every* target — so a Windows-only break surfaces on a macOS release
+rather than waiting for a Windows one — builds the renderer, and writes the installers
+plus a source archive to `.build/dist/`.
+
+macOS, Windows and Linux artefacts can all be produced from a Mac; CI builds each on its
+own runner anyway, because an AppImage assembled on Linux and an installer assembled on
+Windows are the ones users will actually run.
 
 The source archive comes from `git archive` at HEAD, not from the working tree. That
 means it contains exactly the tracked files — it cannot pick up `node_modules`, the

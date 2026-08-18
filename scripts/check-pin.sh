@@ -14,6 +14,15 @@ STAMP_FILE="$XRAY_DIR/.xray-studio-stamp"
 die() { printf '\033[31m✗\033[0m %s\n' "$*" >&2; exit 1; }
 ok()  { printf '\033[32m✓\033[0m %s\n' "$*"; }
 
+# sha256 varies by platform: macOS ships shasum, most Linux images ship sha256sum, and
+# git-bash on a Windows runner may have either. The stamp must be identical everywhere
+# or a checkout would appear to need rebuilding on every machine.
+sha256() {
+  if command -v shasum >/dev/null 2>&1; then shasum -a 256
+  elif command -v sha256sum >/dev/null 2>&1; then sha256sum
+  else die "need shasum or sha256sum"; fi
+}
+
 PIN="$(tr -d '[:space:]' < "$ROOT/xray/PIN")"
 [[ -d "$XRAY_DIR/.git" ]] || die "no checkout at .build/xray-core — run scripts/bootstrap-xray.sh"
 
@@ -31,7 +40,7 @@ BASE="$(git -C "$XRAY_DIR" rev-parse "HEAD~$N" 2>/dev/null)" \
      actual   $BASE (HEAD~$N)"
 
 # 2. The stamp must match sha256(PIN || patches) — catches an edited patch file.
-WANT="$( { printf '%s\n' "$PIN"; if [[ $N -gt 0 ]]; then cat "${PATCHES[@]}"; fi; } | shasum -a 256 | cut -d' ' -f1)"
+WANT="$( { printf '%s\n' "$PIN"; if [[ $N -gt 0 ]]; then cat "${PATCHES[@]}"; fi; } | sha256 | cut -d' ' -f1)"
 [[ -f "$STAMP_FILE" ]] || die "missing stamp — run scripts/bootstrap-xray.sh"
 GOT="$(cat "$STAMP_FILE")"
 [[ "$WANT" == "$GOT" ]] \

@@ -259,12 +259,25 @@ export class Sidecar extends EventEmitter {
   }
 }
 
-/** Locates the sidecar binary in both dev and packaged layouts. */
+/**
+ * Locates the sidecar binary in both dev and packaged layouts, on every platform.
+ *
+ * A dev build keeps binaries per target under .build/bin/<platform>-<arch>/, because a
+ * release builds all of them and a single flat name could only ever hold one. The
+ * unsuffixed path is checked too so an ad-hoc `go build -o .build/bin/...` still works.
+ */
 export function sidecarPath(appRoot: string): string {
+  const exe = process.platform === 'win32' ? 'xray-studio-sidecar.exe' : 'xray-studio-sidecar'
+  const os = process.platform === 'win32' ? 'win' : process.platform === 'darwin' ? 'mac' : 'linux'
+  // Electron reports arm64/x64; Go's naming is handled by the build script, not here.
+  const dir = `${os}-${process.arch}`
+
   const candidates = [
-    join(appRoot, '..', '.build', 'bin', 'xray-studio-sidecar'),
-    join(appRoot, '.build', 'bin', 'xray-studio-sidecar'),
-    join(process.resourcesPath ?? '', 'xray-studio-sidecar'),
+    join(appRoot, '..', '.build', 'bin', dir, exe),
+    join(appRoot, '..', '.build', 'bin', exe),
+    join(appRoot, '.build', 'bin', dir, exe),
+    join(appRoot, '.build', 'bin', exe),
+    join(process.resourcesPath ?? '', exe),
   ]
   return candidates.find((p) => existsSync(p)) ?? candidates[0]!
 }

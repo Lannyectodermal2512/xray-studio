@@ -64,11 +64,14 @@ if [[ -n "$FAULT" ]]; then
   ) &
 fi
 
-# Tail the core's own log alongside the structured stream.
-tail -n +2 -f "$TMP/out" | sed 's/^/\x1b[90mcore \x1b[0m/' &
-
-curl -s -N -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:$PORT/v1/events" \
-| FILTER="$FILTER" python3 -u -c '
+# The reader is held in a variable rather than passed inline.
+#
+# It used to be `python3 -c '...'` with the program in single quotes — and the program
+# itself uses single quotes, which closed the shell string early. bash parses a script
+# as it runs, so this did not fail at startup: it failed only once execution reached
+# this line, which is why it survived. A quoted heredoc has no such hazard, and keeps
+# stdin free for the pipe feeding it.
+read -r -d '' READER <<'PYSRC' || true
 import json, os, sys
 
 want = set(os.environ["FILTER"].split(","))
@@ -139,4 +142,11 @@ for line in sys.stdin:
 
     elif t == "log" and "log" in want:
         print(f'{ts} {C["dim"]}log    [{e.get("severity","")}] {e.get("message","")[:100]}{C["off"]}')
-'
+PYSRC
+
+# Tail the core's own log alongside the structured stream.
+tail -n +2 -f "$TMP/out" | sed 's/^/\x1b[90mcore \x1b[0m/' &
+
+curl -s -N -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:$PORT/v1/events" \
+  | FILTER="$FILTER" python3 -u -c "$READER"
+
