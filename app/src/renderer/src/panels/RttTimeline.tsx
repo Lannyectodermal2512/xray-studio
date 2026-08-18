@@ -440,9 +440,19 @@ function ProbeLane({
 
   const left = plot?.bbox ? plot.bbox.left / devicePixelRatio : 108
   const width = plot?.bbox ? plot.bbox.width / devicePixelRatio : 0
+  /**
+   * Time to an offset inside the track.
+   *
+   * valToPos returns CSS pixels measured from the PLOTTING AREA's origin, not from the
+   * canvas, so the axis gutter must not be subtracted again. Doing so shifted every mark
+   * left by the width of that gutter: the newest probe landed at 85% of the track with a
+   * permanent empty margin on the right, and the oldest went negative and was dropped
+   * altogether. The lane looked plausible, which is why it survived — the track lined up
+   * with the plot area, only its contents did not.
+   */
   const xOf = (t: number): number | null => {
     if (!plot) return null
-    const x = plot.valToPos(t, 'x') - plot.bbox.left / devicePixelRatio
+    const x = plot.valToPos(t, 'x')
     if (x < 0 || (width > 0 && x > width)) return null
     return x
   }
