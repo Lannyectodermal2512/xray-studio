@@ -17,30 +17,56 @@ Built against **Xray-core v26.7.28**.
 
 ## Install
 
-Download from [Releases](../../releases):
+Download from [Releases](../../releases). One line per case:
 
-| | |
+### macOS — Apple Silicon only
+
+| file | when |
 |---|---|
-| **macOS** 14+, Apple Silicon | `.dmg` — open it, drag the app to Applications |
-| **Windows** 10+, x64 or arm64 | `-setup.exe` installer, or the `.zip` to run in place |
-| **Linux** x64 or arm64 | `.AppImage` — `chmod +x` and run — or the `.tar.gz` |
+| `mac-arm64.dmg` | **the normal one.** Open, drag to Applications |
+| `mac-arm64.zip` | the same app with no installer, for running from anywhere |
 
-The build is unsigned and un-notarised — signing needs a paid Apple Developer identity,
-and an ad-hoc signature would only make Gatekeeper's refusal more confusing. macOS will
-refuse to open it until you clear the quarantine flag once:
+Intel Macs are not built.
+
+### Windows 10+
+
+| file | when |
+|---|---|
+| `win-x64-setup.exe` | **the normal one** on any ordinary PC |
+| `win-arm64-setup.exe` | Snapdragon machines — Surface Pro X, Dev Kit, recent ARM laptops |
+| `win-setup.exe` | both architectures in one installer. Twice the download; use it when handing one file to people on mixed hardware |
+| `win-x64.zip`, `win-arm64.zip` | portable: unpack and run, nothing is installed and nothing is written outside the folder |
+
+Not sure which architecture? Settings → System → About → *System type*. "x64-based" is
+the first row.
+
+### Linux
+
+| file | when |
+|---|---|
+| `linux-x86_64.AppImage` | **the normal one.** `chmod +x` it and run — no install, no dependencies |
+| `linux-arm64.AppImage` | ARM boards and ARM VMs |
+| `linux-x64.tar.gz`, `linux-arm64.tar.gz` | plain directory, for packaging it yourself or putting it under a service manager |
+
+`x86_64` and `x64` are the same architecture — AppImage names it the way the AppImage
+tooling does, and the tarball the way electron-builder does. There is one build behind
+both.
+
+### Everything else in the release
+
+| file | what |
+|---|---|
+| `src.tar.gz` | the sources this release was built from, straight out of `git archive` at the tag |
+| `*.blockmap` | not for downloading. A map of content-defined chunks and their hashes, which a future auto-updater uses to fetch only the parts of an installer that changed instead of all 200 MB. Kept so that history exists once updates are switched on |
+
+None of the builds are signed. macOS needs the quarantine flag cleared once, Windows
+will show a SmartScreen warning about an unknown publisher, and the Linux AppImage needs
+its executable bit:
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/Xray Studio.app"
+xattr -dr com.apple.quarantine "/Applications/Xray Studio.app"   # macOS
+chmod +x XrayStudio-*-linux-x86_64.AppImage                      # Linux
 ```
-
-Intel Macs are not built. Everything else is: the fault dialer's errno layer is
-build-tagged per platform, and the Windows variant synthesises the WSA* errors —
-`connectex: ... actively refused it` rather than a Unix `connect: connection refused` —
-because a fault that reported the wrong platform's errno would be a tell.
-
-Only the macOS build is signed-adjacent enough to mention: none of them are signed. On
-Windows, SmartScreen will warn about an unknown publisher; on Linux the AppImage needs
-`chmod +x`.
 
 To build from source instead, see [Getting started](#getting-started).
 
