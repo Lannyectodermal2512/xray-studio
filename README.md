@@ -22,11 +22,23 @@ Download from [Releases](../../releases). One file per system:
 | system | file | how |
 |---|---|---|
 | **macOS** 14+ | `macos-universal.dmg` | open, drag to Applications. Intel and Apple Silicon in one build |
-| **Windows** 10+ | `windows-setup.exe` | run it. Carries x64 and arm64 and picks at install time |
+| **Windows** 10+ x64 | `win-x64.zip` | **portable** — unpack anywhere, run `Xray Studio.exe` |
+| **Windows** 10+ ARM | `win-arm64.zip` | portable, for Snapdragon machines |
 | **Arch Linux** x86_64 | `linux-x86_64.pkg.tar.zst` | `sudo pacman -U <file>` |
 | **Arch Linux** ARM | `linux-aarch64.pkg.tar.zst` | `sudo pacman -U <file>` |
 
-Linux is the one system that needs two files, and it is not an oversight: there is no
+**Windows has no installer.** Nothing is written outside the folder: no registry keys, no
+uninstall entry, no `%APPDATA%`. Settings — the API key, the window profile, pasted
+configs — live in `XrayStudio-data` beside the executable, so deleting the folder removes
+every trace and copying it to a USB stick carries your setup with it. If you put the
+folder somewhere unwritable, such as Program Files, the app falls back to `%APPDATA%`
+rather than refusing to start.
+
+One thing does not travel between machines: the API key is encrypted with Windows DPAPI,
+which is tied to the account that saved it. The folder opens fine elsewhere, but that key
+has to be entered again.
+
+Windows and Linux both need two files, for the same reason: there is no
 universal binary format on Linux — no fat binary, no equivalent — so a package is built
 for one architecture or the other. The names are exactly what `uname -m` prints, so run
 that if you are unsure.
