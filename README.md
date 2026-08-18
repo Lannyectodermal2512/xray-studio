@@ -285,8 +285,13 @@ npm run package
 ```
 
 ```bash
-npm run package -- linux     # or: mac, win, all
+npm run package:all          # every platform, one command
+npm run package -- win       # or just one: mac, win, linux
 ```
+
+Both clear `.build/dist/` first. electron-builder overwrites what it produces but never
+removes what it no longer produces, so without that a stale artefact from an earlier
+version sits there looking current and gets uploaded with the rest.
 
 Verifies the pinned core, runs the tests and **refuses to package if they fail**, builds
 the sidecar for *every* target — so a Windows-only break surfaces on a macOS release

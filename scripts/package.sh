@@ -39,6 +39,14 @@ case "$TARGET" in
   *) die "unknown target: $TARGET" ;;
 esac
 
+# Start from an empty output directory.
+#
+# electron-builder overwrites what it produces but does not remove what it no longer
+# produces, so a stale artefact from an earlier version or a target you have since
+# dropped would sit in dist/ looking current — and get uploaded with the rest.
+info "clearing .build/dist"
+rm -rf .build/dist
+
 # A release that ships a broken engine is worse than no release. Tests run once, on the
 # host: they exercise logic, not platform bindings.
 info "running tests"
