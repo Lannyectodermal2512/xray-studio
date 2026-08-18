@@ -80,6 +80,26 @@ linux:
 # 2020, so the file is a .pkg.tar.zst that `pacman -U` takes without complaint.
 pacman:
   compression: zstd
+  # electron-builder's default pacman dependencies are the ones a SYSTEM electron package
+  # needs, and this app carries its own — libffmpeg.so ships inside the bundle. Two of
+  # them no longer exist in the Arch repositories at all (http-parser was dropped, and
+  # libappindicator-gtk3 with it), so pacman -U refused to install with
+  # "unable to satisfy dependency".
+  #
+  # This list is derived from the DT_NEEDED entries of the shipped binary, minus what the
+  # bundle already carries, mapped to the packages that provide them. Notably libXss is
+  # NOT among them despite being in every Electron dependency list copied around the
+  # internet — the binary does not link it.
+  depends:
+    - gtk3            # also pulls cairo, pango, glib2, atk and the libX* set
+    - nss             # and nspr, via nss
+    - alsa-lib        # libasound
+    - libcups         # libcups
+    - mesa            # libgbm
+    - systemd-libs    # libudev
+    - dbus            # libdbus-1
+    - at-spi2-core    # libatspi, libatk-bridge
+    - xdg-utils       # shell.openExternal shells out to xdg-open
   # ".pacman" says nothing about what the file is; it is a zstd-compressed package
   # tarball, so name it the way pacman itself names them.
   #

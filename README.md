@@ -31,8 +31,11 @@ universal binary format on Linux — no fat binary, no equivalent — so a packa
 for one architecture or the other. The names are exactly what `uname -m` prints, so run
 that if you are unsure.
 
-The Arch package installs to `/opt` with a desktop entry and icons, and declares the
-usual Electron runtime dependencies, so `pacman` pulls anything missing.
+The Arch package installs to `/opt` with a desktop entry and icons. Its dependencies are
+derived from the shipped binary's own `DT_NEEDED` entries rather than copied from an
+Electron boilerplate list — `gtk3`, `nss`, `alsa-lib`, `libcups`, `mesa`, `systemd-libs`,
+`dbus`, `at-spi2-core`, `xdg-utils` — so `pacman` pulls exactly what is missing and
+nothing that was retired from the repositories years ago.
 
 Also in the release:
 
