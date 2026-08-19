@@ -22,10 +22,16 @@ Download from [Releases](../../releases). One file per system:
 | system | file | how |
 |---|---|---|
 | **macOS** 14+ | `macos-universal.dmg` | open, drag to Applications. Intel and Apple Silicon in one build |
-| **Windows** 10+ x64 | `win-x64.zip` | **portable** — unpack anywhere, run `Xray Studio.exe` |
-| **Windows** 10+ ARM | `win-arm64.zip` | portable, for Snapdragon machines |
+| **Windows** 10+ | `win-x64.zip` | **portable** — unpack anywhere, run `Xray Studio.exe`. This is the one to take |
+| **Windows** 11 ARM | `win-arm64.zip` | optional. Only worth it for native speed on a Snapdragon machine — the x64 build runs there too, under emulation |
 | **Arch Linux** x86_64 | `linux-x86_64.pkg.tar.zst` | `sudo pacman -U <file>` |
 | **Arch Linux** ARM | `linux-aarch64.pkg.tar.zst` | `sudo pacman -U <file>` |
+
+If you take the wrong Windows file, Windows says *"This app can't run on your PC"* — that
+message always means an architecture mismatch, never a broken download. `win-x64.zip` is
+the safe choice: it runs on ordinary PCs natively and on Windows 11 ARM under emulation.
+Take `win-arm64.zip` only if you know the machine is ARM and want native speed;
+`$env:PROCESSOR_ARCHITECTURE` in PowerShell prints `AMD64` or `ARM64` if you are unsure.
 
 **Windows has no installer.** Nothing is written outside the folder: no registry keys, no
 uninstall entry, no `%APPDATA%`. Settings — the API key, the window profile, pasted
