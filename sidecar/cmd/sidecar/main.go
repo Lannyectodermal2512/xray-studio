@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -50,7 +51,14 @@ func main() {
 	bus.StartStatsTicker(500 * time.Millisecond)
 	defer bus.Close()
 
-	mgr := instance.New(bus)
+	// Where redirected logs go. The app passes its own data directory, which on the
+	// portable Windows build sits next to the executable — so a redirect never writes
+	// outside the folder the user unpacked.
+	logDir := os.Getenv("XRAYSTUDIO_LOG_DIR")
+	if logDir == "" {
+		logDir = filepath.Join(os.TempDir(), "xray-studio-logs")
+	}
+	mgr := instance.New(bus, logDir)
 	defer mgr.Close()
 
 	srv, err := control.New(mgr, bus)

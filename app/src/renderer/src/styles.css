@@ -1143,3 +1143,10 @@ button.ghost.on { border-color: var(--bad); color: var(--bad); }
 .ai-input textarea:focus { border-color: var(--accent); outline: none; }
 
 .ai-key .proxy-note { margin: 10px 0 4px; }
+
+/* Informational banner: something was changed for this run and the user must know. */
+.banner.info {
+  background: rgb(76 154 255 / 10%);
+  border-bottom: 1px solid rgb(76 154 255 / 30%);
+  color: var(--fg);
+}

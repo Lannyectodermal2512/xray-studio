@@ -146,6 +146,22 @@ export function App(): React.JSX.Element {
         <div className="banner bad">{snap.sidecarError}</div>
       )}
 
+      {/* Never silent. The app is running something slightly different from what the
+          file says, and a config tester that hides that would send people back to a
+          config carrying conclusions it never earned. */}
+      {snap.logRedirects.length > 0 && (
+        <div className="banner info">
+          {snap.logRedirects.map((r) => (
+            <div key={r.field}>
+              <code className="mono">log.{r.field}</code> pointed at a directory that does
+              not exist, so it is being written to <code className="mono">{r.to}</code> for
+              this run. The file on disk is unchanged.
+              <span className="dim"> (was {r.from})</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="body">
         <Sidebar />
         <main className="main">

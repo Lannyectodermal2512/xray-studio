@@ -31,7 +31,11 @@ export class Sidecar extends EventEmitter {
   private abort: AbortController | null = null
   private stopping = false
 
-  constructor(private readonly binaryPath: string) {
+  constructor(
+    private readonly binaryPath: string,
+    /** Where the sidecar puts a log file whose configured directory does not exist. */
+    private readonly logDir: string,
+  ) {
     super()
   }
 
@@ -53,7 +57,13 @@ export class Sidecar extends EventEmitter {
     }
 
     this.stopping = false
-    const proc = spawn(this.binaryPath, [], { stdio: ['ignore', 'pipe', 'pipe'] })
+    const proc = spawn(this.binaryPath, [], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      // Redirected logs land in the app's own data directory, which on the portable
+      // Windows build sits next to the executable — so a redirect never writes outside
+      // the folder that was unpacked.
+      env: { ...process.env, XRAYSTUDIO_LOG_DIR: this.logDir },
+    })
     this.proc = proc
 
     const ready = await new Promise<ReadyLine>((resolve, reject) => {

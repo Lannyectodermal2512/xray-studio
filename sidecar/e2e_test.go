@@ -72,7 +72,7 @@ func TestFailoverOnInjectedFault(t *testing.T) {
 
 	collected := collect(events)
 
-	mgr := instance.New(bus)
+	mgr := instance.New(bus, t.TempDir())
 	defer mgr.Close()
 
 	if err := mgr.Start([]byte(cfg), "e2e"); err != nil {

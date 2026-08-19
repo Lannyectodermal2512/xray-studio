@@ -58,6 +58,7 @@ export class EventStore {
    */
   private sidecarEpoch = 0
   private faults: FaultRule[] = []
+  private logRedirects: { field: string; from: string; to: string }[] = []
   private sidecarUp = false
   private sidecarError: string | null = null
   private configPath: string | null = null
@@ -234,6 +235,11 @@ export class EventStore {
         })
         break
       }
+      case EventType.LogRedirected: {
+        const r = ev as never as { field: string; from: string; to: string }
+        this.logRedirects.push({ field: r.field, from: r.from, to: r.to })
+        break
+      }
       case EventType.BusStats: {
         const b = ev as BusStatsEvent
         this.bus = {
@@ -330,6 +336,7 @@ export class EventStore {
       recentRules: this.rules.slice(-60),
       recentDials: this.dials.slice(-60),
       faults: this.faults,
+      logRedirects: this.logRedirects,
       sidecarUp: this.sidecarUp,
       sidecarError: this.sidecarError,
       configPath: this.configPath,

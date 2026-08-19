@@ -141,7 +141,7 @@ async function ensureSidecar(): Promise<Sidecar> {
   if (sidecar?.running) return sidecar
 
   const bin = sidecarPath(app.getAppPath())
-  const sc = new Sidecar(bin)
+  const sc = new Sidecar(bin, join(app.getPath('userData'), 'logs'))
   store.beginSidecar()
 
   sc.on('event', (ev: Envelope) => store.ingest(ev))

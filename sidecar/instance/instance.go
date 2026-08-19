@@ -46,6 +46,11 @@ type Manager struct {
 	dialer *fault.Dialer
 	events *trace.Bus
 
+	// Where a log file goes when the one the config names is unusable. Empty disables
+	// the redirect entirely.
+	logDir       string
+	logRedirects []LogRedirect
+
 	mu         sync.Mutex
 	inst       *core.Instance
 	state      string
@@ -61,11 +66,12 @@ type Manager struct {
 //
 // Installing before any core.New is deliberate: it means there is never a window in
 // which traffic could escape un-instrumented.
-func New(events *trace.Bus) *Manager {
+func New(events *trace.Bus, logDir string) *Manager {
 	m := &Manager{
 		faults: &fault.Store{},
 		events: events,
 		state:  StateStopped,
+		logDir: logDir,
 	}
 	m.reg = fault.NewRegistry(func(tag string, read, written int64, age time.Duration, err error) {
 		ev := trace.ConnClose{Tag: tag, Read: read, Written: written, AgeMs: age.Milliseconds()}
@@ -78,6 +84,13 @@ func New(events *trace.Bus) *Manager {
 	m.dialer.Install()
 	m.installHooks()
 	return m
+}
+
+// LogRedirects reports substitutions made to the running config, if any.
+func (m *Manager) LogRedirects() []LogRedirect {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.logRedirects
 }
 
 // Faults exposes the rule store so the control plane can swap rules atomically.
@@ -228,8 +241,23 @@ func (m *Manager) Start(raw []byte, path string) error {
 	m.configRaw, m.configPath = raw, path
 	m.setState(StateStarting, "")
 
-	cfg, err := serial.LoadJSONConfig(bytes.NewReader(raw))
+	// A log path whose directory is missing stops Xray dead before anything can be
+	// observed, and that is the usual outcome of opening a config written on another
+	// machine. Redirect it — and say so; see logpaths.go for why the saying so is the
+	// important half.
+	redirected, redirects, err := redirectLogPaths(raw, m.logDir)
 	if err != nil {
+		m.setState(StateError, err.Error())
+		return err
+	}
+	raw, m.logRedirects = redirected, redirects
+	for _, r := range m.logRedirects {
+		ev := trace.LogRedirected{Field: r.Field, From: r.From, To: r.To}
+		m.events.Publish(trace.TypeLogRedirected, &ev.Envelope, &ev)
+	}
+
+	cfg, err2 := serial.LoadJSONConfig(bytes.NewReader(raw))
+	if err = err2; err != nil {
 		m.setState(StateError, err.Error())
 		return err
 	}

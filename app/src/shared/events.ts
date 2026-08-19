@@ -17,6 +17,7 @@ export const EventType = {
   Log: 'log',
   Fault: 'fault',
   ConnPoisoned: 'conn_poisoned',
+  LogRedirected: 'log_redirected',
   BusStats: 'bus_stats',
 } as const
 
@@ -306,6 +307,12 @@ export interface BalancerView {
   evalCount: number
 }
 
+export interface LogRedirectedEvent extends Envelope {
+  field: string
+  from: string
+  to: string
+}
+
 export interface Snapshot {
   state: StateEvent | null
   epoch: number
@@ -319,6 +326,8 @@ export interface Snapshot {
   recentRules: RuleMatchEvent[]
   recentDials: DialEvent[]
   faults: FaultRule[]
+  /** Log destinations the app had to move because their directory did not exist. */
+  logRedirects: { field: string; from: string; to: string }[]
   /** True when the sidecar process is up, regardless of instance state. */
   sidecarUp: boolean
   sidecarError: string | null
@@ -338,6 +347,7 @@ export const emptySnapshot = (): Snapshot => ({
   recentRules: [],
   recentDials: [],
   faults: [],
+  logRedirects: [],
   sidecarUp: false,
   sidecarError: null,
   configPath: null,

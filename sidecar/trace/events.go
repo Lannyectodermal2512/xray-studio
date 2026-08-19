@@ -19,6 +19,7 @@ const (
 	TypeLog          = "log"
 	TypeFault        = "fault"
 	TypeConnPoisoned = "conn_poisoned"
+	TypeLogRedirected = "log_redirected"
 	TypeBusStats     = "bus_stats"
 )
 
@@ -213,6 +214,18 @@ type ConnPoisoned struct {
 	Tag   string `json:"tag"`
 	Count int    `json:"count"`
 	Kind  string `json:"kind"`
+}
+
+// LogRedirected reports a log destination the app had to move.
+//
+// Emitted rather than handled quietly: a config tester that runs something other than
+// what it was handed, without saying so, would send people back to a config carrying
+// conclusions it never earned.
+type LogRedirected struct {
+	Envelope
+	Field string `json:"field"`
+	From  string `json:"from"`
+	To    string `json:"to"`
 }
 
 // BusStats reports the health of the event pipeline itself.
