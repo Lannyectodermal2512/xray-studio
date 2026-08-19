@@ -48,8 +48,8 @@ type Manager struct {
 
 	// Where a log file goes when the one the config names is unusable. Empty disables
 	// the redirect entirely.
-	logDir       string
-	logRedirects []LogRedirect
+	logDir   string
+	logPaths LogPaths
 
 	mu         sync.Mutex
 	inst       *core.Instance
@@ -86,11 +86,11 @@ func New(events *trace.Bus, logDir string) *Manager {
 	return m
 }
 
-// LogRedirects reports substitutions made to the running config, if any.
-func (m *Manager) LogRedirects() []LogRedirect {
+// LogPaths reports where this instance's logs are being written.
+func (m *Manager) LogPaths() LogPaths {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.logRedirects
+	return m.logPaths
 }
 
 // Faults exposes the rule store so the control plane can swap rules atomically.
@@ -241,19 +241,17 @@ func (m *Manager) Start(raw []byte, path string) error {
 	m.configRaw, m.configPath = raw, path
 	m.setState(StateStarting, "")
 
-	// A log path whose directory is missing stops Xray dead before anything can be
-	// observed, and that is the usual outcome of opening a config written on another
-	// machine. Redirect it — and say so; see logpaths.go for why the saying so is the
-	// important half.
-	redirected, redirects, err := redirectLogPaths(raw, m.logDir)
+	// The app owns the log destinations — see logpaths.go. A log path is a property of
+	// the machine, not of the config, and these configs travel.
+	rewritten, paths, err := applyLogPaths(raw, m.logDir)
 	if err != nil {
 		m.setState(StateError, err.Error())
 		return err
 	}
-	raw, m.logRedirects = redirected, redirects
-	for _, r := range m.logRedirects {
-		ev := trace.LogRedirected{Field: r.Field, From: r.From, To: r.To}
-		m.events.Publish(trace.TypeLogRedirected, &ev.Envelope, &ev)
+	raw, m.logPaths = rewritten, paths
+	if paths.Access != "" {
+		ev := trace.LogPaths{Access: paths.Access, Error: paths.Error}
+		m.events.Publish(trace.TypeLogPaths, &ev.Envelope, &ev)
 	}
 
 	cfg, err2 := serial.LoadJSONConfig(bytes.NewReader(raw))

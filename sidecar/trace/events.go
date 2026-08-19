@@ -19,7 +19,7 @@ const (
 	TypeLog          = "log"
 	TypeFault        = "fault"
 	TypeConnPoisoned = "conn_poisoned"
-	TypeLogRedirected = "log_redirected"
+	TypeLogPaths = "log_paths"
 	TypeBusStats     = "bus_stats"
 )
 
@@ -216,16 +216,14 @@ type ConnPoisoned struct {
 	Kind  string `json:"kind"`
 }
 
-// LogRedirected reports a log destination the app had to move.
+// LogPaths reports where this instance's logs are being written.
 //
-// Emitted rather than handled quietly: a config tester that runs something other than
-// what it was handed, without saying so, would send people back to a config carrying
-// conclusions it never earned.
-type LogRedirected struct {
+// The app assigns these rather than taking them from the config; the Log tab shows them
+// so that "where are the logs?" has an answer in the place people look.
+type LogPaths struct {
 	Envelope
-	Field string `json:"field"`
-	From  string `json:"from"`
-	To    string `json:"to"`
+	Access string `json:"access"`
+	Error  string `json:"error"`
 }
 
 // BusStats reports the health of the event pipeline itself.

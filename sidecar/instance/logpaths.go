@@ -8,99 +8,84 @@ import (
 )
 
 /*
-Redirect log files whose directory does not exist.
+The app owns the log destinations.
 
-Xray does not create the directory and does not fall back to stderr: it refuses to start
-outright with "failed to initialize access logger". That makes it one of the very few
-config errors that stops the instance dead before anything can be observed — and the
-likeliest way to meet it is opening a config written on another machine, where a path
-under /Users, /home or C:\Users means nothing.
+Every config that starts here gets its log.access and log.error rewritten to files in a
+directory this app controls, whatever the config said — including when it said nothing at
+all. Only the paths change; loglevel, dnsLog and everything else in the block are the
+user's.
 
-Refusing to run someone else's config over a log path is a poor trade for a tool whose
-entire job is to tell them what that config does. So the path is redirected to a
-directory this app owns, and the substitution is REPORTED rather than performed quietly.
-That last part matters more than the fix: a config tester that silently runs something
-other than what you handed it is worse than one that refuses, because you would carry its
-conclusions back to a config that never had them.
+The reason is that a log path is a property of the machine, not of the config, and these
+configs travel. A path under /Users, /home or C:\Users is meaningful on exactly one
+computer, and Xray does not degrade politely when it is wrong: it does not create the
+directory, does not fall back to stderr, and refuses to start with "failed to initialize
+access logger". Testing someone else's config should not require first repairing a path
+that has nothing to do with what is being tested.
 
-Only the log block is touched, only when the directory is genuinely missing, and only in
-the bytes handed to the parser — the file on disk is never modified.
+The substitution is silent by design. The paths in use are shown in the Log tab, which is
+where someone goes when they want to know where the logs are.
+
+The file on disk is never modified; this rewrites only the bytes handed to the parser.
 */
 
-// LogRedirect records one substitution, for reporting to the UI.
-type LogRedirect struct {
-	Field string `json:"field"` // "access" or "error"
-	From  string `json:"from"`
-	To    string `json:"to"`
+// LogPaths is where this instance's logs are actually being written.
+type LogPaths struct {
+	Access string `json:"access"`
+	Error  string `json:"error"`
 }
 
-// redirectLogPaths rewrites unusable log destinations in raw config bytes.
+// applyLogPaths points the config's log files at the app's own directory.
 //
-// dir is where redirected logs are written; it is created on demand. A nil or empty dir
-// disables the whole mechanism, and the config is returned untouched.
-func redirectLogPaths(raw []byte, dir string) ([]byte, []LogRedirect, error) {
+// An empty dir disables the mechanism and returns the config untouched, which is what
+// makes the behaviour testable and keeps a misconfigured build from writing to a
+// surprising place.
+func applyLogPaths(raw []byte, dir string) ([]byte, LogPaths, error) {
+	var paths LogPaths
 	if dir == "" {
-		return raw, nil, nil
+		return raw, paths, nil
 	}
 
-	// Decoded into a generic map rather than a typed struct so that everything the
-	// config carries — including keys this build knows nothing about — survives the
-	// round trip untouched.
+	// A generic map rather than a typed struct, so everything the config carries —
+	// including keys this build knows nothing about — survives the round trip.
 	var doc map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &doc); err != nil {
-		// Not our error to report: the loader will produce a far better message with a
-		// line and column. Hand the original bytes on.
-		return raw, nil, nil
-	}
-	logRaw, ok := doc["log"]
-	if !ok {
-		return raw, nil, nil
+		// Not this function's error to report: the loader produces a far better message,
+		// with a line and column. Hand the original bytes on.
+		return raw, paths, nil
 	}
 
-	var logBlock map[string]json.RawMessage
-	if err := json.Unmarshal(logRaw, &logBlock); err != nil {
-		return raw, nil, nil
+	logBlock := map[string]json.RawMessage{}
+	if existing, ok := doc["log"]; ok {
+		// A malformed log block is left for the loader to complain about properly.
+		if err := json.Unmarshal(existing, &logBlock); err != nil {
+			return raw, paths, nil
+		}
 	}
 
-	var redirects []LogRedirect
-	for _, field := range []string{"access", "error"} {
-		var path string
-		if err := json.Unmarshal(logBlock[field], &path); err != nil || path == "" {
-			continue
-		}
-		// Xray treats these as sinks, not paths, and both always work.
-		if path == "none" || path == "console" {
-			continue
-		}
-		if info, err := os.Stat(filepath.Dir(path)); err == nil && info.IsDir() {
-			continue
-		}
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return raw, nil, fmt.Errorf("creating the log directory: %w", err)
-		}
-		// Keep the original file name: a config naming its logs after an environment
-		// stays recognisable, and two configs redirected at once do not collide.
-		to := filepath.Join(dir, filepath.Base(path))
-		enc, err := json.Marshal(to)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return raw, paths, fmt.Errorf("creating the log directory: %w", err)
+	}
+	paths = LogPaths{
+		Access: filepath.Join(dir, "access.log"),
+		Error:  filepath.Join(dir, "error.log"),
+	}
+
+	for field, path := range map[string]string{"access": paths.Access, "error": paths.Error} {
+		enc, err := json.Marshal(path)
 		if err != nil {
-			return raw, nil, err
+			return raw, LogPaths{}, err
 		}
 		logBlock[field] = enc
-		redirects = append(redirects, LogRedirect{Field: field, From: path, To: to})
-	}
-
-	if len(redirects) == 0 {
-		return raw, nil, nil
 	}
 
 	newLog, err := json.Marshal(logBlock)
 	if err != nil {
-		return raw, nil, err
+		return raw, LogPaths{}, err
 	}
 	doc["log"] = newLog
 	out, err := json.Marshal(doc)
 	if err != nil {
-		return raw, nil, err
+		return raw, LogPaths{}, err
 	}
-	return out, redirects, nil
+	return out, paths, nil
 }

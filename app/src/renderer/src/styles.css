@@ -1150,3 +1150,8 @@ button.ghost.on { border-color: var(--bad); color: var(--bad); }
   border-bottom: 1px solid rgb(76 154 255 / 30%);
   color: var(--fg);
 }
+
+/* Log file locations, at the top of the Log tab. */
+.log-paths .log-path-row { align-items: center; display: flex; gap: 8px; padding: 2px 0; }
+.log-paths .log-path-row > span { flex: none; width: 46px; }
+.log-paths code { flex: 1; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

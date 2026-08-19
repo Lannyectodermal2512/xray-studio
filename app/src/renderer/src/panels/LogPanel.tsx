@@ -24,6 +24,44 @@ export function LogPanel(): React.JSX.Element {
 
   return (
     <div className="logs">
+      {/* Where the files are.
+          The app assigns these rather than taking them from the config, because a log
+          path is a property of the machine and these configs travel between machines.
+          This is the one place that says so — it is where someone looks when they want
+          the file itself. */}
+      {snap.logPaths && (
+        <section className="panel log-paths">
+          <div className="panel-head">
+            <h3>Log files</h3>
+            <span className="tiny dim">written by this instance</span>
+          </div>
+          <div className="log-path-row">
+            <span className="tiny dim">access</span>
+            <code className="mono">{snap.logPaths.access}</code>
+            <button
+              className="ghost tiny"
+              onClick={() => void navigator.clipboard.writeText(snap.logPaths!.access)}
+            >
+              copy
+            </button>
+          </div>
+          <div className="log-path-row">
+            <span className="tiny dim">error</span>
+            <code className="mono">{snap.logPaths.error}</code>
+            <button
+              className="ghost tiny"
+              onClick={() => void navigator.clipboard.writeText(snap.logPaths!.error)}
+            >
+              copy
+            </button>
+          </div>
+          <p className="tiny faint">
+            These are set by Xray Studio, not by the config. The config file itself is
+            never modified.
+          </p>
+        </section>
+      )}
+
       <section className="panel">
         <div className="panel-head">
           <h3>Core log</h3>

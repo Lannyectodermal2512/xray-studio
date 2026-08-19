@@ -17,7 +17,7 @@ export const EventType = {
   Log: 'log',
   Fault: 'fault',
   ConnPoisoned: 'conn_poisoned',
-  LogRedirected: 'log_redirected',
+  LogPaths: 'log_paths',
   BusStats: 'bus_stats',
 } as const
 
@@ -307,10 +307,9 @@ export interface BalancerView {
   evalCount: number
 }
 
-export interface LogRedirectedEvent extends Envelope {
-  field: string
-  from: string
-  to: string
+export interface LogPathsEvent extends Envelope {
+  access: string
+  error: string
 }
 
 export interface Snapshot {
@@ -326,8 +325,8 @@ export interface Snapshot {
   recentRules: RuleMatchEvent[]
   recentDials: DialEvent[]
   faults: FaultRule[]
-  /** Log destinations the app had to move because their directory did not exist. */
-  logRedirects: { field: string; from: string; to: string }[]
+  /** Where this instance's logs are written. The app assigns these, not the config. */
+  logPaths: { access: string; error: string } | null
   /** True when the sidecar process is up, regardless of instance state. */
   sidecarUp: boolean
   sidecarError: string | null
@@ -347,7 +346,7 @@ export const emptySnapshot = (): Snapshot => ({
   recentRules: [],
   recentDials: [],
   faults: [],
-  logRedirects: [],
+  logPaths: null,
   sidecarUp: false,
   sidecarError: null,
   configPath: null,
