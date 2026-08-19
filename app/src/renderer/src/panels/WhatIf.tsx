@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { ObsRow, SimOverride, SimRequest, SimResponse } from '@shared/events'
-import { useApp } from '../store/app'
+import type { BalancerView, ObsRow, SimOverride, SimRequest, SimResponse } from '@shared/events'
+import { effectiveConfigPath, useApp } from '../store/app'
+import { parseConfig } from '../graph/edit'
 import { DecisionFunnel } from './DecisionFunnel'
 import { fmtMs, fmtMsFromMs, isDeadSentinel } from '../lib/copy'
 import { DocHint } from '../components/DocHint'
@@ -16,10 +17,69 @@ import { DocHint } from '../components/DocHint'
  */
 export function WhatIf(): React.JSX.Element {
   const { snap, selectedBalancer } = useApp()
+  const configPath = useApp(effectiveConfigPath)
+
+  /* Balancers from the CONFIG, not only from telemetry.
+   *
+   * snap.balancers is built from decision events, and those only fire once traffic has
+   * been routed through a balancer. That made this panel unusable in exactly the case it
+   * exists for: you have just opened a config and want to know what its balancer would
+   * do, before sending anything through it. The strategy is still run for real by the
+   * sidecar against a supplied observation — nothing here is simulated locally — so a
+   * prior decision was never actually needed, only assumed.
+   *
+   * Live views win when they exist, since they carry candidates the core itself
+   * resolved. */
+  const [configBalancers, setConfigBalancers] = useState<BalancerView[]>([])
+  useEffect(() => {
+    if (!configPath) return
+    let alive = true
+    void window.xraystudio
+      .readConfig(configPath)
+      .then((text) => {
+        if (!alive) return
+        const cfg = parseConfig(text)
+        if (!cfg) return
+        const outTags = cfg.outbounds.map((o) => o.tag ?? '').filter(Boolean)
+        setConfigBalancers(
+          cfg.balancers
+            .filter((b) => b.tag)
+            .map((b) => ({
+              tag: b.tag!,
+              strategy: b.strategy?.type ?? 'random',
+              selectors: b.selector ?? [],
+              // Same prefix match the core uses, so the candidate set is the real one
+              // rather than every outbound in the file.
+              candidates: outTags.filter((t) => (b.selector ?? []).some((sel) => t.startsWith(sel))),
+              selected: '',
+              source: '',
+              fallbackTag: b.fallbackTag ?? '',
+              err: '',
+              lastEvalMonoNs: 0,
+              pickShare: {},
+              evalCount: 0,
+            })),
+        )
+      })
+      .catch(() => undefined)
+    return () => {
+      alive = false
+    }
+  }, [configPath])
+
+  const balancers = useMemo(() => {
+    const merged = [...configBalancers]
+    for (const live of snap.balancers) {
+      const i = merged.findIndex((b) => b.tag === live.tag)
+      if (i >= 0) merged[i] = live
+      else merged.push(live)
+    }
+    return merged
+  }, [configBalancers, snap.balancers])
 
   const balancer = useMemo(
-    () => snap.balancers.find((b) => b.tag === selectedBalancer) ?? snap.balancers[0],
-    [snap.balancers, selectedBalancer],
+    () => balancers.find((b) => b.tag === selectedBalancer) ?? balancers[0],
+    [balancers, selectedBalancer],
   )
 
   // Freeze the observation on first load so sliders act on a stable baseline rather
@@ -116,8 +176,8 @@ export function WhatIf(): React.JSX.Element {
     return (
       <div className="pad">
         <p className="dim">
-          No balancer yet. Start a config with a <code>routing.balancers</code> entry and send
-          some traffic through it.
+          No balancer in this config. Add a <code>routing.balancers</code> entry to see what
+          it would choose.
         </p>
       </div>
     )
