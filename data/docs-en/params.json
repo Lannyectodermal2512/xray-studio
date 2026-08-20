@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-14T22:13:44Z",
+  "generated": "2026-08-20T13:18:53Z",
   "docsCommit": "901005cfbb887f20b60db4d59b5bce466206f5f3",
   "license": "CC-BY-SA-4.0",
   "attribution": "Adapted from the XTLS/Xray-docs-next documentation (https://github.com/XTLS/Xray-docs-next), licensed CC BY-SA 4.0. Text was extracted per parameter and reformatted; it is not verbatim.",
@@ -200,27 +200,12 @@
       "summary": "Specific configuration content, which varies by protocol. See `InboundConfigurationObject` in each protocol section for details.",
       "source": "https://xtls.github.io/en/config/inbound.html"
     },
-    "inbounds[].settings.streamSettings": {
-      "path": "inbounds[].settings.streamSettings",
-      "name": "streamSettings",
-      "type": "StreamSettingsObject",
-      "summary": "Transport configuration for this inbound.",
-      "source": "https://xtls.github.io/en/config/inbound.html"
-    },
-    "inbounds[].settings.streamSettings[].sniffing": {
-      "path": "inbounds[].settings.streamSettings[].sniffing",
+    "inbounds[].sniffing": {
+      "path": "inbounds[].sniffing",
       "name": "sniffing",
       "type": "SniffingObject",
       "summary": "Traffic sniffing is mainly used for transparent proxies and similar purposes. A typical flow is as follows:",
       "detail": "1. If a device accesses the internet and visits abc.com, the device first queries DNS to get the IP of abc.com as 1.2.3.4, and then the device initiates a connection to 1.2.3.4. 2. If sniffing is not configured, the connection request received by Xray is for 1.2.3.4, which cannot be used for routing traffic based on domain rules. 3. When `enabled` in sniffing is set to `true`, Xray will sniff the domain name, i.e., abc.com, from the traffic data when processing this connection. 4. Xray will reset 1.2.3.4 to abc.com. The routing can then divert traffic according to the domain rules.\n\nBecause it becomes a connection requesting abc.com, more things can be done. Besides routing domain rule diversion, it can also re-perform DNS resolution and other tasks.\n\nWhen `enabled` in sniffing is set to `true`, it can also sniff Bittorrent type traffic. Then you can configure the \"protocol\" item in routing to set rules for handling unencrypted BT traffic. For example, the server side can be used to intercept unencrypted BT traffic, or the client side can fixedly forward BT traffic to a certain VPS, etc.\n\nNote: Newer browsers may use ECH to encrypt the Client Hello. In this case, Xray can only see the domain in the Outer Hello. You may need to consider hijacking DNS or manually disabling ECH in the browser configuration.",
-      "source": "https://xtls.github.io/en/config/inbound.html"
-    },
-    "inbounds[].settings.streamSettings[].tag": {
-      "path": "inbounds[].settings.streamSettings[].tag",
-      "name": "tag",
-      "type": "string",
-      "summary": "\u003e The identifier of this inbound connection, used to locate this connection in other configurations.",
-      "detail": "danger When it is not empty, its value must be **unique** among all `tag`s.",
       "source": "https://xtls.github.io/en/config/inbound.html"
     },
     "inbounds[].sniffing.destOverride": {
@@ -267,6 +252,21 @@
       "type": "true | false",
       "summary": "Use the sniffed domain only for routing; the proxy destination address remains the IP. The default value is `false`.",
       "detail": "This item requires `destOverride` to be enabled to work.\n\nWhen it is guaranteed that **the proxied connection can obtain correct DNS resolution**, using `routeOnly` while enabling `destOverride`, and setting the routing matching strategy `domainStrategy` to `AsIs`, allows for domain and IP traffic splitting without DNS resolution throughout the process. In this case, the IP used when matching IP rules is the original IP of the domain name.",
+      "source": "https://xtls.github.io/en/config/inbound.html"
+    },
+    "inbounds[].streamSettings": {
+      "path": "inbounds[].streamSettings",
+      "name": "streamSettings",
+      "type": "StreamSettingsObject",
+      "summary": "Transport configuration for this inbound.",
+      "source": "https://xtls.github.io/en/config/inbound.html"
+    },
+    "inbounds[].tag": {
+      "path": "inbounds[].tag",
+      "name": "tag",
+      "type": "string",
+      "summary": "\u003e The identifier of this inbound connection, used to locate this connection in other configurations.",
+      "detail": "danger When it is not empty, its value must be **unique** among all `tag`s.",
       "source": "https://xtls.github.io/en/config/inbound.html"
     },
     "inbounds[http].settings.allowTransparent": {
@@ -785,6 +785,13 @@
       "summary": "An array of strings, where each string is used for prefix matching against outbound proxy tags. Given the following outbound proxy tags: `[ \"a\", \"ab\", \"c\", \"ba\" ]`, `\"subjectSelector\": [\"a\"]` will match `[ \"a\", \"ab\" ]`.",
       "source": "https://xtls.github.io/en/config/observatory.html"
     },
+    "outbounds[].mux": {
+      "path": "outbounds[].mux",
+      "name": "mux",
+      "type": "MuxObject",
+      "summary": "Specific configuration related to Mux.",
+      "source": "https://xtls.github.io/en/config/outbound.html"
+    },
     "outbounds[].mux.concurrency": {
       "path": "outbounds[].mux.concurrency",
       "name": "concurrency",
@@ -823,6 +830,13 @@
       "summary": "The connection protocol name. For the list of optional protocols, see Outbound Protocols on the left.",
       "source": "https://xtls.github.io/en/config/outbound.html"
     },
+    "outbounds[].proxySettings": {
+      "path": "outbounds[].proxySettings",
+      "name": "proxySettings",
+      "type": "ProxySettingsObject",
+      "summary": "Outbound proxy configuration.",
+      "source": "https://xtls.github.io/en/config/outbound.html"
+    },
     "outbounds[].proxySettings.tag": {
       "path": "outbounds[].proxySettings.tag",
       "name": "tag",
@@ -853,41 +867,27 @@
       "summary": "Specific configuration content, which varies by protocol. See `OutboundConfigurationObject` in each protocol for details.",
       "source": "https://xtls.github.io/en/config/outbound.html"
     },
-    "outbounds[].settings.streamSettings": {
-      "path": "outbounds[].settings.streamSettings",
+    "outbounds[].streamSettings": {
+      "path": "outbounds[].streamSettings",
       "name": "streamSettings",
       "type": "StreamSettingsObject",
       "summary": "Transport configuration for this outbound.",
       "source": "https://xtls.github.io/en/config/outbound.html"
     },
-    "outbounds[].settings.streamSettings[].mux": {
-      "path": "outbounds[].settings.streamSettings[].mux",
-      "name": "mux",
-      "type": "MuxObject",
-      "summary": "Specific configuration related to Mux.",
-      "source": "https://xtls.github.io/en/config/outbound.html"
-    },
-    "outbounds[].settings.streamSettings[].proxySettings": {
-      "path": "outbounds[].settings.streamSettings[].proxySettings",
-      "name": "proxySettings",
-      "type": "ProxySettingsObject",
-      "summary": "Outbound proxy configuration.",
-      "source": "https://xtls.github.io/en/config/outbound.html"
-    },
-    "outbounds[].settings.streamSettings[].targetStrategy": {
-      "path": "outbounds[].settings.streamSettings[].targetStrategy",
-      "name": "targetStrategy",
-      "type": "\"AsIs\" | \"UseIP\" | \"UseIPv6v4\" | \"UseIPv6\" | \"UseIPv4v6\" | \"UseIPv4\" | \"ForceIP\" | \"ForceIPv6v4\" | \"ForceIPv6\" | \"ForceIPv4v6\" | \"ForceIPv4\"",
-      "summary": "If this outbound attempts to send a domain request, this controls whether it is resolved/how it is resolved to an IP before sending.",
-      "detail": "The default value is `AsIs`, meaning it is sent to the remote server as is. All parameter meanings are roughly equivalent to `domainStrategy` in Sockopt.\n\nThis controls **proxied requests**. If the address of the outbound proxy server is a domain name, and you need to select a resolution strategy for the domain name itself, you should configure `domainStrategy` in Sockopt.",
-      "source": "https://xtls.github.io/en/config/outbound.html"
-    },
-    "outbounds[].settings.tag": {
-      "path": "outbounds[].settings.tag",
+    "outbounds[].tag": {
+      "path": "outbounds[].tag",
       "name": "tag",
       "type": "string",
       "summary": "The identifier for this outbound connection, used to locate this connection in other configurations.",
       "detail": "danger When not empty, its value must be **unique** among all `tag`s.",
+      "source": "https://xtls.github.io/en/config/outbound.html"
+    },
+    "outbounds[].targetStrategy": {
+      "path": "outbounds[].targetStrategy",
+      "name": "targetStrategy",
+      "type": "\"AsIs\" | \"UseIP\" | \"UseIPv6v4\" | \"UseIPv6\" | \"UseIPv4v6\" | \"UseIPv4\" | \"ForceIP\" | \"ForceIPv6v4\" | \"ForceIPv6\" | \"ForceIPv4v6\" | \"ForceIPv4\"",
+      "summary": "If this outbound attempts to send a domain request, this controls whether it is resolved/how it is resolved to an IP before sending.",
+      "detail": "The default value is `AsIs`, meaning it is sent to the remote server as is. All parameter meanings are roughly equivalent to `domainStrategy` in Sockopt.\n\nThis controls **proxied requests**. If the address of the outbound proxy server is a domain name, and you need to select a resolution strategy for the domain name itself, you should configure `domainStrategy` in Sockopt.",
       "source": "https://xtls.github.io/en/config/outbound.html"
     },
     "outbounds[blackhole].settings.response": {
@@ -1991,14 +1991,6 @@
       "summary": "Optional. The format is the same as VLESS fallback xver.",
       "source": "https://xtls.github.io/en/config/transports/reality.html"
     },
-    "streamSettings.realitySettings[].tlsSettings": {
-      "path": "streamSettings.realitySettings[].tlsSettings",
-      "name": "tlsSettings",
-      "type": "TLSObject",
-      "summary": "TLS configuration. TLS is provided by Go. In normal cases the negotiation result is TLS 1.3. DTLS is not supported.",
-      "detail": "Only valid when `security` is `tls`. It supports use with the `RAW`, `XHTTP`, `mKCP`, `gRPC`, `WebSocket`, `HTTPUpgrade`, and `Hysteria` transport methods.",
-      "source": "https://xtls.github.io/en/config/transport.html"
-    },
     "streamSettings.security": {
       "path": "streamSettings.security",
       "name": "security",
@@ -2201,6 +2193,14 @@
       "summary": "The value to set. In the example above, the value is `bbr`.",
       "detail": "When `type` is `int`, the value must be a decimal number.",
       "source": "https://xtls.github.io/en/config/transports/sockopt.html"
+    },
+    "streamSettings.tlsSettings": {
+      "path": "streamSettings.tlsSettings",
+      "name": "tlsSettings",
+      "type": "TLSObject",
+      "summary": "TLS configuration. TLS is provided by Go. In normal cases the negotiation result is TLS 1.3. DTLS is not supported.",
+      "detail": "Only valid when `security` is `tls`. It supports use with the `RAW`, `XHTTP`, `mKCP`, `gRPC`, `WebSocket`, `HTTPUpgrade`, and `Hysteria` transport methods.",
+      "source": "https://xtls.github.io/en/config/transport.html"
     },
     "streamSettings.tlsSettings.allowInsecure": {
       "path": "streamSettings.tlsSettings.allowInsecure",

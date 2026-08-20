@@ -618,6 +618,34 @@ func fetch(file, cacheDir string, offline bool) ([]byte, error) {
 	return b, os.WriteFile(cache, b, 0o644)
 }
 
+// langNote records, in the generated attribution, that a non-English bundle is
+// upstream's own translation rather than this project's. It belongs in the file the
+// bundle ships with: a hand-written paragraph beside a generated one survives exactly
+// until the next regeneration, and this one did not.
+func langNote() string {
+	if lang == "en" {
+		return ""
+	}
+	return "\n**Language:** this bundle is generated from the translation carried in the same\n" +
+		"upstream repository (`docs/" + lang + "/`), not translated by this project. Where upstream\n" +
+		"has no text for a parameter, the application falls back to the English bundle for that\n" +
+		"parameter and labels it `EN` in the interface.\n"
+}
+
+// documentedElsewhere reports object names that have a heading of their own somewhere
+// in the corpus, and therefore describe a section rather than a run of inline fields.
+//
+// Derived from the source map rather than listed by hand: an object we have a path for
+// is by definition one we extract separately, so the two can never disagree.
+func documentedElsewhere(object string) bool {
+	for _, s := range sources {
+		if _, ok := s.objects[object]; ok {
+			return true
+		}
+	}
+	return false
+}
+
 // extract walks the markdown, tracking which object heading is in scope and attaching
 // each "> `param`: type" block to the config path that heading maps to.
 func extract(md string, src source, out map[string]Param) int {
@@ -677,10 +705,21 @@ func extract(md string, src source, out map[string]Param) int {
 				Source: docURL(src.file),
 			}
 
-			// If this parameter's type names an object inline, the parameters that
-			// follow describe that object, not this one.
+			// If this parameter's type names an object that is defined right here —
+			// no link to follow, no heading of its own anywhere in the corpus — then
+			// the parameters that follow describe that object rather than this one.
+			// `costs: [ CostObject ]` in routing.md is the case this exists for.
+			//
+			// Documented-elsewhere is the exclusion that matters. `settings` in both
+			// inbound.md and outbound.md is typed `OutboundConfigurationObject`, a bare
+			// name with no link, but its fields live on the per-protocol pages — so
+			// nesting on it swallowed every field that came after, and `tag`,
+			// `streamSettings`, `proxySettings` and `mux` were published as
+			// `outbounds[].settings.tag` and friends. Paths no config can produce, so
+			// hovering any of them in the editor found nothing at all.
 			raw := m[2]
-			if !strings.Contains(raw, "](#") && reInlineObject.MatchString(raw) {
+			if obj := reInlineObject.FindString(raw); obj != "" &&
+				!strings.Contains(raw, "](#") && !documentedElsewhere(obj) {
 				nested = parent + "." + m[1]
 				if reIsArray.MatchString(strings.TrimSpace(raw)) {
 					nested += "[]"
@@ -753,7 +792,7 @@ The contents of ` + "`params.json`" + ` in this directory are **adapted from the
 licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 
 Pinned to commit ` + "`" + docsCommit + "`" + `.
-
+` + langNote() + `
 **Modifications:** the text was extracted per configuration parameter by
 ` + "`tools/docsgen`" + `, split into a summary and detail, stripped of markdown links,
 code fences and VuePress container syntax, and re-keyed by configuration path. It is

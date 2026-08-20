@@ -39,6 +39,7 @@ const K = (jsonc as unknown as { SyntaxKind: Record<string, number> }).SyntaxKin
  */
 export function Editor(): React.JSX.Element {
   const configPath = useApp(effectiveConfigPath)
+  const selectedOutbound = useApp((s) => s.selectedOutbound)
   const [original, setOriginal] = useState<string | null>(null)
   const [draft, setDraft] = useState<string | null>(null)
   const [diags, setDiags] = useState<Diagnostic[] | null>(null)
@@ -105,6 +106,35 @@ export function Editor(): React.JSX.Element {
       if (debounce.current) window.clearTimeout(debounce.current)
     }
   }, [draft])
+
+  /* Scroll to whatever the rail has selected.
+
+     Keyed on the selection and on whether the file has arrived, with the text itself
+     read through a ref. A dependency on `draft` would re-scroll and re-select on every
+     keystroke, which is the difference between "go here" and "trap the caret here"; the
+     `loaded` flag is needed anyway because the panel mounts before the read resolves,
+     and without it a selection made on another tab would find an empty document.
+
+     That is also what makes it work across tabs: pick a host on Observe, open Editor,
+     and it is already at that outbound. */
+  const textRef = useRef(text)
+  textRef.current = text
+  const loaded = draft !== null
+  useEffect(() => {
+    const ta = taRef.current
+    const m = metricsRef.current
+    if (!ta || !m || !loaded || !selectedOutbound) return
+    const at = tagRange(textRef.current, selectedOutbound)
+    if (!at) return
+
+    const lineH = m.getBoundingClientRect().height || 19
+    const line = textRef.current.slice(0, at.offset).split('\n').length - 1
+    // A third of the way down rather than at the very top: the lines above an outbound
+    // are its opening brace and its neighbour, and both are context worth seeing.
+    ta.scrollTop = Math.max(0, line * lineH - ta.clientHeight / 3)
+    ta.focus({ preventScroll: true })
+    ta.setSelectionRange(at.offset, at.offset + at.length)
+  }, [selectedOutbound, loaded])
 
   const save = useCallback(() => {
     if (!configPath || draft === null || !dirty) return
@@ -181,12 +211,17 @@ export function Editor(): React.JSX.Element {
 
     const offset = (lineStarts[row] ?? 0) + Math.min(col, line.length)
     const loc = getLocation(text, offset)
-    const path = docPath(loc.path, protocols)
-    if (!path) return setHint(null)
-    const doc = lookup(docs, path)
-    if (!doc) return setHint(null)
+    let hit: { doc: NonNullable<ReturnType<typeof lookup>>; path: string } | null = null
+    for (const candidate of docPath(loc.path, protocols)) {
+      const doc = lookup(docs, candidate)
+      if (doc) {
+        hit = { doc, path: candidate }
+        break
+      }
+    }
+    if (!hit) return setHint(null)
 
-    setHint({ doc, path, x: e.clientX, y: e.clientY })
+    setHint({ doc: hit.doc, path: hit.path, x: e.clientX, y: e.clientY })
   }
 
   if (!configPath) {
@@ -442,20 +477,25 @@ function highlight(text: string): Token[] {
 /* ── path → documentation key ──────────────────────────────────────────────── */
 
 /**
- * Protocol per outbound and inbound index, read leniently.
+ * Protocol per outbound and inbound index.
  *
- * Deliberately regex-based rather than a full parse: this runs while the document is
- * being typed and is therefore usually invalid JSON. A hint that disappears the moment
- * you open a brace would be worse than a slightly stale one.
+ * Read from the tolerant parse tree, which is the same thing `getLocation` walks a few
+ * lines later — so the protocol and the path a hint resolves through always come from
+ * one reading of the document, and a half-typed brace degrades both together instead of
+ * pairing a stale protocol with a fresh path.
+ *
+ * This was a regex over the raw text, which stopped at the first `},` it saw. That is
+ * the end of the FIRST outbound's settings, so every outbound after the first had no
+ * known protocol — and with no protocol there is no `outbounds[vless].settings.*` key
+ * to look up. Hovering anything inside them found nothing at all.
  */
 function readProtocols(text: string): { outbounds: string[]; inbounds: string[] } {
+  const root = jsonc.parseTree(text)
   const grab = (section: string): string[] => {
-    const at = text.indexOf(`"${section}"`)
-    if (at < 0) return []
-    const slice = text.slice(at)
-    const end = slice.search(/\n\s*["}]\s*(?:,|\s*$)/)
-    const body = end > 0 ? slice.slice(0, end) : slice
-    return [...body.matchAll(/"protocol"\s*:\s*"([^"]+)"/g)].map((m) => m[1] ?? '')
+    const arr = root ? jsonc.findNodeAtLocation(root, [section]) : undefined
+    return (arr?.children ?? []).map(
+      (item) => (jsonc.findNodeAtLocation(item, ['protocol'])?.value as string) ?? '',
+    )
   }
   return { outbounds: grab('outbounds'), inbounds: grab('inbounds') }
 }
@@ -468,27 +508,82 @@ function readProtocols(text: string): { outbounds: string[]; inbounds: string[] 
  * (`outbounds[vless].settings.address`), because the same key name means different
  * things per protocol and a positional index would collide them.
  */
+/**
+ * Where an outbound's `tag` value sits in the text.
+ *
+ * Located through the parse tree rather than by searching for the tag as a string: a
+ * tag can appear in a routing rule, a balancer selector or a fallbackTag long before it
+ * appears in the outbound it names, and jumping to the first textual occurrence would
+ * land somewhere else entirely.
+ */
+function tagRange(text: string, tag: string): { offset: number; length: number } | null {
+  const root = jsonc.parseTree(text)
+  if (!root) return null
+  const arr = jsonc.findNodeAtLocation(root, ['outbounds'])
+  for (const item of arr?.children ?? []) {
+    const node = jsonc.findNodeAtLocation(item, ['tag'])
+    if (node && node.value === tag) return { offset: node.offset, length: node.length }
+  }
+  return null
+}
+
+/**
+ * Legacy containers inside protocol `settings`.
+ *
+ * v26.7.28 accepts both shapes: `settings.address` directly, and the older
+ * `settings.vnext[0].users[0].id` that most panels still emit — `Build()` folds the
+ * first into the second. Upstream documents only the flat form, so a config written the
+ * old way found nothing for any field inside `settings`, which is most of a config.
+ *
+ * Dropped rather than mapped one by one: the containers carry no fields of their own,
+ * so removing them is exactly what turns a legacy path into the documented one.
+ */
+const LEGACY_CONTAINERS = new Set(['vnext', 'servers', 'users', 'clients'])
+
+/**
+ * Config path to documentation keys, best first.
+ *
+ * More than one because a path can be documented under a shape other than the one it
+ * was written in; the caller takes the first that resolves.
+ */
 function docPath(
   path: JSONPath,
   protocols: { outbounds: string[]; inbounds: string[] },
-): string | null {
-  if (path.length === 0) return null
+): string[] {
+  if (path.length === 0) return []
+  const out: string[] = []
 
   const section = path[0]
   if ((section === 'outbounds' || section === 'inbounds') && path[2] === 'settings') {
     const idx = typeof path[1] === 'number' ? path[1] : -1
     const proto = protocols[section][idx]
     if (proto) {
-      const rest = path.slice(2).map(seg)
-      return `${section}[${proto}].${rest.join('.')}`
+      const rest = path.slice(2)
+      out.push(`${section}[${proto}].${rest.map(seg).join('.')}`)
+
+      // The index following a dropped container goes with it, or the flattened path
+      // would carry a stray "[]".
+      const kept: (string | number)[] = []
+      for (let i = 0; i < rest.length; i++) {
+        const p = rest[i]!
+        if (typeof p === 'string' && LEGACY_CONTAINERS.has(p)) {
+          if (typeof rest[i + 1] === 'number') i++
+          continue
+        }
+        kept.push(p)
+      }
+      if (kept.length !== rest.length) {
+        out.push(`${section}[${proto}].${kept.map(seg).join('.')}`)
+      }
     }
   }
 
-  let out = ''
+  let generic = ''
   for (const p of path) {
-    if (typeof p === 'number') out += '[]'
-    else out += out ? `.${p}` : p
+    if (typeof p === 'number') generic += '[]'
+    else generic += generic ? `.${p}` : p
   }
+  out.push(generic)
   return out
 }
 

@@ -6,9 +6,9 @@ licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 
 Pinned to commit `901005cfbb887f20b60db4d59b5bce466206f5f3`.
 
-**Language:** this bundle is generated from the Russian translation carried in the same
-upstream repository (`docs/ru/`), not translated by this project. Where upstream has no
-Russian text for a parameter, the application falls back to the English bundle for that
+**Language:** this bundle is generated from the translation carried in the same
+upstream repository (`docs/ru/`), not translated by this project. Where upstream
+has no text for a parameter, the application falls back to the English bundle for that
 parameter and labels it `EN` in the interface.
 
 **Modifications:** the text was extracted per configuration parameter by
