@@ -62,14 +62,12 @@ export function PasteConfig({
           <span className="spacer" />
           <button onClick={onCancel}>Cancel</button>
           <button className="primary" disabled={check.kind !== 'ok'} onClick={() => onAccept(text)}>
-            Use this config
+            {t('paste.use')}
           </button>
         </div>
 
         <p className="tiny faint">
-          Saved to the app&apos;s own scratch directory, never beside your configs, and
-          opened from there. Edits in the Graph tab save back to that copy — your
-          original is untouched because there is no original on disk.
+          {t('paste.scratchNote')}
         </p>
       </div>
     </div>

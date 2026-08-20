@@ -5,6 +5,7 @@ import { parseConfig } from '../graph/edit'
 import { DecisionFunnel } from './DecisionFunnel'
 import { fmtMs, fmtMsFromMs, isDeadSentinel } from '../lib/copy'
 import { DocHint } from '../components/DocHint'
+import { useT } from '../lib/i18n'
 
 /**
  * What-if analysis.
@@ -16,6 +17,7 @@ import { DocHint } from '../components/DocHint'
  * the engine would be worse than none at all.
  */
 export function WhatIf(): React.JSX.Element {
+  const { t } = useT()
   const { snap, selectedBalancer } = useApp()
   const configPath = useApp(effectiveConfigPath)
 
@@ -176,8 +178,7 @@ export function WhatIf(): React.JSX.Element {
     return (
       <div className="pad">
         <p className="dim">
-          No balancer in this config. Add a <code>routing.balancers</code> entry to see what
-          it would choose.
+          {t('whatif.noBalancer')} <code>routing.balancers</code> {t('whatif.noBalancerTail')}
         </p>
       </div>
     )
@@ -195,19 +196,18 @@ export function WhatIf(): React.JSX.Element {
     <div className="whatif">
       <section className="card">
         <div className="card-head">
-          <h3>What if…</h3>
+          <h3>{t('whatif.title')}</h3>
           <div className="row gap">
             {busy && <span className="dim tiny">simulating…</span>}
             <button className="ghost" onClick={() => setFrozen(live)}>
-              Re-capture observation
+              {t('whatif.recapture')}
             </button>
           </div>
         </div>
 
         <p className="note info">
-          Answers come from the sidecar running the <strong>real</strong> strategy code against
-          the observation below — not from a model of it. Balancer <code>{balancer.tag}</code>,
-          strategy <code>{balancer.strategy}</code>.
+          {t('whatif.sourceLead')} <strong>{t('whatif.real')}</strong> {t('whatif.sourceTail')}{' '}
+          <code>{balancer.tag}</code>, {t('whatif.strategyIs')} <code>{balancer.strategy}</code>.
         </p>
 
         <div className="sim-grid">
@@ -222,7 +222,7 @@ export function WhatIf(): React.JSX.Element {
             />
             <span className="mono">{expected}</span>
             {expected === 0 && baselines.trim() !== '' && (
-              <em className="tiny warn">speed priority: may select nothing</em>
+              <em className="tiny warn">{t('whatif.speedPriority')}</em>
             )}
           </label>
 
@@ -250,7 +250,7 @@ export function WhatIf(): React.JSX.Element {
             />
             <span className="mono">{tolerance === 0 ? 'off' : `${Math.round(tolerance * 100)}%`}</span>
             {tolerance > 0 && !observation.some((r: ObsRow) => r.has_hp) && (
-              <em className="tiny warn">inert: needs burstObservatory</em>
+              <em className="tiny warn">{t('whatif.inertNeedsBurst')}</em>
             )}
           </label>
 
@@ -262,35 +262,34 @@ export function WhatIf(): React.JSX.Element {
               value={baselines}
               onChange={(e) => setBaselines(e.target.value)}
             />
-            <span className="tiny dim">ms, walked in the order given</span>
+            <span className="tiny dim">{t('whatif.walkedInOrder')}</span>
           </label>
 
           <label>
             <span className="lbl">costs <DocHint path="routing.balancers[].strategy.settings.costs" /></span>
             <input
               type="text"
-              placeholder="e.g. proxy-a=4"
+              placeholder={t('whatif.costsPlaceholder')}
               value={costs}
               onChange={(e) => setCosts(e.target.value)}
             />
-            <span className="tiny dim">substring=weight; score × √weight</span>
+            <span className="tiny dim">{t('whatif.costsHint')}</span>
           </label>
         </div>
       </section>
 
       <section className="card">
-        <h3>Observation</h3>
+        <h3>{t('whatif.observation')}</h3>
         <p className="tiny dim">
-          Frozen so the sliders act on a stable baseline. Adjust individual outbounds to ask
-          "what if this one were slower, or dead?".
+          {t('whatif.observationNote')}
         </p>
         <table className="grid">
           <thead>
             <tr>
-              <th>outbound</th>
-              <th>delay</th>
-              <th>deviation</th>
-              <th>override</th>
+              <th>{t('evidence.colOutbound')}</th>
+              <th>{t('whatif.colDelay')}</th>
+              <th>{t('whatif.colDeviation')}</th>
+              <th>{t('whatif.colOverride')}</th>
             </tr>
           </thead>
           <tbody>
@@ -308,7 +307,7 @@ export function WhatIf(): React.JSX.Element {
                       className={o?.dead ? 'ghost on' : 'ghost'}
                       onClick={() => setOverride(r.tag, o?.dead ? null : { dead: true })}
                     >
-                      kill
+                      {t('whatif.kill')}
                     </button>
                     <input
                       className="tiny-num"
@@ -346,8 +345,7 @@ export function WhatIf(): React.JSX.Element {
             </div>
             {!res.deterministic && (
               <p className="note warn">
-                More than one candidate survives, so the final step is a uniform draw. There is
-                no single answer — only a distribution.
+                {t('whatif.uniformDraw')}
               </p>
             )}
             <div className="dist">
@@ -364,7 +362,7 @@ export function WhatIf(): React.JSX.Element {
           </section>
 
           <section className="panel">
-            <h3>Simulated decision</h3>
+            <h3>{t('whatif.simulated')}</h3>
             <DecisionFunnel evalEvent={res.trace} />
           </section>
         </>

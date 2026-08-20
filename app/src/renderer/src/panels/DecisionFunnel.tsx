@@ -1,5 +1,6 @@
 import type { BalancerEvalEvent, Stage } from '@shared/events'
 import { fmtMs, useCopy } from '../lib/copy'
+import { useT } from '../lib/i18n'
 
 /**
  * Renders one balancer decision as an ordered pipeline: what entered each stage, what
@@ -10,14 +11,14 @@ import { fmtMs, useCopy } from '../lib/copy'
  * will make the what-if diff view trivial later.
  */
 export function DecisionFunnel({ evalEvent }: { evalEvent: BalancerEvalEvent | null }): React.JSX.Element {
+  const { t } = useT()
   const { rejectionHelp, rejectionLabel, sourceCopy, stageLabel, stageNote } = useCopy()
   if (!evalEvent) {
     return (
       <div className="panel empty">
-        <p>No decision recorded yet.</p>
+        <p>{t('funnel.noDecision')}</p>
         <p className="dim">
-          A balancer evaluates once per dispatched connection. Send traffic through the
-          inbound to see why it picks what it picks.
+          {t('funnel.noEvalHint')}
         </p>
       </div>
     )
@@ -45,7 +46,9 @@ export function DecisionFunnel({ evalEvent }: { evalEvent: BalancerEvalEvent | n
       {e.err && <div className="note bad mono">{e.err}</div>}
 
       <div className="funnel-candidates">
-        <span className="dim">candidates from selector {e.selectors?.join(', ') || '—'}:</span>{' '}
+        <span className="dim">
+          {t('funnel.candidatesFromSelector', { sel: e.selectors?.join(', ') || '—' })}
+        </span>{' '}
         {e.candidates?.length ? (
           e.candidates.map((c) => (
             <span key={c} className="chip">
@@ -54,8 +57,7 @@ export function DecisionFunnel({ evalEvent }: { evalEvent: BalancerEvalEvent | n
           ))
         ) : (
           <span className="bad">
-            none — this selector matches no outbound. Xray never checks this at load
-            time, because balancers are built before outbounds exist.
+            {t('funnel.selectorMatchesNothing')}
           </span>
         )}
       </div>
@@ -70,6 +72,7 @@ export function DecisionFunnel({ evalEvent }: { evalEvent: BalancerEvalEvent | n
 }
 
 function StageRow({ stage }: { stage: Stage }): React.JSX.Element {
+  const { t } = useT()
   const { rejectionHelp, rejectionLabel, sourceCopy, stageLabel, stageNote } = useCopy()
   const note = stage.note ? stageNote[stage.note] : null
   const scores = stage.scores ?? {}
@@ -95,7 +98,7 @@ function StageRow({ stage }: { stage: Stage }): React.JSX.Element {
               </span>
             ))
           ) : (
-            <span className="dim">nothing survived</span>
+            <span className="dim">{t('funnel.nothingSurvived')}</span>
           )}
         </div>
 
@@ -122,8 +125,8 @@ function StageRow({ stage }: { stage: Stage }): React.JSX.Element {
           <table className="scores">
             <thead>
               <tr>
-                <th>outbound</th>
-                <th>deviation</th>
+                <th>{t('evidence.colOutbound')}</th>
+                <th>{t('funnel.colDeviation')}</th>
                 <th>× √cost</th>
                 <th>= score</th>
               </tr>
@@ -150,9 +153,10 @@ function StageRow({ stage }: { stage: Stage }): React.JSX.Element {
 
         {stage.id === 'dice' && (stage.params?.['n'] ?? 0) > 1 && (
           <div className="note warn">
-            Uniform random over {stage.params!['n']} survivors — the winner was chance,
-            not ranking (p = {(100 / stage.params!['n']!).toFixed(0)}%). leastLoad and
-            random are only deterministic when exactly one candidate survives.
+            {t('funnel.diceNote', {
+              n: stage.params!['n']!,
+              p: (100 / stage.params!['n']!).toFixed(0),
+            })}
           </div>
         )}
 

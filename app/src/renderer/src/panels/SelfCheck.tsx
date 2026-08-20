@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { CheckStatus, SelfCheckReport } from '@shared/events'
+import { useT } from '../lib/i18n'
 
 /**
  * Continuous verification of the dashboard's own claims.
@@ -14,14 +15,16 @@ import type { CheckStatus, SelfCheckReport } from '@shared/events'
 const statusOrder: Record<CheckStatus, number> = { fail: 0, warn: 1, ok: 2, skipped: 3 }
 
 function Pill({ report }: { report: SelfCheckReport | null }): React.JSX.Element {
-  if (!report) return <span className="chip">no data</span>
+  const { t } = useT()
+  if (!report) return <span className="chip">{t('selfcheck.noData')}</span>
   if (report.fail > 0) return <span className="chip bad">{report.fail} failing</span>
   if (report.warn > 0) return <span className="chip warn">{report.warn} to review</span>
   if (report.ok > 0) return <span className="chip ok">all {report.ok} verified</span>
-  return <span className="chip">nothing to check</span>
+  return <span className="chip">{t('selfcheck.nothingToCheck')}</span>
 }
 
 export function SelfCheck(): React.JSX.Element {
+  const { t } = useT()
   const [report, setReport] = useState<SelfCheckReport | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [auto, setAuto] = useState(true)
@@ -52,28 +55,26 @@ export function SelfCheck(): React.JSX.Element {
     <div className="whatif">
       <section className="card">
         <div className="card-head">
-          <h3>Self-check</h3>
+          <h3>{t('selfcheck.title')}</h3>
           <div className="row gap">
             <Pill report={report} />
             <label className="row gap tiny dim">
               <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
-              every 5s
+              {t('selfcheck.every5s')}
             </label>
             <button className="ghost" onClick={() => void run()}>
-              Run now
+              {t('selfcheck.run')}
             </button>
           </div>
         </div>
 
         <p className="note info">
-          These re-derive the dashboard's claims from the core's own answers. The oracle is{' '}
-          <code>Router.GetPrincipleTarget</code>, chosen because it is side-effect free for all
-          four strategies — <code>TestRoute</code> would advance round-robin's rotation and
-          re-roll the random draw, corrupting the behaviour being measured.
+          {t('selfcheck.rederive')}{' '}
+          <code>Router.GetPrincipleTarget</code>{t('selfcheck.oracleNote')} <code>TestRoute</code> {t('selfcheck.oracleNoteTail')}
         </p>
 
         {ranAt && (
-          <p className="tiny dim">Last run {new Date(ranAt).toLocaleTimeString()}.</p>
+          <p className="tiny dim">{t('selfcheck.lastRun', { time: new Date(ranAt).toLocaleTimeString() })}</p>
         )}
       </section>
 

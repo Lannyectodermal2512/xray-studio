@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { JSONPath } from 'jsonc-parser'
 import * as E from '../graph/edit'
+import { useT } from '../lib/i18n'
 
 /**
  * Raw JSON editing of one node of the config.
@@ -32,6 +33,7 @@ export function JsonSlice({
   label: string
   onChange: (text: string) => void
 }): React.JSX.Element | null {
+  const { t } = useT()
   const slice = useMemo(() => E.sliceAt(src, path), [src, path])
   // Shown without the document's indentation, so the block reads as a value rather than
   // as a fragment torn out of somewhere deeper. Put back on Apply.
@@ -96,7 +98,7 @@ export function JsonSlice({
               <span className="tiny bad">{errors[0] === 'empty' ? 'Empty.' : errors[0]}</span>
             ) : (
               <span className={dirty ? 'tiny warn' : 'tiny dim'}>
-                {dirty ? 'Parses — not applied yet' : 'Matches the draft'}
+                {dirty ? t('slice.parsesNotApplied') : t('slice.matchesDraft')}
               </span>
             )}
             <span className="spacer" />
@@ -108,7 +110,7 @@ export function JsonSlice({
                 base.current = shown
               }}
             >
-              Reset
+              {t('editor.reset')}
             </button>
             <button
               className="tiny primary"
@@ -121,14 +123,12 @@ export function JsonSlice({
                 onChange(next)
               }}
             >
-              Apply
+              {t('editor.apply')}
             </button>
           </div>
 
           <p className="tiny faint">
-            Applied to the draft only. The Graph tab&apos;s Save writes it to the file, and
-            the running instance keeps the old config until you Reload — a config is only
-            applied by starting a fresh process.
+            {t('editor.applyDraftNote')}
           </p>
         </>
       )}

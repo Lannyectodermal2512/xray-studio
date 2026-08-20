@@ -1,3 +1,5 @@
+import { tr } from './i18n'
+
 /**
  * Grouping and ordering for outbound tags.
  *
@@ -25,13 +27,21 @@ export const natural = new Intl.Collator(undefined, {
  * actually reason about ("are the LTE ones all down?"). Anything without a separator is
  * its own group, which keeps small configs from growing a pointless grouping level.
  */
-export const NO_TAG = '(no outbound tag)'
+/**
+ * The label for a dial made outside any outbound. Read through `tr` rather than
+ * frozen at module load, so a language switch reaches it — every consumer rebuilds
+ * its model when the language changes.
+ */
+export const noTagLabel = (): string => tr('tags.noOutboundTag')
 
 export function splitTag(tag: string): { group: string; member: string } {
   // Dials made outside any outbound — the burst observatory's connectivity check and
   // the built-in DNS client both do this — arrive with an empty tag. They are real and
   // worth showing, but an unnamed group heading reads as a rendering fault.
-  if (tag === '') return { group: NO_TAG, member: NO_TAG }
+  if (tag === '') {
+    const label = noTagLabel()
+    return { group: label, member: label }
+  }
   const m = /^(.*?)[-_ ](.+)$/.exec(tag)
   if (!m) return { group: tag, member: '' }
   return { group: m[1]!, member: m[2]! }

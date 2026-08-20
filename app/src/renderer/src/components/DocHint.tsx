@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { lookup, useDocs } from '../lib/docs'
 import { Prose } from './Prose'
+import { useT } from '../lib/i18n'
 
 const WIDTH = 340
 const MARGIN = 8
@@ -24,6 +25,7 @@ const GAP = 6
  * hint is always fully readable no matter where its trigger sits.
  */
 export function DocHint({ path }: { path: string }): React.JSX.Element | null {
+  const { t } = useT()
   const docs = useDocs()
   const [open, setOpen] = useState(false)
   const anchorRef = useRef<HTMLSpanElement | null>(null)
@@ -101,7 +103,7 @@ export function DocHint({ path }: { path: string }): React.JSX.Element | null {
             <Prose className="dochint-body" text={doc.summary} />
             {doc.detail && <Prose className="dochint-detail" text={doc.detail} />}
             <a className="tiny doclink" href={doc.source} target="_blank" rel="noreferrer">
-              official documentation ↗
+              {t('dochint.officialDocs')}
             </a>
           </div>,
           document.body,

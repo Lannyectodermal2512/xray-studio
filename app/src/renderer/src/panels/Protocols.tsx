@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ProtocolSchema, SchemaStruct } from '@shared/events'
 import { Prose } from '../components/Prose'
 import { lookup, useDocs } from '../lib/docs'
+import { useT } from '../lib/i18n'
 
 /**
  * The protocol `settings` surface, generated from the pinned Xray source.
@@ -16,6 +17,7 @@ import { lookup, useDocs } from '../lib/docs'
  * are the authority, source comments are what the author happened to write.
  */
 export function Protocols(): React.JSX.Element {
+  const { t } = useT()
   const [schema, setSchema] = useState<ProtocolSchema | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [side, setSide] = useState<'outbound' | 'inbound'>('outbound')
@@ -37,12 +39,12 @@ export function Protocols(): React.JSX.Element {
   const protocols = useMemo(() => Object.keys(registry?.types ?? {}).sort(), [registry])
   const selected = proto && registry ? registry.types[proto] : undefined
 
-  if (!loaded) return <div className="panel empty">Loading…</div>
+  if (!loaded) return <div className="panel empty">{t('common.loading')}</div>
   if (!schema || !registry) {
     return (
       <div className="pad">
         <p className="dim">
-          Protocol schema not generated. Run{' '}
+          {t('protocols.schemaNotGenerated')}{' '}
           <code>go -C tools run ./schemagen -src ../.build/xray-core/infra/conf -out ../data/schema</code>.
         </p>
       </div>
@@ -53,14 +55,14 @@ export function Protocols(): React.JSX.Element {
     <div className="whatif">
       <section className="card">
         <div className="card-head">
-          <h3>Protocol settings</h3>
-          <span className="tiny dim">{Object.keys(schema.types).length} types from the pinned source</span>
+          <h3>{t('protocols.title')}</h3>
+          <span className="tiny dim">
+            {t('protocols.typesFromSource', { n: Object.keys(schema.types).length })}
+          </span>
         </div>
         <p className="tiny dim">
-          What goes inside <code className="inline-code">settings</code> for each protocol.
-          Generated from <code className="inline-code">infra/conf</code>, because this is the one
-          part of the config that is decoded by a string-keyed registry rather than a typed
-          field — nothing else in the tree records that “{proto ?? 'vless'}” means{' '}
+          {t('protocols.whatGoesInside')} <code className="inline-code">settings</code> {t('protocols.perProtocol')} <code className="inline-code">infra/conf</code>,{' '}
+          {t('protocols.registryNote', { proto: proto ?? 'vless' })}{' '}
           <code className="inline-code">{selected ?? 'VLessOutboundConfig'}</code>.
         </p>
         <div className="proto-bar">
@@ -94,7 +96,7 @@ export function Protocols(): React.JSX.Element {
 
       {!proto && (
         <section className="card">
-          <p className="dim">Pick a protocol to see the keys its settings block accepts.</p>
+          <p className="dim">{t('protocols.pick')}</p>
         </section>
       )}
 
@@ -127,8 +129,9 @@ function TypeCard({
   depth: number
   seen: Set<string>
 }): React.JSX.Element | null {
-  const t: SchemaStruct | undefined = schema.types[name]
-  if (!t) return null
+  const { t } = useT()
+  const st: SchemaStruct | undefined = schema.types[name]
+  if (!st) return null
 
   // Config types are recursive in places (a fallback can reference its own parent
   // shape); bail rather than expanding forever.
@@ -139,7 +142,7 @@ function TypeCard({
           <code className="mono">{path}</code>
           <code className="tiny dim">{name}</code>
         </div>
-        <p className="tiny dim">Already shown above.</p>
+        <p className="tiny dim">{t('protocols.alreadyShown')}</p>
       </section>
     )
   }
@@ -149,7 +152,7 @@ function TypeCard({
   // Only descend into refs that actually have JSON fields. Types like Address or
   // PortList are named scalars with their own UnmarshalJSON — rendering a card for them
   // would claim "takes no settings" about something that is not an object at all.
-  const children = t.fields.filter((f) => f.ref && (schema.types[f.ref]?.fields.length ?? 0) > 0)
+  const children = st.fields.filter((f) => f.ref && (schema.types[f.ref]?.fields.length ?? 0) > 0)
 
   return (
     <>
@@ -160,14 +163,13 @@ function TypeCard({
           <code className="mono">{path}</code>
           <code className="tiny dim">{name}</code>
         </div>
-        {t.doc && <p className="tiny dim">{t.doc}</p>}
-        {t.fields.length === 0 && (
+        {st.doc && <p className="tiny dim">{st.doc}</p>}
+        {st.fields.length === 0 && (
           <p className="tiny dim">
-            Takes no settings. (A protocol with an empty settings type is normal — freedom
-            and blackhole are configured entirely by their other keys.)
+            {t('protocols.noSettings')}
           </p>
         )}
-        {t.fields.length > 0 && (
+        {st.fields.length > 0 && (
           <table className="tbl">
             <thead>
               <tr>
@@ -177,7 +179,7 @@ function TypeCard({
               </tr>
             </thead>
             <tbody>
-              {t.fields.map((f) => {
+              {st.fields.map((f) => {
                 const doc = lookup(docs, `${path}.${f.name}`)
                 return (
                   <tr key={f.name}>
@@ -195,7 +197,7 @@ function TypeCard({
                       ) : f.doc ? (
                         <>
                           <span className="dim">{f.doc}</span>
-                          <span className="tiny faint"> · source comment</span>
+                          <span className="tiny faint"> {t('protocols.sourceComment')}</span>
                         </>
                       ) : (
                         <span className="faint">—</span>

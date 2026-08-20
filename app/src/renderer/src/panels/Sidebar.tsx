@@ -102,11 +102,11 @@ function statusColor(ob: OutboundView): string {
  * LTE outbounds that was most of the column. `alive === null` is the observatory saying
  * it has no record, so say that instead.
  */
-function valueText(ob: OutboundView): string {
-  if (isDeadSentinel(ob.delayMs)) return 'dead'
+function valueText(ob: OutboundView, t: T): string {
+  if (isDeadSentinel(ob.delayMs)) return t('common.dead')
   // 0 means "no measurement". Which of the two it is depends on whether the observatory
   // has an opinion: no record at all, or a probed outbound whose window is all failures.
-  if (ob.delayMs === 0) return ob.alive === false ? 'dead' : '—'
+  if (ob.delayMs === 0) return ob.alive === false ? t('common.dead') : '—'
   return fmtMsFromMs(ob.delayMs)
 }
 
@@ -246,7 +246,7 @@ export function Sidebar(): React.JSX.Element {
                             <span className="fault-dot" title={t('rail.faultActive', { kind: ob.faultKind })} />
                           )}
                           <Spark data={ob.spark} max={sparkMax} tone={statusColor(ob)} />
-                          <span className={`ob-val mono ${valueTone(ob)}`}>{valueText(ob)}</span>
+                          <span className={`ob-val mono ${valueTone(ob)}`}>{valueText(ob, t)}</span>
                           {/* Revealed on hover: the rail is a status list first, and a
                               permanent button on every row would compete with the
                               health dot for attention. Omitted entirely for untagged
@@ -276,9 +276,9 @@ export function Sidebar(): React.JSX.Element {
 
       <section>
         <h2>
-          Balancers <span className="dim">{snap.balancers.length}</span>
+          {t('rail.balancers')} <span className="dim">{snap.balancers.length}</span>
         </h2>
-        {snap.balancers.length === 0 && <p className="dim pad">No balancer decisions yet.</p>}
+        {snap.balancers.length === 0 && <p className="dim pad">{t('rail.noBalancerDecisions')}</p>}
         <ul className="bal-list">
           {balancers.map((b: BalancerView) => (
             <li
@@ -292,20 +292,20 @@ export function Sidebar(): React.JSX.Element {
                 <span className="spacer" />
                 <button
                   className="ob-edit"
-                  title={`Edit ${b.tag} in the graph`}
+                  title={t('rail.editTitle', { tag: b.tag })}
                   onClick={(e) => {
                     e.stopPropagation()
                     requestEdit(b.tag, 'balancer')
                   }}
                 >
-                  edit
+                  {t('rail.edit')}
                 </button>
               </div>
               <div className="ob-meta">
                 <span className="dim">→</span>
                 <span className="mono">{b.selected || '(none)'}</span>
                 {b.source === 'override' && (
-                  <span className="chip tiny bad" title="pinned; the strategy is bypassed">
+                  <span className="chip tiny bad" title={t('rail.pinnedBypass')}>
                     pinned
                   </span>
                 )}

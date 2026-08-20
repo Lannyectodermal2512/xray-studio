@@ -95,7 +95,7 @@ export function Faults(): React.JSX.Element {
 
           {needsDelay && (
             <label>
-              <span>{kind === 'blackhole' ? 'Hold (ms)' : 'Delay (ms)'}</span>
+              <span>{kind === 'blackhole' ? t('faults.holdMs') : t('faults.delayMs')}</span>
               <input
                 value={delayMs}
                 onChange={(e) => setDelayMs(e.target.value)}
@@ -106,14 +106,14 @@ export function Faults(): React.JSX.Element {
           )}
 
           <button className="primary" onClick={() => void add()}>
-            Add
+            {t('faults.add')}
           </button>
         </div>
 
         <div className="tag-picker">
           {allTags.length === 0 ? (
             <span className="tiny dim">
-              No outbounds seen yet — start an instance, or type tags by hand above.
+              {t('faults.noOutboundsSeen')}
             </span>
           ) : (
             allTags.map((tag) => (
@@ -125,7 +125,7 @@ export function Faults(): React.JSX.Element {
                 onClick={() => toggleTag(tag)}
                 title={
                   willHit.includes(tag) && !selected.has(tag)
-                    ? 'covered by a pattern in the field above'
+                    ? t('faults.coveredByPattern')
                     : undefined
                 }
               >
@@ -138,7 +138,7 @@ export function Faults(): React.JSX.Element {
         <div className="tag-actions">
           {groups.length > 0 && (
             <>
-              <span className="tiny dim">groups:</span>
+              <span className="tiny dim">{t('faults.groups')}</span>
               {groups.map((g) => (
                 <button key={g} className="link" onClick={() => setTagGlob(`${g}*`)}>
                   {g}*
@@ -148,16 +148,16 @@ export function Faults(): React.JSX.Element {
             </>
           )}
           <button className="link" onClick={() => setTagGlob(allTags.join(', '))}>
-            all
+            {t('faults.selectAll')}
           </button>
           <button className="link" onClick={() => setTagGlob('')}>
-            none
+            {t('faults.selectNone')}
           </button>
           <button
             className="link"
             onClick={() => setTagGlob(allTags.filter((t) => !willHit.includes(t)).join(', '))}
           >
-            invert
+            {t('faults.selectInvert')}
           </button>
         </div>
 
@@ -165,13 +165,12 @@ export function Faults(): React.JSX.Element {
           <p className={willHit.length === 0 ? 'note bad' : 'note info'}>
             {willHit.length === 0 ? (
               <>
-                This matches <strong>none</strong> of the {allTags.length} outbounds. The
-                rule would be accepted and then never fire — check for a typo, or that the
-                instance is running.
+                {t('faults.thisMatches')} <strong>{t('faults.matchNone')}</strong>{' '}
+                {t('faults.matchesNoneOf', { n: allTags.length })}
               </>
             ) : (
               <>
-                Will hit <strong>{willHit.length}</strong> of {allTags.length} outbounds:{' '}
+                {t('faults.willHitLabel')} <strong>{willHit.length}</strong> of {allTags.length} outbounds:{' '}
                 <span className="mono">{willHit.join('  ')}</span>
               </>
             )}
@@ -182,23 +181,15 @@ export function Faults(): React.JSX.Element {
 
         {kind === 'blackhole' && (
           <p className="note warn">
-            A blackhole holds each dial for up to 16s, matching Xray&apos;s own dialer
-            timeout. The observatory dials with a long-lived context rather than the
-            per-request one, so a probe gives up at its 5s timeout while the dial keeps
-            occupying a goroutine — set a shorter hold if you are probing frequently.
+            {t('faults.blackholeNote')}
           </p>
         )}
 
         <p className="note info">
-          Rules match on the <strong>outbound tag</strong>, not on an address. That is
-          the point: two outbounds can share a server IP and port, and a packet filter
-          cannot tell them apart. First matching rule wins, in list order.
+          {t('faults.rulesMatchOn')} <strong>{t('faults.outboundTag')}</strong>{t('faults.tagNotAddress')}
         </p>
         <p className="note info">
-          A group is <strong>one rule</strong>, so the checkbox arms and disarms the whole
-          set in a single swap. That matters for correctness, not just convenience:
-          toggling members one at a time would pass through half-failed states that look
-          exactly like the real partial outage you are trying to observe.
+          {t('faults.groupIs')} <strong>{t('faults.oneRule')}</strong>{t('faults.oneRuleNote')}
         </p>
       </section>
 
@@ -206,7 +197,7 @@ export function Faults(): React.JSX.Element {
 
       <section className="panel">
         <h3>
-          Active rules <span className="dim">{snap.faults.length}</span>
+          {t('faults.activeRules')} <span className="dim">{snap.faults.length}</span>
         </h3>
         {snap.faults.length === 0 ? (
           <p className="dim">{t('faults.none')}</p>
@@ -215,9 +206,9 @@ export function Faults(): React.JSX.Element {
             <thead>
               <tr>
                 <th />
-                <th>outbounds</th>
-                <th>mode</th>
-                <th>params</th>
+                <th>{t('faults.colOutbounds')}</th>
+                <th>{t('faults.colMode')}</th>
+                <th>{t('faults.colParams')}</th>
                 <th />
               </tr>
             </thead>
@@ -229,7 +220,7 @@ export function Faults(): React.JSX.Element {
                       type="checkbox"
                       checked={r.enabled}
                       onChange={() => void toggleFault(r.id)}
-                      title={r.enabled ? 'disarm this group' : 'arm this group'}
+                      title={r.enabled ? t('faults.disarmGroup') : t('faults.armGroup')}
                     />
                   </td>
                   <td>
@@ -239,7 +230,7 @@ export function Faults(): React.JSX.Element {
                     {faultLabel[r.kind]}
                     {HARD_DOWN.includes(r.kind) && (
                       <span className="chip tiny" title={t('faults.hardDown')}>
-                        kills live conns
+                        {t('faults.killsLiveConns')}
                       </span>
                     )}
                   </td>
@@ -268,31 +259,23 @@ export function Faults(): React.JSX.Element {
       <section className="panel">
         <h3>{t('faults.cannotReproduce')}</h3>
         <p className="dim">
-          The claim is &ldquo;as if genuinely unreachable&rdquo;, and it is only mostly
-          true. Five honest gaps:
+          {t('faults.gapsLead')}
         </p>
         <ol className="gaps">
           <li>
-            <code>sockopt.dialerProxy</code> hops receive a pipe from Xray&apos;s
-            internal redirect and never reach the dialer, so faults do not apply to them.
+            <code>sockopt.dialerProxy</code> {t('faults.gapDialerProxy')}
           </li>
           <li>
-            WireGuard&apos;s inner gVisor netstack dials bypass the dialer; only the
-            outer UDP to the peer is covered.
+            {t('faults.gapWireguard')}
           </li>
           <li>
-            <code>burstObservatory</code>&apos;s <code>connectivity</code> check uses a
-            plain HTTP client outside Xray entirely — and when it decides the network is
-            down, it makes the observatory <em>discard</em> failures rather than record
-            them, which can hide an injected fault. Leave it unset while testing.
+            <code>burstObservatory</code>&apos;s <code>connectivity</code> {t('faults.gapConnectivity1')} <em>{t('faults.discard')}</em> {t('faults.gapConnectivity2')}
           </li>
           <li>
-            No TCP segment loss: userspace can stall and jitter a stream but cannot drop
-            a segment beneath the kernel. No ICMP, no PMTUD blackholes.
+            {t('faults.gapTcp')}
           </li>
           <li>
-            DNS failure is partial — resolution may already have happened before the
-            dialer is reached, depending on <code>domainStrategy</code>.
+            {t('faults.gapDns')} <code>domainStrategy</code>.
           </li>
         </ol>
       </section>

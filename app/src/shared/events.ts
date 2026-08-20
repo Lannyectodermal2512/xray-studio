@@ -49,6 +49,13 @@ export interface Diagnostic {
   detail?: string
   line?: number
   column?: number
+
+  /** Identifies the sentence (the code identifies the rule); the renderer translates
+   *  on this, falling back to `message` when it has no entry. */
+  key?: string
+  /** Values interpolated into `message`, so another language can be rebuilt rather
+   *  than parsed back out of the English. */
+  vars?: Record<string, string>
 }
 
 export interface ProbeEvent extends Envelope {

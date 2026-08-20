@@ -3,6 +3,7 @@ import { DocHint } from '../components/DocHint'
 import { JsonSlice } from '../components/JsonSlice'
 import * as E from '../graph/edit'
 import type { ParsedConfig } from '../graph/edit'
+import { useT } from '../lib/i18n'
 
 /**
  * Property editor for whatever is selected in the graph.
@@ -37,6 +38,7 @@ const B = 'routing.balancers[].'
 const S = 'routing.balancers[].strategy.settings.'
 
 export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): React.JSX.Element {
+  const { t } = useT()
   const outboundTags = useMemo(
     () => cfg.outbounds.map((o) => o.tag).filter((t): t is string => !!t),
     [cfg.outbounds],
@@ -45,7 +47,7 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
   if (!selection) {
     return (
       <div className="inspector empty">
-        <p className="dim">Select a node to edit it.</p>
+        <p className="dim">{t('graph.selectNode')}</p>
         <div className="insp-actions">
           <button onClick={() => onChange(E.addOutbound(src, nextTag(outboundTags, 'proxy'), 'freedom'))}>
             + outbound
@@ -58,7 +60,7 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
             + balancer
           </button>
           <button onClick={() => onChange(E.addRule(src, cfg.inbounds[0]?.tag ?? '', {}))}>
-            + routing rule
+            {t('insp.plusRoutingRule')}
           </button>
           {!cfg.hasObservatory && !cfg.hasBurst && (
             <button onClick={() => onChange(E.addObservatory(src, ['proxy-'], true))}>
@@ -74,7 +76,7 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
 
   if (selection.kind === 'dns') {
     const d = cfg.dns
-    if (!d) return <div className="inspector empty dim">No dns block in this config.</div>
+    if (!d) return <div className="inspector empty dim">{t('insp.noDns')}</div>
     const inboundTags = cfg.inbounds.map((i) => i.tag).filter((t): t is string => !!t)
     const routedByTag =
       !!d.tag && cfg.rules.some((r) => (r.inboundTag ?? []).includes(d.tag as string))
@@ -107,8 +109,7 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
           </select>
         </Field>
         <p className="tiny dim">
-          Unrecognised values are not rejected — the parser lowercases, fails to match and
-          returns UseIP. A typo here is silent.
+          {t('insp.queryStrategyNote')}
         </p>
 
         <Field label="tag" path="dns.tag">
@@ -120,15 +121,12 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
         </Field>
         {d.tag && !routedByTag && (
           <p className="tiny warn">
-            No routing rule matches inboundTag <code className="inline-code">{d.tag}</code>,
-            so queries from the built-in DNS client are routed like any other traffic. The
-            tag only becomes useful once a rule selects it.
+            {t('insp.noRuleForDnsTag')} <code className="inline-code">{d.tag}</code>{t('insp.dnsTagNote')}
           </p>
         )}
         {!d.tag && inboundTags.length > 0 && (
           <p className="tiny dim">
-            Without a tag, DNS queries cannot be routed separately from the traffic that
-            triggered them.
+            {t('insp.dnsNoTag')}
           </p>
         )}
 
@@ -169,9 +167,7 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
         </h4>
         {d.servers.length === 0 && (
           <p className="tiny bad">
-            No servers. The DNS component still builds, and every lookup falls through to
-            the system resolver — which is exactly what a split-DNS config is trying to
-            avoid.
+            {t('insp.noServers')}
           </p>
         )}
 
@@ -186,7 +182,7 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
               />
               <button
                 className="tiny"
-                title="remove this server"
+                title={t('insp.removeServer')}
                 onClick={() => onChange(E.removeDnsServer(src, i))}
               >
                 ✕
@@ -198,7 +194,7 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
                 className="tiny"
                 onClick={() => onChange(E.setDnsServerField(src, i, 'domains', []))}
               >
-                + per-server options
+                {t('insp.perServerOptions')}
               </button>
             ) : (
               <>
@@ -253,7 +249,7 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
                     skipFallback
                   </label>
                   <button className="tiny" onClick={() => onChange(E.simplifyDnsServer(src, i))}>
-                    collapse to address only
+                    {t('insp.collapseToAddress')}
                   </button>
                 </div>
               </>
@@ -261,12 +257,11 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
           </div>
         ))}
 
-        <button onClick={() => onChange(E.addDnsServer(src, '1.1.1.1'))}>+ server</button>
+        <button onClick={() => onChange(E.addDnsServer(src, '1.1.1.1'))}>{t('insp.addServer')}</button>
 
         <p className="tiny dim">
-          Servers are consulted in order and the first whose <code className="inline-code">domains</code>{' '}
-          match answers; a server with no domains matches everything, so anything after it
-          is unreachable.
+          {t('insp.dnsOrder')} <code className="inline-code">domains</code>{' '}
+          {t('insp.dnsOrderTail')}
         </p>
         {d.hostsCount > 0 && (
           <p className="tiny dim">
@@ -282,7 +277,7 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
 
   if (selection.kind === 'observatory') {
     const o = cfg.observatory
-    if (!o) return <div className="inspector empty dim">No observatory in this config.</div>
+    if (!o) return <div className="inspector empty dim">{t('insp.noObservatory')}</div>
     const covered = outboundTags.filter((t) => o.subjectSelector.some((sel) => t.startsWith(sel)))
     const O = o.burst ? 'burstObservatory' : 'observatory'
     const P = o.burst ? 'burstObservatory.pingConfig.' : 'observatory.'
@@ -313,8 +308,8 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
         </Field>
         <p className="tiny warn">
           {o.burst
-            ? 'Produces HealthPing data (average, deviation, fail counts) — leastLoad ranks on deviation, and tolerance only works here.'
-            : 'Produces no HealthPing data, so leastLoad falls back to raw delay and behaves like leastPing with a cost multiplier; tolerance does nothing.'}
+            ? t('insp.burstHealthPing')
+            : t('insp.plainNoHealthPing')}
         </p>
 
         <Field label="subjectSelector" path={`${O}.subjectSelector`}>
@@ -335,8 +330,8 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
         </Field>
         <p className={covered.length === 0 ? 'tiny bad' : 'tiny dim'}>
           {covered.length === 0
-            ? 'Covers no outbound. Nothing will ever be probed, and leastPing/leastLoad will return nothing for every request.'
-            : `Prefix-matches ${covered.length}: ${covered.join(', ')}`}
+            ? t('insp.coversNothing')
+            : t('insp.prefixMatches', { n: covered.length, tags: covered.join(', ') })}
         </p>
 
         {!o.burst && (
@@ -360,14 +355,20 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
                 value={o.enableConcurrency ? 'true' : 'false'}
                 onChange={(e) => onChange(E.setObservatoryField(src, false, 'enableConcurrency', e.target.value === 'true'))}
               >
-                <option value="false">false — probe one at a time</option>
-                <option value="true">true — probe all at once</option>
+                <option value="false">{t('insp.concurrencyOff')}</option>
+                <option value="true">{t('insp.concurrencyOn')}</option>
               </select>
             </Field>
             <p className="tiny warn">
               {o.enableConcurrency
-                ? `All ${covered.length || 'n'} probed together, then one pause of ${o.probeInterval ?? '10s'}.`
-                : `probeInterval is the gap BETWEEN outbounds, not a cycle period — a full pass over ${covered.length || 'n'} outbounds takes ${covered.length || 1} x ${o.probeInterval ?? '10s'}. This is why an injected fault can take a long time to show up as "dead".`}
+                ? t('insp.concurrentPass', {
+                    n: covered.length || 'n',
+                    interval: o.probeInterval ?? '10s',
+                  })
+                : t('insp.serialPass', {
+                    n: covered.length || 'n',
+                    interval: o.probeInterval ?? '10s',
+                  })}
             </p>
           </>
         )}
@@ -406,22 +407,17 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
             <Field label="connectivity" path="burstObservatory.pingConfig.connectivity">
               <input
                 value={o.connectivity ?? ''}
-                placeholder="(empty = no local check)"
+                placeholder={t('insp.connectivityEmpty')}
                 onChange={(e) => onChange(E.setObservatoryField(src, true, 'connectivity', e.target.value))}
               />
             </Field>
             <p className="tiny warn">
-              One round takes interval x sampling ={' '}
-              <strong>{roundLabel(o.interval ?? '1m', o.sampling ?? 10)}</strong>, and an outbound
-              stays “alive” while any sample in that window succeeded. That is how long an
-              injected fault can take to show as dead. Note v26.7.28 clamps interval to a 10s
-              minimum.
+              {t('insp.roundTakes')}{' '}
+              <strong>{roundLabel(o.interval ?? '1m', o.sampling ?? 10)}</strong>{t('insp.windowNote')}
             </p>
             {o.connectivity && (
               <p className="tiny warn">
-                With connectivity set, a probe failure is DISCARDED when that URL is also
-                unreachable — the result never enters the sampling window. It suppresses false
-                negatives, but it can also hide a real fault.
+                {t('insp.connectivityNote')}
               </p>
             )}
           </>
@@ -439,11 +435,11 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
 
   if (selection.kind === 'outbound') {
     const ob = cfg.outbounds[selection.index]
-    if (!ob) return <div className="inspector empty dim">That outbound is gone.</div>
+    if (!ob) return <div className="inspector empty dim">{t('insp.gone.outbound')}</div>
     return (
       <div className="inspector">
         <header>
-          <h3>outbound</h3>
+          <h3>{t('evidence.colOutbound')}</h3>
           <button
             className="danger"
             onClick={() => {
@@ -465,23 +461,21 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
           />
         </Field>
         <p className="tiny dim">
-          Untagged outbounds are invisible to balancers and observatories — selectors only
-          ever see tagged handlers.
+          {t('insp.untaggedOutbounds')}
         </p>
 
         <Field label="protocol" path="outbounds[].protocol">
           <input
             value={ob.protocol ?? ''}
             readOnly
-            title="Changing the protocol changes the shape of settings — edit both together in the JSON below."
+            title={t('insp.protocolShapeNote')}
           />
         </Field>
         <p className="tiny dim">
           <code className="inline-code">settings</code>,{' '}
           <code className="inline-code">streamSettings</code>, TLS and Reality keys,{' '}
           <code className="inline-code">mux</code> and <code className="inline-code">sockopt</code>{' '}
-          are protocol-specific — edit them below. The Protocols tab lists the keys each
-          protocol accepts.
+          {t('insp.protocolSpecific', { tab: t('tab.protocols') })}
         </p>
 
         <JsonSlice
@@ -496,7 +490,7 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
 
   if (selection.kind === 'balancer') {
     const b = cfg.balancers[selection.index]
-    if (!b) return <div className="inspector empty dim">That balancer is gone.</div>
+    if (!b) return <div className="inspector empty dim">{t('insp.gone.balancer')}</div>
     const strategy = b.strategy?.type ?? 'random'
     const settings = b.strategy?.settings ?? {}
     const matched = outboundTags.filter((t) => (b.selector ?? []).some((s) => t.startsWith(s)))
@@ -541,8 +535,8 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
         </Field>
         <p className={matched.length === 0 ? 'tiny bad' : 'tiny dim'}>
           {matched.length === 0
-            ? 'Matches no outbound. Xray never checks this — balancers are built before outbounds exist — so the balancer will simply return nothing at runtime.'
-            : `Prefix-matches ${matched.length}: ${matched.join(', ')}`}
+            ? t('insp.matchesNothing')
+            : t('insp.prefixMatches', { n: matched.length, tags: matched.join(', ') })}
         </p>
 
         <Field label="strategy" path={B + 'strategy'}>
@@ -561,16 +555,14 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
         {needsObs && !cfg.hasObservatory && !cfg.hasBurst && (
           <div className="note bad">
             <p>
-              {strategy} needs an observatory. Without one the instance fails to start with
-              “not all dependencies are resolved.” — which never names the balancer
-              responsible, because the dependency is resolved lazily.
+              {t('insp.needsObservatory', { strategy })}
             </p>
             <div className="insp-actions">
               <button onClick={() => onChange(E.addObservatory(src, b.selector ?? [], false))}>
-                add observatory
+                {t('insp.addObservatory')}
               </button>
               <button onClick={() => onChange(E.addObservatory(src, b.selector ?? [], true))}>
-                add burstObservatory
+                {t('insp.addBurstObservatory')}
               </button>
             </div>
           </div>
@@ -592,8 +584,8 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
         {(strategy === 'random' || strategy === 'roundRobin') && (
           <p className="tiny warn">
             {b.fallbackTag
-              ? 'With a fallbackTag set, this strategy consults the observatory and skips dead outbounds.'
-              : 'Without a fallbackTag, this strategy never consults the observatory — it will pick dead outbounds as readily as live ones.'}
+              ? t('insp.fallbackConsults')
+              : t('insp.noFallbackIgnores')}
           </p>
         )}
 
@@ -611,7 +603,7 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
             </Field>
             <Field label="maxRTT" path={S + 'maxRTT'}>
               <input
-                placeholder="e.g. 300ms — empty for off"
+                placeholder={t('insp.timeoutPlaceholder')}
                 value={str(settings['maxRTT'])}
                 onChange={(e) =>
                   onChange(
@@ -641,14 +633,12 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
             </Field>
             {!cfg.hasBurst && Number(settings['tolerance'] ?? 0) > 0 && (
               <p className="tiny warn">
-                tolerance does nothing without burstObservatory: it is only evaluated when
-                HealthPing data exists, which the plain observatory never produces.
+                {t('insp.toleranceNeedsBurst')}
               </p>
             )}
             {Number(settings['expected'] ?? 0) > 1 && (
               <p className="tiny dim">
-                With more than one survivor the final step is a uniform random draw, so the
-                chosen outbound will vary between connections.
+                {t('insp.uniformDraw')}
               </p>
             )}
           </>
@@ -665,7 +655,7 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
   }
 
   const r = cfg.rules[selection.index]
-  if (!r) return <div className="inspector empty dim">That rule is gone.</div>
+  if (!r) return <div className="inspector empty dim">{t('insp.gone.rule')}</div>
   const balancerTags = cfg.balancers.map((b) => b.tag).filter((t): t is string => !!t)
 
   return (
@@ -716,18 +706,17 @@ export function Inspector({ src, cfg, selection, onChange, onSelect }: Props): R
       </Field>
 
       <p className="tiny dim">
-        These are mutually exclusive in effect: if both are set Xray takes outboundTag and
-        ignores balancerTag silently, so setting one here clears the other.
+        {t('insp.exclusiveNote')}
       </p>
       <p className="tiny dim">
-        Rules are evaluated in order and the first match wins.
+        {t('insp.rulesOrder')}
       </p>
       <p className="tiny dim">
-        A rule matches on far more than the fields above — <code className="inline-code">domain</code>,{' '}
+        {t('insp.ruleMatchesMore')} <code className="inline-code">domain</code>,{' '}
         <code className="inline-code">ip</code>, <code className="inline-code">port</code>,{' '}
         <code className="inline-code">network</code>, <code className="inline-code">source</code>,{' '}
         <code className="inline-code">user</code>, <code className="inline-code">protocol</code>,{' '}
-        <code className="inline-code">attrs</code>. Edit those here.
+        <code className="inline-code">attrs</code>{t('insp.editThoseHere')}
       </p>
 
       <JsonSlice

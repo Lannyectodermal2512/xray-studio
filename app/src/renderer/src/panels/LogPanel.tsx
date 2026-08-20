@@ -77,7 +77,7 @@ export function LogPanel(): React.JSX.Element {
             <input
               value={connFilter}
               onChange={(e) => setConnFilter(e.target.value)}
-              placeholder="conn id"
+              placeholder={t('log.connId')}
               className="mono"
               size={10}
             />
@@ -85,9 +85,7 @@ export function LogPanel(): React.JSX.Element {
         </div>
 
         <p className="dim">
-          Structured records from the core&apos;s own logger, teed rather than replaced —
-          whatever <code>log.access</code> / <code>log.error</code> your config sets up
-          still works.
+          {t('log.teeNote')} <code>log.access</code> / <code>log.error</code> {t('log.teeNoteTail')}
         </p>
 
         <div className="log-stream mono">
@@ -111,9 +109,9 @@ export function LogPanel(): React.JSX.Element {
       </section>
 
       <section className="panel">
-        <h3>Routing decisions</h3>
+        <h3>{t('log.routingDecisions')}</h3>
         {snap.recentRules.length === 0 ? (
-          <p className="dim">No routing decisions yet.</p>
+          <p className="dim">{t('log.noRouting')}</p>
         ) : (
           <div className="log-stream mono">
             {snap.recentRules
@@ -123,14 +121,14 @@ export function LogPanel(): React.JSX.Element {
                 <div key={r.seq} className="log-line">
                   <span className="dim">{(r.mono_ns / 1e9).toFixed(2)}s</span>
                   {r.rule_idx < 0 ? (
-                    <span className="bad" title="Nothing matched, so traffic silently took the default outbound — the first one in the config.">
-                      no rule matched → default outbound
+                    <span className="bad" title={t('log.noRuleMatchedHelp')}>
+                      {t('log.noRuleMatched')}
                     </span>
                   ) : (
                     <>
                       <span className="chip tiny">#{r.rule_idx}</span>
                       {r.pass === 2 && (
-                        <span className="chip tiny" title="second pass, after IPIfNonMatch resolved IPs">
+                        <span className="chip tiny" title={t('log.secondPass')}>
                           pass 2
                         </span>
                       )}
@@ -146,9 +144,9 @@ export function LogPanel(): React.JSX.Element {
       </section>
 
       <section className="panel">
-        <h3>Sidecar stdout</h3>
+        <h3>{t('log.sidecarStdout')}</h3>
         <div className="log-stream mono dim">
-          {coreLog.length === 0 && <div>Nothing yet.</div>}
+          {coreLog.length === 0 && <div>{t('log.nothingYet')}</div>}
           {coreLog.slice(-100).map((l, i) => (
             <div key={i} className="log-line">
               {l}

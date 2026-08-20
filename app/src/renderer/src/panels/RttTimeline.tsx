@@ -5,6 +5,7 @@ import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import type { RttSeries } from '@shared/events'
 import { groupBy, natural } from '../lib/tags'
+import { useT } from '../lib/i18n'
 
 const PALETTE = ['#4c9aff', '#3fb950', '#d29922', '#f778ba', '#a371f7', '#39c5cf', '#ff7b72']
 const CHART_H = 220
@@ -37,6 +38,7 @@ function groupTags(tags: string[]): Group[] {
  * is large, and it changes at probe cadence (seconds), not at frame cadence.
  */
 export function RttTimeline(): React.JSX.Element {
+  const { t } = useT()
   const hostRef = useRef<HTMLDivElement | null>(null)
   const plotRef = useRef<uPlot | null>(null)
   const [series, setSeries] = useState<RttSeries | null>(null)
@@ -295,7 +297,7 @@ export function RttTimeline(): React.JSX.Element {
                 setLogScale(e.target.checked)
               }}
             />
-            log scale
+            {t('rail.logScale')}
           </label>
         </div>
       </div>
@@ -333,8 +335,7 @@ export function RttTimeline(): React.JSX.Element {
 
       {autoLog && (
         <p className="note info">
-          Log scale applied automatically: one probe is far slower than the rest, and on a
-          linear axis it would flatten everything else. Uncheck to compare.
+          {t('rail.logScaleAuto')}
         </p>
       )}
 
@@ -348,14 +349,14 @@ export function RttTimeline(): React.JSX.Element {
                   <button
                     className="lg-title"
                     onClick={() => toggleGroup(g)}
-                    title={allHidden ? 'show this group' : 'hide this group'}
+                    title={allHidden ? t('rail.showGroup') : t('rail.hideGroup')}
                   >
                     <span className="lg-box">{allHidden ? '' : '✓'}</span>
                     {g.name}
                     <span className="dim">{g.tags.length}</span>
                   </button>
                   {groups.length > 1 && (
-                    <button className="lg-solo" onClick={() => soloGroup(g)} title="show only this group">
+                    <button className="lg-solo" onClick={() => soloGroup(g)} title={t('rail.showOnlyGroup')}>
                       solo
                     </button>
                   )}
@@ -389,16 +390,14 @@ export function RttTimeline(): React.JSX.Element {
             )
           })}
           <p className="tiny faint lg-foot">
-            Values are the most recent sample in milliseconds. Click a name to hide its
-            line, a group heading to hide all of it.
+            {t('rail.legendHint')}
           </p>
         </div>
       )}
 
       {series && series.t.length === 0 && (
         <p className="dim">
-          No samples yet. The chart fills as the observatory probes; every probe, failed
-          or not, also appears in the lane beneath it.
+          {t('rail.noSamplesYet')}
         </p>
       )}
     </section>
@@ -562,6 +561,7 @@ function ProbeLane({
   groups: Group[]
   aliveByTag: Record<string, boolean | null>
 }): React.JSX.Element | null {
+  const { t } = useT()
   const rows = useMemo(() => {
     const fails = new Map<string, number[]>()
     for (const f of series.failures) {
@@ -614,7 +614,7 @@ function ProbeLane({
     <div className="probe-lane">
       <div className="probe-lane-head tiny dim">
         probes <span className="ok">success</span> / <span className="bad">failure</span>
-        <span className="faint"> — live outbounds are highlighted; a failed probe has no RTT, so it cannot appear on the chart</span>
+        <span className="faint"> {t('rail.liveHighlighted')}</span>
       </div>
       {rows.map((r) => {
         const alive = aliveByTag[r.tag]

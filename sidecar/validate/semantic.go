@@ -142,6 +142,7 @@ func checkRemovedFeatures(v view, add func(trace.Diagnostic)) {
 	if len(v.Transport) > 0 && string(v.Transport) != "null" {
 		add(trace.Diagnostic{
 			Severity: "error", Code: "removed_transport", Path: "transport",
+			Key:     "removed_transport",
 			Message: "Global \"transport\" was removed; the config will not load.",
 			Detail:  "Move these settings into each outbound's streamSettings.",
 		})
@@ -149,6 +150,7 @@ func checkRemovedFeatures(v view, add func(trace.Diagnostic)) {
 	if len(v.Reverse) > 0 && string(v.Reverse) != "null" {
 		add(trace.Diagnostic{
 			Severity: "error", Code: "removed_reverse", Path: "reverse",
+			Key:     "removed_reverse",
 			Message: "Legacy \"reverse\" was removed in 26.x; the config will not load.",
 			Detail:  "Replaced by VLESS Reverse Proxy (outbounds[].settings.reverse).",
 		})
@@ -160,6 +162,8 @@ func checkRemovedFeatures(v view, add func(trace.Diagnostic)) {
 			add(trace.Diagnostic{
 				Severity: "dysfunction", Code: "domain_strategy_unknown",
 				Path:    "routing.domainStrategy",
+				Key:     "domain_strategy_unknown",
+				Vars:    map[string]string{"value": v.Routing.DomainStrategy},
 				Message: fmt.Sprintf("%q is not a recognised value; it silently falls back to AsIs.", v.Routing.DomainStrategy),
 				Detail:  "Valid: AsIs, IPIfNonMatch, IPOnDemand. Matching is case-insensitive, but a typo is not an error.",
 			})
@@ -171,6 +175,7 @@ func checkOutbounds(v view, add func(trace.Diagnostic)) {
 	if len(v.Outbounds) == 0 {
 		add(trace.Diagnostic{
 			Severity: "error", Code: "no_outbounds", Path: "outbounds",
+			Key:     "no_outbounds",
 			Message: "No outbounds are defined, so nothing can be dispatched.",
 		})
 		return
@@ -182,6 +187,7 @@ func checkOutbounds(v view, add func(trace.Diagnostic)) {
 			add(trace.Diagnostic{
 				Severity: "warning", Code: "outbound_untagged",
 				Path:    fmt.Sprintf("outbounds[%d]", i),
+				Key:     "outbound_untagged",
 				Message: "This outbound has no tag, so no balancer or observatory can ever select it.",
 				Detail: "Selectors and subjectSelectors match on tags; the manager only " +
 					"tracks tagged handlers. An untagged outbound is reachable only as the " +
@@ -193,6 +199,8 @@ func checkOutbounds(v view, add func(trace.Diagnostic)) {
 			add(trace.Diagnostic{
 				Severity: "error", Code: "duplicate_outbound_tag",
 				Path:    fmt.Sprintf("outbounds[%d].tag", i),
+				Key:     "duplicate_outbound_tag",
+				Vars:    map[string]string{"tag": o.Tag, "index": fmt.Sprint(prev)},
 				Message: fmt.Sprintf("Tag %q is already used by outbounds[%d].", o.Tag, prev),
 				Detail:  "Xray refuses to start with duplicate outbound tags.",
 			})
@@ -207,6 +215,8 @@ func checkOutbounds(v view, add func(trace.Diagnostic)) {
 				add(trace.Diagnostic{
 					Severity: "dysfunction", Code: "vision_needs_tls",
 					Path: fmt.Sprintf("outbounds[%d].streamSettings.security", i),
+					Key:  "vision_needs_tls",
+					Vars: map[string]string{"security": o.Stream.Security},
 					Message: fmt.Sprintf("flow xtls-rprx-vision requires TLS or REALITY, but security is %q.",
 						o.Stream.Security),
 					Detail: "The config loads; every connection then fails at handshake with " +
@@ -245,6 +255,8 @@ func checkBalancers(v view, tags []string, add func(trace.Diagnostic)) {
 			add(trace.Diagnostic{
 				Severity: "dysfunction", Code: "selector_matches_nothing",
 				Path: p + ".selector",
+				Key:  "selector_matches_nothing",
+				Vars: map[string]string{"selector": fmt.Sprint(b.Selector), "tags": strings.Join(tags, ", ")},
 				Message: fmt.Sprintf("Selector %v matches none of the outbound tags.",
 					b.Selector),
 				Detail: "Selectors are PREFIX matches, not globs or regexps. This balancer " +
@@ -259,6 +271,8 @@ func checkBalancers(v view, tags []string, add func(trace.Diagnostic)) {
 			add(trace.Diagnostic{
 				Severity: "error", Code: "strategy_needs_observatory",
 				Path: p + ".strategy.type",
+				Key:  "strategy_needs_observatory",
+				Vars: map[string]string{"strategy": strategy},
 				Message: fmt.Sprintf("Strategy %q requires an observatory, and none is configured.",
 					strategy),
 				Detail: "Xray fails to start with the opaque message \"not all dependencies " +
@@ -273,6 +287,8 @@ func checkBalancers(v view, tags []string, add func(trace.Diagnostic)) {
 			add(trace.Diagnostic{
 				Severity: "warning", Code: "observatory_ignored",
 				Path: p,
+				Key:  "observatory_ignored",
+				Vars: map[string]string{"strategy": strategy},
 				Message: fmt.Sprintf("%s ignores the observatory because fallbackTag is not set.",
 					strategy),
 				Detail: "random and roundRobin only bind an observatory when fallbackTag is " +
@@ -285,6 +301,8 @@ func checkBalancers(v view, tags []string, add func(trace.Diagnostic)) {
 			add(trace.Diagnostic{
 				Severity: "dysfunction", Code: "fallback_tag_unknown",
 				Path:    p + ".fallbackTag",
+				Key:     "fallback_tag_unknown",
+				Vars:    map[string]string{"tag": b.FallbackTag},
 				Message: fmt.Sprintf("fallbackTag %q is not an outbound tag.", b.FallbackTag),
 				Detail: "Nothing validates this. When the balancer falls back, the dispatcher " +
 					"cannot find the handler and quietly uses the DEFAULT outbound — the " +
@@ -314,12 +332,16 @@ func checkBalancers(v view, tags []string, add func(trace.Diagnostic)) {
 			}
 			if len(missing) > 0 {
 				sev, msg := "dysfunction", "Some candidates are never probed."
+				key := "observatory_missing_some"
 				if len(missing) == len(cands) {
 					msg = "None of this balancer's candidates are probed."
+					key = "observatory_missing_all"
 				}
 				add(trace.Diagnostic{
 					Severity: sev, Code: "observatory_missing_candidates",
 					Path:    p + ".selector",
+					Key:     key,
+					Vars:    map[string]string{"tags": strings.Join(missing, ", ")},
 					Message: msg + " " + strings.Join(missing, ", "),
 					Detail: "leastPing and leastLoad iterate the observation, not the " +
 						"candidate list, so an outbound the observatory never probes is " +
@@ -340,6 +362,8 @@ func checkBalancers(v view, tags []string, add func(trace.Diagnostic)) {
 			add(trace.Diagnostic{
 				Severity: "dysfunction", Code: "strategy_settings_ignored",
 				Path:    p + ".strategy.settings",
+				Key:     "strategy_settings_ignored",
+				Vars:    map[string]string{"strategy": strategy},
 				Message: fmt.Sprintf("Strategy %q ignores these settings entirely.", strategy),
 				Detail: "Only leastLoad reads costs/baselines/expected/maxRTT/tolerance. " +
 					"For every other strategy they are parsed and thrown away without a warning.",
@@ -352,6 +376,8 @@ func checkBalancers(v view, tags []string, add func(trace.Diagnostic)) {
 				add(trace.Diagnostic{
 					Severity: "warning", Code: "leastload_clamped",
 					Path:    p + ".strategy.settings.tolerance",
+					Key:     "tolerance_clamped",
+					Vars:    map[string]string{"value": fmt.Sprint(*s.Tolerance)},
 					Message: fmt.Sprintf("tolerance %v is outside [0,1] and will be silently clamped.", *s.Tolerance),
 					Detail:  "It is a failure RATE, not a percentage: 0.5 means half the probes failing.",
 				})
@@ -360,6 +386,7 @@ func checkBalancers(v view, tags []string, add func(trace.Diagnostic)) {
 				add(trace.Diagnostic{
 					Severity: "dysfunction", Code: "tolerance_inert",
 					Path:    p + ".strategy.settings.tolerance",
+					Key:     "tolerance_inert",
 					Message: "tolerance does nothing without burstObservatory.",
 					Detail: "The filter needs HealthPing data (all/fail counts), which only " +
 						"burstObservatory produces. Under the plain observatory the setting " +
@@ -372,6 +399,7 @@ func checkBalancers(v view, tags []string, add func(trace.Diagnostic)) {
 			add(trace.Diagnostic{
 				Severity: "warning", Code: "leastload_clamped",
 				Path:    p + ".strategy.settings.expected",
+				Key:     "expected_negative",
 				Message: "A negative expected is silently treated as unset.",
 			})
 		}
@@ -382,6 +410,7 @@ func checkBalancers(v view, tags []string, add func(trace.Diagnostic)) {
 			add(trace.Diagnostic{
 				Severity: "dysfunction", Code: "speed_priority_no_fallback",
 				Path:    p + ".strategy.settings",
+				Key:     "speed_priority_no_fallback",
 				Message: "Baselines with expected <= 0 can legitimately select nothing, and there is no fallbackTag.",
 				Detail: "This is leastLoad's speed-priority mode: if no outbound comes in " +
 					"under a baseline it selects none, and without a fallbackTag every " +
@@ -395,6 +424,8 @@ func checkBalancers(v view, tags []string, add func(trace.Diagnostic)) {
 			add(trace.Diagnostic{
 				Severity: "error", Code: "balancer_tag_unknown",
 				Path:    fmt.Sprintf("routing.rules[%d].balancerTag", i),
+				Key:     "balancer_tag_unknown",
+				Vars:    map[string]string{"tag": r.BalancerTag},
 				Message: fmt.Sprintf("No balancer is defined with tag %q.", r.BalancerTag),
 				Detail:  "Xray refuses to start: \"balancer " + r.BalancerTag + " not found\".",
 			})
@@ -403,6 +434,8 @@ func checkBalancers(v view, tags []string, add func(trace.Diagnostic)) {
 			add(trace.Diagnostic{
 				Severity: "dysfunction", Code: "rule_outbound_unknown",
 				Path:    fmt.Sprintf("routing.rules[%d].outboundTag", i),
+				Key:     "rule_outbound_unknown",
+				Vars:    map[string]string{"tag": r.OutboundTag},
 				Message: fmt.Sprintf("No outbound is defined with tag %q.", r.OutboundTag),
 				Detail:  "Matching traffic is dropped rather than routed to the default outbound.",
 			})
@@ -411,6 +444,7 @@ func checkBalancers(v view, tags []string, add func(trace.Diagnostic)) {
 			add(trace.Diagnostic{
 				Severity: "warning", Code: "rule_both_targets",
 				Path:    fmt.Sprintf("routing.rules[%d]", i),
+				Key:     "rule_both_targets",
 				Message: "This rule sets both outboundTag and balancerTag; outboundTag wins.",
 				Detail:  "The balancer is never consulted for traffic matching this rule.",
 			})
@@ -423,6 +457,7 @@ func checkObservatories(v view, add func(trace.Diagnostic)) {
 		add(trace.Diagnostic{
 			Severity: "dysfunction", Code: "observatory_no_subjects",
 			Path:    "observatory.subjectSelector",
+			Key:     "observatory_no_subjects",
 			Message: "An empty subjectSelector makes the observatory a no-op.",
 			Detail: "Start() returns immediately without scheduling anything, so the status " +
 				"list stays permanently empty and every leastPing/leastLoad decision sees nothing.",
@@ -433,6 +468,7 @@ func checkObservatories(v view, add func(trace.Diagnostic)) {
 			add(trace.Diagnostic{
 				Severity: "dysfunction", Code: "observatory_no_subjects",
 				Path:    "burstObservatory.subjectSelector",
+				Key:     "observatory_no_subjects",
 				Message: "An empty subjectSelector makes the observatory a no-op.",
 			})
 		}
@@ -440,12 +476,15 @@ func checkObservatories(v view, add func(trace.Diagnostic)) {
 			add(trace.Diagnostic{
 				Severity: "error", Code: "burst_needs_pingconfig",
 				Path:    "burstObservatory.pingConfig",
+				Key:     "burst_needs_pingconfig",
 				Message: "burstObservatory requires a pingConfig block.",
 			})
 		} else if d, ok := parseDuration(v.BurstObservatory.PingConfig.Interval); ok && d > 0 && d < 10_000 {
 			add(trace.Diagnostic{
 				Severity: "warning", Code: "burst_interval_clamped",
 				Path: "burstObservatory.pingConfig.interval",
+				Key:  "burst_interval_clamped",
+				Vars: map[string]string{"interval": v.BurstObservatory.PingConfig.Interval},
 				Message: fmt.Sprintf("interval %s is below the 10s minimum and will be clamped.",
 					v.BurstObservatory.PingConfig.Interval),
 				Detail: "This clamp was fixed in v26.7.28; earlier builds compared against 10 " +
@@ -458,6 +497,7 @@ func checkObservatories(v view, add func(trace.Diagnostic)) {
 		add(trace.Diagnostic{
 			Severity: "warning", Code: "two_observatories",
 			Path:    "burstObservatory",
+			Key:     "two_observatories",
 			Message: "Both observatory and burstObservatory are configured; only one takes effect.",
 			Detail: "Features are resolved by type and the first match wins, so one block is " +
 				"silently unused — and which one is not obvious from the config.",
@@ -472,6 +512,7 @@ func checkAPI(v view, add func(trace.Diagnostic)) {
 	if v.API.Tag == "" {
 		add(trace.Diagnostic{
 			Severity: "error", Code: "api_no_tag", Path: "api.tag",
+			Key:     "api_no_tag",
 			Message: "api.tag cannot be empty.",
 		})
 		return
@@ -498,6 +539,8 @@ func checkAPI(v view, add func(trace.Diagnostic)) {
 	if !hasRule || !hasDokodemo {
 		add(trace.Diagnostic{
 			Severity: "dysfunction", Code: "api_unreachable", Path: "api",
+			Key:     "api_unreachable",
+			Vars:    map[string]string{"tag": v.API.Tag},
 			Message: "The API is configured but nothing can reach it.",
 			Detail: "With an empty api.listen, Xray exposes the API as an in-memory outbound " +
 				"named \"" + v.API.Tag + "\". It needs a dokodemo-door inbound plus a routing " +
@@ -560,6 +603,8 @@ func checkTestability(v view, tags []string, add func(trace.Diagnostic)) {
 	if len(muxed) > 0 {
 		add(trace.Diagnostic{
 			Severity: "info", Code: "mux_hides_faults", Path: "outbounds[].mux",
+			Key:  "mux_hides_faults",
+			Vars: map[string]string{"n": fmt.Sprint(len(muxed)), "tags": strings.Join(muxed, ", ")},
 			Message: fmt.Sprintf("%d outbound(s) use mux, so injected faults take effect only after the live connection is dropped: %s",
 				len(muxed), strings.Join(muxed, ", ")),
 			Detail: "Mux multiplexes many streams over ONE physical connection and reuses it " +
@@ -581,6 +626,8 @@ func checkTestability(v view, tags []string, add func(trace.Diagnostic)) {
 	if len(chained) > 0 {
 		add(trace.Diagnostic{
 			Severity: "info", Code: "dialer_proxy_bypasses_faults", Path: "outbounds[].streamSettings.sockopt.dialerProxy",
+			Key:  "dialer_proxy_bypasses_faults",
+			Vars: map[string]string{"n": fmt.Sprint(len(chained)), "chains": strings.Join(chained, ", ")},
 			Message: fmt.Sprintf("%d outbound(s) dial through another outbound; faults on the OUTER tag will not fire: %s",
 				len(chained), strings.Join(chained, ", ")),
 			Detail: "A dialerProxy hop is served by an internal redirect that returns a pipe, " +
@@ -594,6 +641,7 @@ func checkTestability(v view, tags []string, add func(trace.Diagnostic)) {
 		add(trace.Diagnostic{
 			Severity: "dysfunction", Code: "connectivity_discards_failures",
 			Path:    "burstObservatory.pingConfig.connectivity",
+			Key:     "connectivity_discards_failures",
 			Message: "A failed probe is DISCARDED, not recorded, whenever this URL is unreachable.",
 			Detail: "After any probe failure Xray fetches the connectivity URL through a plain " +
 				"HTTP client that bypasses Xray entirely. If that fetch fails it logs \"network is " +

@@ -35,8 +35,7 @@ export function Observe(): React.JSX.Element {
         <h3>{t('observe.probeResults')}</h3>
         {snap.outbounds.length === 0 ? (
           <p className="dim">
-            Nothing probed yet. An observatory or burstObservatory block is what produces
-            these rows — without one, leastPing and leastLoad have nothing to rank.
+            {t('observe.nothingProbed')}
           </p>
         ) : (
           <table className="grid">
@@ -100,9 +99,7 @@ export function Observe(): React.JSX.Element {
         )}
         {snap.outbounds.some((o) => o.alive !== null && !o.hasHealthPing) && (
           <p className="note warn">
-            Some rows have no HealthPing data — that is the plain observatory rather than
-            burstObservatory. leastLoad then ranks on raw delay instead of deviation,
-            which makes it behave like leastPing with a cost multiplier.
+            {t('observe.noHealthPing')}
           </p>
         )}
       </section>
@@ -115,8 +112,7 @@ export function Observe(): React.JSX.Element {
           ))}
           {snap.balancers.length === 0 && (
             <p className="dim">
-              No balancer has run yet. They evaluate once per dispatched connection, so
-              send traffic through an inbound that routes to a balancerTag.
+              {t('observe.noBalancerRunYet')}
             </p>
           )}
         </div>
@@ -139,6 +135,7 @@ function BalancerCard({
   onClick: () => void
   active: boolean
 }): React.JSX.Element {
+  const { t } = useT()
   const shares = Object.entries(b.pickShare).sort((a, b2) => b2[1] - a[1])
   const noCandidates = b.candidates.length === 0
 
@@ -148,22 +145,23 @@ function BalancerCard({
         <strong>{b.tag}</strong>
         <span className="chip">{b.strategy}</span>
       </div>
-      <div className="card-pick">{b.selected || '(none)'}</div>
+      <div className="card-pick">{b.selected || t('observe.none')}</div>
       <div className="card-meta">
         <span className={noCandidates ? 'bad' : 'dim'}>
-          {b.candidates.length} candidate{b.candidates.length === 1 ? '' : 's'}
+          {t('observe.candidates', { n: b.candidates.length })}
         </span>
         {b.fallbackTag && <span className="dim">fallback {b.fallbackTag}</span>}
-        <span className="dim">{b.evalCount} evals</span>
+        <span className="dim">{t('observe.evals', { n: b.evalCount })}</span>
       </div>
       {noCandidates && (
         <div className="note bad">
-          Selector {b.selectors.join(', ') || '(empty)'} matches no outbound. Xray does
-          not check this at load time — balancers are built before outbounds exist.
+          {t('observe.selectorMatchesNone', {
+            sel: b.selectors.join(', ') || t('observe.empty'),
+          })}
         </div>
       )}
       {shares.length > 1 && (
-        <div className="share" title="distribution over the last 50 decisions">
+        <div className="share" title={t('observe.distribution50')}>
           {shares.map(([tag, frac]) => (
             <div key={tag} className="share-seg" style={{ width: `${frac * 100}%` }} title={`${tag} ${(frac * 100).toFixed(0)}%`}>
               <span>{tag}</span>

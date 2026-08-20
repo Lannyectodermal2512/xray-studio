@@ -8,6 +8,7 @@ import { fragmentErrors } from '../graph/edit'
 import { lookup, useDocs } from '../lib/docs'
 import { Prose } from '../components/Prose'
 import { AiChat } from './AiChat'
+import { useT } from '../lib/i18n'
 
 /**
  * jsonc-parser declares SyntaxKind as an ambient `const enum`, which
@@ -38,6 +39,7 @@ const K = (jsonc as unknown as { SyntaxKind: Record<string, number> }).SyntaxKin
  * event handlers on a file that can run to thousands of lines.
  */
 export function Editor(): React.JSX.Element {
+  const { t } = useT()
   const configPath = useApp(effectiveConfigPath)
   const [original, setOriginal] = useState<string | null>(null)
   const [draft, setDraft] = useState<string | null>(null)
@@ -179,7 +181,7 @@ export function Editor(): React.JSX.Element {
   }
 
   if (!configPath) {
-    return <div className="panel empty">Open a config to edit it.</div>
+    return <div className="panel empty">{t('build.openToEdit')}</div>
   }
   if (draft === null) return <div className="panel empty">Loading…</div>
 
@@ -202,36 +204,34 @@ export function Editor(): React.JSX.Element {
             {checking && <span className="tiny dim">checking…</span>}
             {!checking && errCount > 0 && <span className="chip tiny bad">{errCount} error</span>}
             {!checking && dysCount > 0 && (
-              <span className="chip tiny warn" title="Parses, but does not do what it looks like it does.">
-                {dysCount} silently broken
+              <span className="chip tiny warn" title={t('editor.dysfunctionNote')}>
+                {dysCount} {t('validate.silentlyBroken')}
               </span>
             )}
             {!checking && diags !== null && errCount === 0 && dysCount === 0 && (
-              <span className="chip tiny ok">clean</span>
+              <span className="chip tiny ok">{t('validate.clean')}</span>
             )}
           </>
         )}
         <span className="spacer" />
         {saved && !dirty && <span className="tiny dim">saved {saved}</span>}
         <button className="ghost" disabled={!dirty} onClick={() => setDraft(original)}>
-          Revert
+          {t('common.revert')}
         </button>
         <button
           className="primary"
           disabled={!dirty || syntax.length > 0}
           onClick={save}
-          title={syntax.length > 0 ? 'Fix the syntax error first' : 'Write to disk (⌘S)'}
+          title={syntax.length > 0 ? t('editor.fixSyntaxFirst') : t('editor.writeToDisk')}
         >
-          Save to file
+          {t('build.saveToFile')}
         </button>
       </div>
 
       {error && <p className="note bad">{error}</p>}
       {dirty && (
         <p className="note info tiny">
-          The running instance keeps the config it started with. Saving writes the file;
-          press Reload in the header to restart Xray against it — a config only takes
-          effect by starting a fresh process.
+          {t('editor.saveNote')}
         </p>
       )}
 

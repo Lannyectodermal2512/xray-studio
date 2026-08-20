@@ -96,6 +96,8 @@ func walk(node any, t reflect.Type, path string, out *[]trace.Diagnostic) {
 					Severity: "dysfunction",
 					Code:     "unknown_key",
 					Path:     join(path, k),
+					Key:      "unknown_key",
+					Vars:     map[string]string{"key": k, "suggestion": suggest(k, fields)},
 					Message:  "\"" + k + "\" is not read by anything.",
 					Detail: "Go's JSON decoder ignores unknown fields silently, so this " +
 						"block behaves exactly as if it were absent — no error, no log line. " +
