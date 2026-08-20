@@ -17,6 +17,15 @@ import (
 // Build-tagged from the start so a Windows port is a new file (WSAECONNREFUSED and
 // friends), not a refactor of this one.
 
+// RefusedErrno is the errno this platform reports for a refused connection.
+//
+// Exported for the tests, which have to ask "is this the refusal this OS produces?"
+// rather than naming a constant. Naming one is how the suite came to assert
+// syscall.ECONNREFUSED everywhere and then fail on Windows against production code
+// that was right: Winsock answers WSAECONNREFUSED, and the tests were the Unix half
+// of the port that nobody finished.
+var RefusedErrno error = syscall.ECONNREFUSED
+
 func errRefused(network string, addr net.Addr) error {
 	return &net.OpError{
 		Op:   "dial",

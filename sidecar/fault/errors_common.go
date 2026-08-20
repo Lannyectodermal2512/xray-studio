@@ -10,6 +10,16 @@ import (
 	xnet "github.com/xtls/xray-core/common/net"
 )
 
+// RefusedError builds this platform's "connection refused", identical to the kernel's.
+//
+// Exported because a test dialer elsewhere was assembling the same *net.OpError by
+// hand, with the Unix errno and the Unix syscall name hardcoded — two copies of one
+// fact, and the copy was wrong on Windows in both respects (the name there is
+// "connectex", not "connect").
+func RefusedError(network string, addr net.Addr) error {
+	return errRefused(network, addr)
+}
+
 // errTimeout is the blackhole error: a dial that ran out of time.
 //
 // os.ErrDeadlineExceeded is what net.Dialer itself returns on timeout, so

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net"
 	"os"
-	"syscall"
 	"testing"
 	"time"
 
@@ -34,11 +33,11 @@ func TestSynthesizedErrorsMatchKernel(t *testing.T) {
 	if got, want := synth.Error(), realErr.Error(); got != want {
 		t.Errorf("text differs:\n  synthesized: %s\n  kernel:      %s", got, want)
 	}
-	if !errors.Is(synth, syscall.ECONNREFUSED) {
-		t.Error("synthesized refusal does not unwrap to ECONNREFUSED")
+	if !errors.Is(synth, RefusedErrno) {
+		t.Errorf("synthesized refusal does not unwrap to %v", RefusedErrno)
 	}
-	if !errors.Is(realErr, syscall.ECONNREFUSED) {
-		t.Fatalf("kernel error is not ECONNREFUSED: %v", realErr)
+	if !errors.Is(realErr, RefusedErrno) {
+		t.Fatalf("kernel error is not %v: %v", RefusedErrno, realErr)
 	}
 
 	var synthOp, realOp *net.OpError
@@ -178,10 +177,10 @@ func TestPoisonArmsErrorBeforeClosing(t *testing.T) {
 		t.Fatalf("poisoned %d conns, want 1", n)
 	}
 
-	if _, err := tc.Read(make([]byte, 1)); !errors.Is(err, syscall.ECONNREFUSED) {
+	if _, err := tc.Read(make([]byte, 1)); !errors.Is(err, RefusedErrno) {
 		t.Errorf("read after poison = %v, want ECONNREFUSED", err)
 	}
-	if _, err := tc.Write([]byte("x")); !errors.Is(err, syscall.ECONNREFUSED) {
+	if _, err := tc.Write([]byte("x")); !errors.Is(err, RefusedErrno) {
 		t.Errorf("write after poison = %v, want ECONNREFUSED", err)
 	}
 }
@@ -338,7 +337,7 @@ func TestDialerReadsTagFromLastOutbound(t *testing.T) {
 	// No session.Outbound in the context at all: tag is empty, and a glob of "*"
 	// still matches, so the fault applies and nothing panics.
 	_, err := d.Dial(t.Context(), nil, dest, nil)
-	if !errors.Is(err, syscall.ECONNREFUSED) {
+	if !errors.Is(err, RefusedErrno) {
 		t.Fatalf("dial error = %v, want ECONNREFUSED", err)
 	}
 	if got.Dest != "example.invalid:443" {

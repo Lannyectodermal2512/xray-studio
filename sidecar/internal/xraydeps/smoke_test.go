@@ -21,9 +21,7 @@ import (
 	"errors"
 	"io"
 	"net"
-	"os"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 
@@ -34,6 +32,8 @@ import (
 	"github.com/xtls/xray-core/transport/internet"
 
 	_ "xraystudio/sidecar/internal/xraydeps"
+
+	"xraystudio/sidecar/fault"
 )
 
 // recordingDialer stands in for the real fault dialer: it records the outbound tag
@@ -62,12 +62,7 @@ func (d *recordingDialer) Dial(ctx context.Context, src xnet.Address, dest xnet.
 	if tag != "" && tag == d.refuseTag {
 		// Shaped exactly like a kernel refusal, because that is what the balancer,
 		// the observatory and the proxy code all pattern-match against.
-		return nil, &net.OpError{
-			Op:   "dial",
-			Net:  dest.Network.SystemString(),
-			Addr: destAddr(dest),
-			Err:  os.NewSyscallError("connect", syscall.ECONNREFUSED),
-		}
+		return nil, fault.RefusedError(dest.Network.SystemString(), destAddr(dest))
 	}
 	return d.inner.Dial(ctx, src, dest, sockopt)
 }
@@ -188,25 +183,23 @@ func TestSynthesizedRefusalMatchesKernel(t *testing.T) {
 		t.Skip("something is listening on 127.0.0.1:1")
 	}
 
-	synthetic := &net.OpError{
-		Op:   "dial",
-		Net:  "tcp",
-		Addr: &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 1},
-		Err:  os.NewSyscallError("connect", syscall.ECONNREFUSED),
-	}
+	synthetic := fault.RefusedError("tcp", &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 1})
 
-	if !errors.Is(err, syscall.ECONNREFUSED) {
-		t.Fatalf("kernel error is not ECONNREFUSED: %v", err)
+	if !errors.Is(err, fault.RefusedErrno) {
+		t.Fatalf("kernel error is not %v: %v", fault.RefusedErrno, err)
 	}
-	if !errors.Is(synthetic, syscall.ECONNREFUSED) {
-		t.Fatalf("synthesized error is not ECONNREFUSED: %v", synthetic)
+	if !errors.Is(synthetic, fault.RefusedErrno) {
+		t.Fatalf("synthesized error is not %v: %v", fault.RefusedErrno, synthetic)
 	}
 	if got, want := synthetic.Error(), err.Error(); got != want {
 		t.Fatalf("error text differs\n synthesized: %s\n kernel:      %s", got, want)
 	}
-	var realOp *net.OpError
-	if errors.As(err, &realOp) && realOp.Timeout() != synthetic.Timeout() {
-		t.Fatalf("Timeout() differs: synthesized=%v kernel=%v", synthetic.Timeout(), realOp.Timeout())
+	var realOp, synthOp *net.OpError
+	if !errors.As(synthetic, &synthOp) {
+		t.Fatal("the synthesized refusal should be a *net.OpError")
+	}
+	if errors.As(err, &realOp) && realOp.Timeout() != synthOp.Timeout() {
+		t.Fatalf("Timeout() differs: synthesized=%v kernel=%v", synthOp.Timeout(), realOp.Timeout())
 	}
 }
 

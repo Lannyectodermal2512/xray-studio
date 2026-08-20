@@ -29,6 +29,10 @@ import (
 //   - The syscall NAMES are different. Go's net package dials through ConnectEx and
 //     reads/writes through WSARecv/WSASend, so a real Windows failure reads
 //     "connectex: ..." or "wsarecv: ...", never "connect: ..." or "read: ...".
+// RefusedErrno is the errno this platform reports for a refused connection. See the
+// Unix file for why the tests need this rather than a named constant.
+var RefusedErrno error = windows.WSAECONNREFUSED
+
 func errRefused(network string, addr net.Addr) error {
 	return &net.OpError{
 		Op:   "dial",
