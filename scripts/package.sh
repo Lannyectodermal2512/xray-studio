@@ -50,9 +50,25 @@ rm -rf .build/dist
 # A release that ships a broken engine is worse than no release. Tests run once, on the
 # host: they exercise logic, not platform bindings.
 info "running tests"
-go -C sidecar test ./... >/dev/null || die "sidecar tests failed — refusing to package"
+# Output is kept and printed on failure. Discarding it made "tests failed — refusing to
+# package" the entire diagnosis, which on a CI runner for a platform you cannot reproduce
+# locally is no diagnosis at all.
+run_tests() {
+  local what="$1"; shift
+  local log; log="$(mktemp)"
+  if "$@" > "$log" 2>&1; then
+    rm -f "$log"
+  else
+    printf '\033[31merror:\033[0m %s tests failed — refusing to package\n' "$what" >&2
+    cat "$log" >&2
+    rm -f "$log"
+    exit 1
+  fi
+}
+
+run_tests sidecar go -C sidecar test ./...
 [[ -d app/node_modules ]] || { info "installing app dependencies"; npm --prefix app install; }
-npm --prefix app run test >/dev/null || die "app tests failed — refusing to package"
+run_tests app npm --prefix app run test
 
 # Build the sidecar for EVERY target, not only the ones being packaged. A Windows-only
 # build break should surface on any release, not wait for a Windows one — and the cost

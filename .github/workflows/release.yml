@@ -83,6 +83,14 @@ jobs:
       - name: Install app dependencies
         run: npm --prefix app ci
 
+      # fpm shells out to bsdtar to build the .MTREE a pacman package carries. The
+      # ubuntu runner does not ship it, and fpm reports the miss as "/bin/bash failed
+      # (exit code 127)" from inside a Ruby log line, which names neither bsdtar nor
+      # what wanted it.
+      - name: Linux packaging tools
+        if: matrix.target == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y libarchive-tools
+
       # Builds the sidecar for EVERY target on every runner, so a break on a platform
       # nobody is currently releasing still fails the build that introduced it.
       - name: Build and package
