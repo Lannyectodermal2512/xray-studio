@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { watch, type FSWatcher } from 'node:fs'
 import type { Envelope, FaultRule, SimRequest } from '@shared/events'
-import { accessSync, appendFileSync, constants, mkdirSync, writeFileSync } from 'node:fs'
+import { accessSync, appendFileSync, constants, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { EventStore } from './eventStore'
 import { Sidecar, sidecarPath } from './sidecar'
 import * as ai from './ai'
@@ -92,6 +92,46 @@ function createWindow(): BrowserWindow {
       },
       Number(delay ?? 5000),
     )
+  }
+
+  /* XRAYSTUDIO_SHOTS=<json> captures a whole sequence from one launch and then quits.
+   *
+   * The single-shot form above needs one process per image, and the documentation set
+   * is a dozen of them: a dozen cold starts, a dozen reconnections to real servers, and
+   * a dozen windows taking focus. Worse, each run starts with an empty observatory, so
+   * every chart would be captured in the same blank first seconds.
+   *
+   * The file is [{ file, js?, delay? }, …]. `js` runs in the renderer, `delay` waits
+   * after it before capturing — a panel that mounts a chart needs a frame or two to
+   * have anything in it. */
+  const shots = process.env['XRAYSTUDIO_SHOTS']
+  if (shots) {
+    void (async () => {
+      // Read before the warmup, and traced: an unreadable list is a typo in the caller,
+      // and finding out fifteen seconds later through an unhandled rejection — which is
+      // to say, through nothing at all — is how this went wrong the first time.
+      let steps: { file: string; js?: string; delay?: number }[]
+      try {
+        steps = JSON.parse(readFileSync(shots, 'utf8'))
+        trace(`shots: ${steps.length} step(s) from ${shots}`)
+      } catch (e) {
+        trace(`shots: cannot read ${shots}: ${(e as Error).message}`)
+        return
+      }
+      // One settling wait before the first frame, so the probes have results to draw.
+      await new Promise((r) => setTimeout(r, Number(process.env['XRAYSTUDIO_SHOTS_WARMUP'] ?? 9000)))
+      for (const step of steps) {
+        try {
+          if (step.js) await w.webContents.executeJavaScript(step.js)
+          await new Promise((r) => setTimeout(r, step.delay ?? 900))
+          writeFileSync(step.file, (await w.webContents.capturePage()).toPNG())
+          trace(`captured ${step.file}`)
+        } catch (e) {
+          trace(`capture failed for ${step.file}: ${(e as Error).message}`)
+        }
+      }
+      app.quit()
+    })()
   }
   w.once('ready-to-show', () => {
     trace('ready-to-show fired -> show()')
