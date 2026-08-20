@@ -59,6 +59,22 @@ func opaque(t reflect.Type) bool {
 	return false
 }
 
+// annotation reports keys that are meant for something other than the core.
+//
+// "remarks" is the profile label written by the client ecosystem — v2rayN, v2rayNG,
+// Nekoray, Hiddify, and the panels that generate subscriptions all put it in the
+// configs they hand out, and it is what those clients show in a server list. Xray-core
+// has never read it; the string does not occur anywhere in the source.
+//
+// Reporting it was technically true and practically wrong. "dysfunction" means the
+// config loads and then silently fails to do what it says, and the whole point of that
+// severity is that it is worth stopping for. A key nobody expected the core to act on
+// is not that, and a finding that fires on every config from a panel teaches people to
+// scroll past the ones that matter.
+func annotation(key string) bool {
+	return strings.EqualFold(key, "remarks")
+}
+
 func deref(t reflect.Type) reflect.Type {
 	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
@@ -92,6 +108,9 @@ func walk(node any, t reflect.Type, path string, out *[]trace.Diagnostic) {
 			// wrong. Only genuinely unreadable keys are reported.
 			f, ok := fields[strings.ToLower(k)]
 			if !ok {
+				if annotation(k) {
+					continue
+				}
 				*out = append(*out, trace.Diagnostic{
 					Severity: "dysfunction",
 					Code:     "unknown_key",

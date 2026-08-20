@@ -71,6 +71,27 @@ func TestCaseInsensitiveKeysAreAccepted(t *testing.T) {
 	}`), "unknown_key")
 }
 
+// TestRemarksIsNotReported: "remarks" is the client ecosystem's profile label, written
+// by v2rayN, Nekoray, Hiddify and the panels that generate subscriptions. The core
+// really does ignore it, but nobody expected otherwise — flagging it as a dysfunction
+// fired on every config from a panel and taught people to scroll past the findings that
+// matter.
+func TestRemarksIsNotReported(t *testing.T) {
+	mustNotHave(t, run(t, `{
+	  "remarks": "Germany · node-3",
+	  "outbounds": [{"tag":"a","protocol":"freedom","remarks":"exit"}]
+	}`), "unknown_key")
+}
+
+// A near miss is still a near miss: only the exact word is exempt, so a typo in it is
+// reported like any other unreadable key.
+func TestRemarkSingularIsStillReported(t *testing.T) {
+	mustHave(t, run(t, `{
+	  "remark": "Germany",
+	  "outbounds": [{"tag":"a","protocol":"freedom"}]
+	}`), "unknown_key")
+}
+
 // TestProtocolSettingsAreOpaque: inbounds[].settings is decoded later by a
 // protocol-specific loader, so its keys are unknowable from the top-level type graph
 // and must never be flagged.
