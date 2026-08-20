@@ -3,6 +3,7 @@ import type { BalancerView, OutboundView } from '@shared/events'
 import { useApp } from '../store/app'
 import { fmtMsFromMs, isDeadSentinel } from '../lib/copy'
 import { groupBy, natural } from '../lib/tags'
+import { useT, type T } from '../lib/i18n'
 
 const SPARK_W = 72
 const SPARK_H = 16
@@ -115,10 +116,10 @@ function valueTone(ob: OutboundView): string {
   return 'dim'
 }
 
-function statusTitle(ob: OutboundView): string {
-  if (ob.faultKind) return `fault active: ${ob.faultKind}`
-  if (ob.alive === null) return 'never probed — the observatory has no record of this outbound'
-  return ob.alive ? 'alive' : 'dead'
+function statusTitle(ob: OutboundView, t: T): string {
+  if (ob.faultKind) return t('rail.faultActive', { kind: ob.faultKind })
+  if (ob.alive === null) return t('rail.statusNeverProbed')
+  return ob.alive ? t('rail.statusAlive') : t('rail.statusDead')
 }
 
 export function Sidebar(): React.JSX.Element {
@@ -131,6 +132,7 @@ export function Sidebar(): React.JSX.Element {
     requestEdit,
   } = useApp()
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const { t } = useT()
 
   // Grouped and naturally ordered, matching the RTT legend. A flat lexicographic list
   // puts LTE-10 between LTE-1 and LTE-2, which at twenty outbounds is unreadable.
@@ -162,17 +164,17 @@ export function Sidebar(): React.JSX.Element {
     <aside className="rail">
       <section>
         <h2>
-          Outbounds <span className="dim">{snap.outbounds.length}</span>
+          {t('rail.outbounds')} <span className="dim">{snap.outbounds.length}</span>
           {snap.outbounds.length > 0 && (
             <span
               className="dim scale-note"
-              title="All sparklines share this ceiling, so their heights are comparable between rows."
+              title={t('rail.scaleTitle')}
             >
-              scale 0–{sparkMax}ms
+              {t('rail.scale', { n: sparkMax })}
             </span>
           )}
         </h2>
-        {snap.outbounds.length === 0 && <p className="dim pad">No outbounds seen yet.</p>}
+        {snap.outbounds.length === 0 && <p className="dim pad">{t('rail.noOutbounds')}</p>}
 
         {groups.map((g) => {
           const dead = g.items.filter((o) => o.alive === false).length
@@ -186,19 +188,19 @@ export function Sidebar(): React.JSX.Element {
                 <span className="dim tiny">{g.items.length}</span>
                 <span className="spacer" />
                 {faulted > 0 && (
-                  <span className="chip tiny bad" title="outbounds with a fault injected">
-                    {faulted} fault
+                  <span className="chip tiny bad" title={t('rail.faultTitle')}>
+                    {t('rail.fault', { n: faulted })}
                   </span>
                 )}
                 {dead > 0 && (
                   <span
                     className="chip tiny bad"
-                    title="reported dead by the observatory, out of the group's total"
+                    title={t('rail.deadTitle')}
                   >
                     {/* Out of how many: "12 dead" reads very differently in a group of
                         twelve than in a group of sixteen, and the count alone gave no
                         way to tell those apart. */}
-                    {dead}/{g.items.length} dead
+                    {t('rail.dead', { n: dead, total: g.items.length })}
                   </span>
                 )}
               </button>
@@ -219,13 +221,13 @@ export function Sidebar(): React.JSX.Element {
                           <span
                             className="dot"
                             style={{ background: statusColor(ob) }}
-                            title={statusTitle(ob)}
+                            title={statusTitle(ob, t)}
                           />
                           <span
                             className="ob-tag"
                             title={
                               ob.tag ||
-                              'Dials made outside any outbound — the connectivity check and the built-in DNS client both do this. They cannot be edited or faulted by tag.'
+                              t('rail.untagged')
                             }
                           >
                             {/* The full tag, not just the part after the group prefix.
@@ -236,12 +238,12 @@ export function Sidebar(): React.JSX.Element {
                             {ob.tag === '' ? '—' : ob.tag}
                           </span>
                           {ob.inFlight > 0 && (
-                            <span className="chip tiny" title="probes in flight">
+                            <span className="chip tiny" title={t('rail.probesInFlight')}>
                               {ob.inFlight}
                             </span>
                           )}
                           {ob.faultKind && (
-                            <span className="fault-dot" title={`fault injected: ${ob.faultKind}`} />
+                            <span className="fault-dot" title={t('rail.faultActive', { kind: ob.faultKind })} />
                           )}
                           <Spark data={ob.spark} max={sparkMax} tone={statusColor(ob)} />
                           <span className={`ob-val mono ${valueTone(ob)}`}>{valueText(ob)}</span>
@@ -252,13 +254,13 @@ export function Sidebar(): React.JSX.Element {
                           {ob.tag !== '' && (
                             <button
                               className="ob-edit"
-                              title={`Edit ${ob.tag} in the graph`}
+                              title={t('rail.editTitle', { tag: ob.tag })}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 requestEdit(ob.tag)
                               }}
                             >
-                              edit
+                              {t('rail.edit')}
                             </button>
                           )}
                         </div>

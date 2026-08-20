@@ -12,19 +12,29 @@ import { Protocols } from './panels/Protocols'
 import { LogPanel } from './panels/LogPanel'
 import { Build } from './panels/Build'
 import { Editor } from './panels/Editor'
+import { LangSwitch } from './components/LangSwitch'
+import { useT, type Key } from './lib/i18n'
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'observe', label: 'Observe' },
-  { id: 'build', label: 'Graph' },
-  { id: 'editor', label: 'Editor' },
-  { id: 'faults', label: 'Faults' },
-  { id: 'whatif', label: 'What-if' },
-  { id: 'validate', label: 'Validate' },
-  { id: 'selfcheck', label: 'Self-check' },
-  { id: 'reference', label: 'Reference' },
-  { id: 'protocols', label: 'Protocols' },
-  { id: 'log', label: 'Log' },
+const TABS: { id: Tab; label: Key }[] = [
+  { id: 'observe', label: 'tab.observe' },
+  { id: 'build', label: 'tab.graph' },
+  { id: 'editor', label: 'tab.editor' },
+  { id: 'faults', label: 'tab.faults' },
+  { id: 'whatif', label: 'tab.whatif' },
+  { id: 'validate', label: 'tab.validate' },
+  { id: 'selfcheck', label: 'tab.selfcheck' },
+  { id: 'reference', label: 'tab.reference' },
+  { id: 'protocols', label: 'tab.protocols' },
+  { id: 'log', label: 'tab.log' },
 ]
+
+/** The instance state is a machine token; only its label is translated. */
+const STATE_KEY: Record<string, Key> = {
+  running: 'state.running',
+  stopped: 'state.stopped',
+  starting: 'state.starting',
+  error: 'state.error',
+}
 
 export function App(): React.JSX.Element {
   const {
@@ -47,6 +57,7 @@ export function App(): React.JSX.Element {
     openPastedConfig,
   } = useApp()
   const [pasting, setPasting] = useState(false)
+  const { t } = useT()
 
   // The topbar reserves room for the macOS traffic lights, which do not exist elsewhere.
   useEffect(() => {
@@ -77,50 +88,52 @@ export function App(): React.JSX.Element {
     <div className="app">
       <header className="topbar">
         <div className="tb-left">
-          <button onClick={() => void openConfig()}>Open config…</button>
-          <button onClick={() => setPasting(true)} title="Paste config JSON instead of opening a file">
-            Paste JSON…
+          <button onClick={() => void openConfig()}>{t('topbar.openConfig')}</button>
+          <button onClick={() => setPasting(true)} title={t('topbar.pasteJsonTitle')}>
+            {t('topbar.pasteJson')}
           </button>
           <span className="path mono" title={shownPath ?? ''}>
-            {shownPath ? shownPath.split('/').slice(-2).join('/') : 'no config'}
+            {shownPath ? shownPath.split('/').slice(-2).join('/') : t('topbar.noConfig')}
           </span>
           {configDirty && (
-            <button className="warn-btn" onClick={() => void start()} title="the file changed on disk">
-              Reload
+            <button className="warn-btn" onClick={() => void start()} title={t('topbar.reloadTitle')}>
+              {t('topbar.reload')}
             </button>
           )}
         </div>
 
         <div className="tb-mid">
           <button className="primary" disabled={!configPath || busy || running} onClick={() => void start()}>
-            Start
+            {t('topbar.start')}
           </button>
           <button disabled={!running || busy} onClick={() => void stop()}>
-            Stop
+            {t('topbar.stop')}
           </button>
-          <span className={`pill ${state}`}>{state}</span>
+          <span className={`pill ${state}`}>{t(STATE_KEY[state] ?? 'state.stopped')}</span>
           {snap.state?.err && <span className="bad err" title={snap.state.err}>{snap.state.err.slice(0, 80)}</span>}
         </div>
 
         <div className="tb-right">
-          <span className="dim mono" title="events per second from the sidecar">
+          <span className="dim mono" title={t('topbar.eventsPerSec')}>
             {snap.eventsPerSec}/s
           </span>
           <span
             className={snap.bus.dropped > 0 ? 'bad mono' : 'dim mono'}
-            title="Events dropped by the bounded event queue. Anything above zero means the UI is not seeing everything."
+            title={t('topbar.droppedTitle')}
           >
-            drop {snap.bus.dropped}
+            {t('topbar.dropped', { n: snap.bus.dropped })}
           </span>
           {snap.xrayVersion && <span className="chip tiny">xray {snap.xrayVersion}</span>}
           <button
             className={activeFaults > 0 ? 'danger' : ''}
             disabled={activeFaults === 0}
             onClick={() => void clearAllFaults()}
-            title="Disable every fault at once"
+            title={t('topbar.chaosOffTitle')}
           >
-            Chaos off{activeFaults > 0 ? ` (${activeFaults})` : ''}
+            {t('topbar.chaosOff')}
+            {activeFaults > 0 ? ` (${activeFaults})` : ''}
           </button>
+          <LangSwitch />
         </div>
       </header>
 
@@ -138,7 +151,7 @@ export function App(): React.JSX.Element {
         <div className="banner bad">
           {error}
           <button className="link" onClick={() => setError(null)}>
-            dismiss
+            {t('topbar.dismiss')}
           </button>
         </div>
       )}
@@ -150,10 +163,16 @@ export function App(): React.JSX.Element {
         <Sidebar />
         <main className="main">
           <nav className="tabs">
-            {TABS.map((t) => (
-              <button key={t.id} className={tab === t.id ? 'tab sel' : 'tab'} onClick={() => setTab(t.id)}>
-                {t.label}
-                {t.id === 'faults' && activeFaults > 0 && <span className="chip tiny bad">{activeFaults}</span>}
+            {TABS.map((tab_) => (
+              <button
+                key={tab_.id}
+                className={tab === tab_.id ? 'tab sel' : 'tab'}
+                onClick={() => setTab(tab_.id)}
+              >
+                {t(tab_.label)}
+                {tab_.id === 'faults' && activeFaults > 0 && (
+                  <span className="chip tiny bad">{activeFaults}</span>
+                )}
               </button>
             ))}
           </nav>

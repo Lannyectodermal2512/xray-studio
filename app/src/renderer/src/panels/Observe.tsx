@@ -1,4 +1,5 @@
 import { useApp } from '../store/app'
+import { useT } from '../lib/i18n'
 import { fmtMs, fmtMsFromMs, isDeadSentinel } from '../lib/copy'
 import { DecisionFunnel } from './DecisionFunnel'
 import { RttTimeline } from './RttTimeline'
@@ -20,6 +21,7 @@ function sortKeysFor(strategy: string): Set<string> {
 }
 
 export function Observe(): React.JSX.Element {
+  const { t } = useT()
   const { snap, selectedBalancer, selectBalancer } = useApp()
   const active = snap.balancers.find((b) => b.tag === selectedBalancer) ?? snap.balancers[0]
   const keys = sortKeysFor(active?.strategy ?? '')
@@ -30,7 +32,7 @@ export function Observe(): React.JSX.Element {
       <RttTimeline />
 
       <section className="panel">
-        <h3>Probe results</h3>
+        <h3>{t('observe.probeResults')}</h3>
         {snap.outbounds.length === 0 ? (
           <p className="dim">
             Nothing probed yet. An observatory or burstObservatory block is what produces
@@ -40,15 +42,15 @@ export function Observe(): React.JSX.Element {
           <table className="grid">
             <thead>
               <tr>
-                <th>outbound</th>
-                <th className={keys.has('alive') ? 'key' : ''}>alive</th>
-                <th className={keys.has('delay') ? 'key' : ''}>delay</th>
-                <th className={keys.has('avg') ? 'key' : ''}>avg</th>
-                <th className={keys.has('dev') ? 'key' : ''}>deviation</th>
-                <th>min / max</th>
-                <th className={keys.has('fail') ? 'key' : ''}>fail</th>
-                <th className={keys.has('all') ? 'key' : ''}>samples</th>
-                <th>last error</th>
+                <th>{t('observe.colOutbound')}</th>
+                <th className={keys.has('alive') ? 'key' : ''}>{t('observe.colAlive')}</th>
+                <th className={keys.has('delay') ? 'key' : ''}>{t('observe.colDelay')}</th>
+                <th className={keys.has('avg') ? 'key' : ''}>{t('observe.colAvg')}</th>
+                <th className={keys.has('dev') ? 'key' : ''}>{t('observe.colDeviation')}</th>
+                <th>{t('observe.colMinMax')}</th>
+                <th className={keys.has('fail') ? 'key' : ''}>{t('observe.colFail')}</th>
+                <th className={keys.has('all') ? 'key' : ''}>{t('observe.colSamples')}</th>
+                <th>{t('observe.colLastError')}</th>
               </tr>
             </thead>
             <tbody>
@@ -60,22 +62,22 @@ export function Observe(): React.JSX.Element {
                   </td>
                   <td>
                     {ob.alive === null ? (
-                      <span className="dim" title="never probed — invisible to leastPing/leastLoad">
+                      <span className="dim" title={t('observe.untestedTitle')}>
                         untested
                       </span>
                     ) : ob.alive ? (
-                      <span className="ok">yes</span>
+                      <span className="ok">{t('observe.yes')}</span>
                     ) : (
-                      <span className="bad">no</span>
+                      <span className="bad">{t('observe.no')}</span>
                     )}
                   </td>
                   <td
                     className={isDeadSentinel(ob.delayMs) ? 'mono bad' : 'mono'}
                     title={
                       isDeadSentinel(ob.delayMs)
-                        ? 'Not a measurement: the observatory stores 99999999 as its dead marker.'
+                        ? t('observe.deadMarker')
                         : ob.delayMs === 0
-                          ? 'Delay truncates to whole milliseconds, so sub-1ms reads as 0'
+                          ? t('observe.subMs')
                           : ''
                     }
                   >
@@ -106,7 +108,7 @@ export function Observe(): React.JSX.Element {
       </section>
 
       <section className="panel">
-        <h3>Balancers</h3>
+        <h3>{t('observe.balancers')}</h3>
         <div className="bal-cards">
           {snap.balancers.map((b) => (
             <BalancerCard key={b.tag} b={b} onClick={() => selectBalancer(b.tag)} active={b.tag === selectedBalancer} />
@@ -121,7 +123,7 @@ export function Observe(): React.JSX.Element {
       </section>
 
       <section className="panel">
-        <h3>Why this outbound?</h3>
+        <h3>{t('observe.whyThisOutbound')}</h3>
         <DecisionFunnel evalEvent={evalEvent} />
       </section>
     </div>

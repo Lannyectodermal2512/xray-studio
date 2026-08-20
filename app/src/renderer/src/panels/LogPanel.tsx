@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../store/app'
+import { useT } from '../lib/i18n'
 
 const SEVERITIES = ['error', 'warning', 'info', 'debug', 'unknown']
 
 export function LogPanel(): React.JSX.Element {
   const { snap, coreLog } = useApp()
+  const { t } = useT()
   const [minSeverity, setMinSeverity] = useState('info')
   const [connFilter, setConnFilter] = useState('')
 
@@ -32,44 +34,43 @@ export function LogPanel(): React.JSX.Element {
       {snap.logPaths && (
         <section className="panel log-paths">
           <div className="panel-head">
-            <h3>Log files</h3>
-            <span className="tiny dim">written by this instance</span>
+            <h3>{t('log.files')}</h3>
+            <span className="tiny dim">{t('log.filesSub')}</span>
           </div>
           <div className="log-path-row">
-            <span className="tiny dim">access</span>
+            <span className="tiny dim">{t('log.access')}</span>
             <code className="mono">{snap.logPaths.access}</code>
             <button
               className="ghost tiny"
               onClick={() => void navigator.clipboard.writeText(snap.logPaths!.access)}
             >
-              copy
+              {t('log.copy')}
             </button>
           </div>
           <div className="log-path-row">
-            <span className="tiny dim">error</span>
+            <span className="tiny dim">{t('log.error')}</span>
             <code className="mono">{snap.logPaths.error}</code>
             <button
               className="ghost tiny"
               onClick={() => void navigator.clipboard.writeText(snap.logPaths!.error)}
             >
-              copy
+              {t('log.copy')}
             </button>
           </div>
           <p className="tiny faint">
-            These are set by Xray Studio, not by the config. The config file itself is
-            never modified.
+            {t('log.filesNote')}
           </p>
         </section>
       )}
 
       <section className="panel">
         <div className="panel-head">
-          <h3>Core log</h3>
+          <h3>{t('log.coreLog')}</h3>
           <div className="log-filters">
             <select value={minSeverity} onChange={(e) => setMinSeverity(e.target.value)}>
               {SEVERITIES.map((s) => (
                 <option key={s} value={s}>
-                  {s} and above
+                  {t('log.andAbove', { severity: s })}
                 </option>
               ))}
             </select>
@@ -90,7 +91,7 @@ export function LogPanel(): React.JSX.Element {
         </p>
 
         <div className="log-stream mono">
-          {rows.length === 0 && <div className="dim">Nothing at this level.</div>}
+          {rows.length === 0 && <div className="dim">{t('log.nothingAtLevel')}</div>}
           {rows.map((l) => (
             <div key={l.seq} className={`log-line sev-${l.severity}`}>
               <span className="dim">{(l.mono_ns / 1e9).toFixed(2)}s</span>

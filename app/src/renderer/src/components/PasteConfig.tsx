@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { parse, type ParseError, printParseErrorCode } from 'jsonc-parser'
+import { useT } from '../lib/i18n'
 
 /**
  * Paste a config instead of picking a file.
@@ -22,6 +23,7 @@ export function PasteConfig({
 }): React.JSX.Element {
   const [text, setText] = useState('')
   const ref = useRef<HTMLTextAreaElement | null>(null)
+  const { t } = useT()
 
   useEffect(() => {
     ref.current?.focus()
@@ -38,9 +40,9 @@ export function PasteConfig({
     <div className="modal-scrim" onMouseDown={onCancel}>
       <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h3>Paste config JSON</h3>
+          <h3>{t('paste.title')}</h3>
           <button className="link" onClick={onCancel}>
-            close
+            {t('paste.close')}
           </button>
         </div>
 
