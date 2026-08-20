@@ -1,4 +1,5 @@
 import type { RejectionReason, StageId, StageNote, FaultKind } from '@shared/events'
+import { useT } from './i18n'
 
 /**
  * Human wording for the stable machine codes the core emits.
@@ -198,4 +199,189 @@ export function fmtMsFromMs(ms: number | undefined): string {
   if (ms === 0) return '<1ms'
   if (ms < 1000) return `${ms}ms`
   return `${(ms / 1000).toFixed(2)}s`
+}
+
+/* ── Russian ────────────────────────────────────────────────────────────────
+   Kept beside the English originals rather than moved into the i18n catalogue: these
+   strings explain specific Xray behaviours, and a translation that drifts from the
+   sentence it renders would be worse than none. Side by side, drift is visible in the
+   diff.
+
+   Domain terms stay in Latin — outbound, fallback, balancer names, strategy names —
+   because that is what the official Russian documentation does and what the config
+   itself says. */
+
+export const rejectionLabelRu: Record<RejectionReason, string> = {
+  not_in_observation: 'ни разу не пробовался',
+  not_alive: 'признан мёртвым',
+  maxrtt_exceeded: 'медленнее maxRTT',
+  tolerance_exceeded: 'доля отказов выше tolerance',
+  not_in_candidates: 'вне этого балансировщика',
+  outranked: 'проиграл по рангу',
+  above_baseline: 'выше всех baseline',
+  beyond_expected: 'за пределом expected',
+  not_chosen_by_dice: 'проиграл жеребьёвку',
+  not_current_index: 'не этот слот ротации',
+}
+
+export const rejectionHelpRu: Record<RejectionReason, string> = {
+  not_in_observation:
+    'У обсерватории нет записи об этом outbound. leastPing и leastLoad идут по НАБЛЮДЕНИЮ, а не по списку кандидатов, поэтому ни разу не опрошенный outbound для них невидим — он не отсеян, его просто нет. Обычно это значит, что subjectSelector обсерватории его не покрывает.',
+  not_alive:
+    'Обсерватория считает этот outbound мёртвым. В burstObservatory «жив» означает хотя бы один успех в текущем окне выборки (all != fail), а не «последняя проба удалась».',
+  maxrtt_exceeded:
+    'Delay больше или равен maxRTT. Обратите внимание: сравнение идёт по Delay — целому числу миллисекунд, — а не по HealthPing.Average, поэтому разница меньше миллисекунды здесь не видна.',
+  tolerance_exceeded:
+    'fail/all превышает tolerance. Работает только с burstObservatory (нужен HealthPing), при all > 0 и tolerance > 0 — под обычной обсерваторией параметр разбирается, но ни на что не влияет.',
+  not_in_candidates: 'Есть в наблюдении, но не выбран селектором этого балансировщика.',
+  outranked: 'Годен, но другой кандидат оказался строго лучше.',
+  above_baseline: 'Счёт не опустился ниже ни одного из заданных baseline.',
+  beyond_expected: 'Оказался ниже точки отсечения, заданной expected.',
+  not_chosen_by_dice:
+    'Дожил до последнего шага и проиграл равномерную жеребьёвку. Это не дефект: последний шаг random и leastLoad — случайность, а не ранжирование.',
+  not_current_index: 'На этом проходе round-robin выбрал другой слот.',
+}
+
+export const stageLabelRu: Record<StageId, string> = {
+  select: 'селектор',
+  observation: 'обсерватория',
+  alive_filter: 'живость',
+  node_filter: 'фильтры',
+  score: 'счёт',
+  sort: 'ранг',
+  baseline: 'baseline / expected',
+  expected: 'expected',
+  min_scan: 'наименьшая задержка',
+  rr_index: 'ротация',
+  dice: 'жеребьёвка',
+}
+
+export const stageNoteRu: Record<StageNote, NoteCopy> = {
+  observatory_ignored_no_fallback: {
+    tone: 'warn',
+    text:
+      'Обсерватория проигнорирована — random и roundRobin обращаются к ней только при заданном fallbackTag. Без него мёртвые outbounds выбираются наравне с живыми.',
+  },
+  observatory_nil: {
+    tone: 'bad',
+    text:
+      'Обсерватория недоступна, поэтому стратегия ничего не возвращает на каждый запрос. leastPing и leastLoad требуют блока observatory или burstObservatory.',
+  },
+  observation_error: {
+    tone: 'bad',
+    text: 'Чтение обсерватории не удалось; фильтр живости пропущен целиком.',
+  },
+  no_health_ping: {
+    tone: 'warn',
+    text:
+      'Данных HealthPing нет — это обычная обсерватория, а не burstObservatory. Поэтому leastLoad берёт за отклонение сырую задержку и вырождается в leastPing с множителем стоимости.',
+  },
+  unfound_assumed_alive: {
+    tone: 'warn',
+    text:
+      'Кандидат, отсутствующий в наблюдении, оставлен: random и roundRobin считают «не найден» ЖИВЫМ, а не мёртвым.',
+  },
+  baseline_applied: { tone: 'info', text: 'Baseline дал достаточно выживших и остановил проход.' },
+  baseline_none_qualified: {
+    tone: 'warn',
+    text:
+      'Режим приоритета скорости (baselines при expected <= 0): не прошёл никто, поэтому балансировщик законно не выбирает ничего и уходит в fallbackTag.',
+  },
+  baselines_unsorted: {
+    tone: 'warn',
+    text: 'Baseline обходятся в порядке из конфига, а не отсортированными. Невозрастающий список тратит итерации впустую.',
+  },
+  expected_floor_applied: {
+    tone: 'info',
+    text: 'Нижняя граница expected расширила выбор за пределы того, что прошло по baseline.',
+  },
+  tie: {
+    tone: 'warn',
+    text:
+      'Два или более кандидата совпали по решающему ключу. В burstObservatory порядок при равенстве берётся из обхода Go-мапы, поэтому победитель среди равных заново случаен на каждом вызове.',
+  },
+  rr_index_jumped: {
+    tone: 'warn',
+    text:
+      'Длина списка кандидатов изменилась, поэтому ротация по модулю прыгнула, а не сдвинулась на один. Round-robin — не устойчивый курсор по устойчивому множеству.',
+  },
+  empty: { tone: 'bad', text: 'Этот этап не пережил никто.' },
+  override_pinned: {
+    tone: 'bad',
+    text:
+      'Закреплён ручной override, стратегия обойдена целиком. У него нет срока давности и он не проверяется — закрепление несуществующего тега убивает соединение, а не уходит в fallback.',
+  },
+  no_baselines: { tone: 'info', text: 'Baseline не заданы; отсечение определяет один expected.' },
+  expected_exceeds_available: {
+    tone: 'info',
+    text: 'Expected больше числа годных outbounds, поэтому оставлены все.',
+  },
+}
+
+export const sourceCopyRu: Record<string, NoteCopy> = {
+  strategy: { tone: 'info', text: 'Выбрано стратегией.' },
+  override: { tone: 'bad', text: 'Закреплено ручным override — стратегия не запускалась.' },
+  fallback_empty: { tone: 'warn', text: 'Стратегия не вернула ничего, поэтому взят fallbackTag.' },
+  fallback_select_error: { tone: 'warn', text: 'Отбор кандидатов не удался, поэтому взят fallbackTag.' },
+  error: {
+    tone: 'bad',
+    text:
+      'Ни тега, ни fallbackTag. Диспетчер молча проваливается в outbound ПО УМОЛЧАНИЮ — первый в конфиге.',
+  },
+}
+
+export const faultLabelRu: Record<FaultKind, string> = {
+  blackhole: 'Чёрная дыра (drop)',
+  refuse: 'Соединение отклонено',
+  host_unreachable: 'Хост недоступен',
+  net_unreachable: 'Сеть недоступна',
+  dns_fail: 'Отказ DNS',
+  tls_hang: 'TLS-рукопожатие виснет',
+  tls_garbage: 'Мусор вместо TLS',
+  latency: 'Добавленная задержка',
+  throttle: 'Ограничение полосы',
+  reset_after: 'Разрыв посреди соединения',
+  udp_loss: 'Потеря UDP-пакетов',
+}
+
+export const faultHelpRu: Record<FaultKind, string> = {
+  blackhole:
+    'Пакеты исчезают. Дозвон висит до таймаута — ровно как при iptables DROP или белом списке, который вас игнорирует. Видят и пробы, и реальный трафик.',
+  refuse: 'Немедленный ECONNREFUSED, как при закрытом порте или REJECT --reject-with tcp-reset.',
+  host_unreachable: 'ICMP host unreachable — маршрут есть, но хост не отвечает.',
+  net_unreachable: 'ICMP network unreachable — до сети нет маршрута вообще.',
+  dns_fail:
+    'Резолв не удаётся. Достоверность частичная: в зависимости от domainStrategy резолв мог произойти раньше, чем дело дошло до диалера.',
+  tls_hang:
+    'TCP соединяется, дальше никто не отвечает, и TLS-рукопожатие уходит в таймаут. Классическая картина «порт открыт, сервис мёртв» — и та, которую чаще всего принимают за рабочий сервер.',
+  tls_garbage:
+    'TCP соединяется, сервер отвечает шумом, и получается «first record does not look like a TLS handshake».',
+  latency: 'Добавляет задержку к дозвону и к каждому чтению. Годится, чтобы заставить балансировщик переранжировать.',
+  throttle: 'Ограничение скорости token bucket в обе стороны.',
+  reset_after: 'Пропускает трафик, затем рвёт соединение через ECONNRESET.',
+  udp_loss: 'Теряет заданную долю датаграмм. Осмысленно для QUIC, KCP и hysteria.',
+}
+
+/** Picks the catalogue for the active language. */
+export function useCopy(): {
+  rejectionLabel: Record<RejectionReason, string>
+  rejectionHelp: Record<RejectionReason, string>
+  stageLabel: Record<StageId, string>
+  stageNote: Record<StageNote, NoteCopy>
+  sourceCopy: Record<string, NoteCopy>
+  faultLabel: Record<FaultKind, string>
+  faultHelp: Record<FaultKind, string>
+} {
+  const { lang } = useT()
+  return lang === 'ru'
+    ? {
+        rejectionLabel: rejectionLabelRu,
+        rejectionHelp: rejectionHelpRu,
+        stageLabel: stageLabelRu,
+        stageNote: stageNoteRu,
+        sourceCopy: sourceCopyRu,
+        faultLabel: faultLabelRu,
+        faultHelp: faultHelpRu,
+      }
+    : { rejectionLabel, rejectionHelp, stageLabel, stageNote, sourceCopy, faultLabel, faultHelp }
 }

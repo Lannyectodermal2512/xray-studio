@@ -1,12 +1,5 @@
 import type { BalancerEvalEvent, Stage } from '@shared/events'
-import {
-  fmtMs,
-  rejectionHelp,
-  rejectionLabel,
-  sourceCopy,
-  stageLabel,
-  stageNote,
-} from '../lib/copy'
+import { fmtMs, useCopy } from '../lib/copy'
 
 /**
  * Renders one balancer decision as an ordered pipeline: what entered each stage, what
@@ -17,6 +10,7 @@ import {
  * will make the what-if diff view trivial later.
  */
 export function DecisionFunnel({ evalEvent }: { evalEvent: BalancerEvalEvent | null }): React.JSX.Element {
+  const { rejectionHelp, rejectionLabel, sourceCopy, stageLabel, stageNote } = useCopy()
   if (!evalEvent) {
     return (
       <div className="panel empty">
@@ -76,6 +70,7 @@ export function DecisionFunnel({ evalEvent }: { evalEvent: BalancerEvalEvent | n
 }
 
 function StageRow({ stage }: { stage: Stage }): React.JSX.Element {
+  const { rejectionHelp, rejectionLabel, sourceCopy, stageLabel, stageNote } = useCopy()
   const note = stage.note ? stageNote[stage.note] : null
   const scores = stage.scores ?? {}
   const ranked = Object.entries(scores).sort((a, b) => a[1] - b[1])

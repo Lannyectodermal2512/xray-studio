@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import type { FaultKind, FaultRule } from '@shared/events'
 import { globMembers, tagsMatching } from '@shared/events'
-import { faultHelp, faultLabel } from '../lib/copy'
+import { useCopy } from '../lib/copy'
+import { useT } from '../lib/i18n'
 import { useApp } from '../store/app'
 import { FaultEvidence } from './FaultEvidence'
 
@@ -22,6 +23,8 @@ const KINDS: FaultKind[] = [
 const HARD_DOWN: FaultKind[] = ['blackhole', 'refuse', 'host_unreachable', 'net_unreachable', 'dns_fail']
 
 export function Faults(): React.JSX.Element {
+  const { faultLabel, faultHelp } = useCopy()
+  const { t } = useT()
   const { snap, applyFaults, toggleFault } = useApp()
   const [kind, setKind] = useState<FaultKind>('blackhole')
   const [tagGlob, setTagGlob] = useState('')
@@ -68,19 +71,19 @@ export function Faults(): React.JSX.Element {
   return (
     <div className="faults">
       <section className="panel">
-        <h3>Inject a fault</h3>
+        <h3>{t('faults.inject')}</h3>
         <div className="fault-form">
           <label className="grow">
-            <span>Outbounds — click to build a group</span>
+            <span>{t('faults.pickOutbounds')}</span>
             <input
               value={tagGlob}
               onChange={(e) => setTagGlob(e.target.value)}
-              placeholder="LTE-1, LTE-4, REGULAR-*   (empty = all)"
+              placeholder={t('faults.tagsPlaceholder')}
             />
           </label>
 
           <label>
-            <span>Failure mode</span>
+            <span>{t('faults.failureMode')}</span>
             <select value={kind} onChange={(e) => setKind(e.target.value as FaultKind)}>
               {KINDS.map((k) => (
                 <option key={k} value={k}>
@@ -206,7 +209,7 @@ export function Faults(): React.JSX.Element {
           Active rules <span className="dim">{snap.faults.length}</span>
         </h3>
         {snap.faults.length === 0 ? (
-          <p className="dim">No faults. Everything is behaving normally.</p>
+          <p className="dim">{t('faults.none')}</p>
         ) : (
           <table className="grid">
             <thead>
@@ -235,7 +238,7 @@ export function Faults(): React.JSX.Element {
                   <td>
                     {faultLabel[r.kind]}
                     {HARD_DOWN.includes(r.kind) && (
-                      <span className="chip tiny" title="also tears down existing connections">
+                      <span className="chip tiny" title={t('faults.hardDown')}>
                         kills live conns
                       </span>
                     )}
@@ -263,7 +266,7 @@ export function Faults(): React.JSX.Element {
       </section>
 
       <section className="panel">
-        <h3>What these faults cannot reproduce</h3>
+        <h3>{t('faults.cannotReproduce')}</h3>
         <p className="dim">
           The claim is &ldquo;as if genuinely unreachable&rdquo;, and it is only mostly
           true. Five honest gaps:
@@ -305,6 +308,7 @@ export function Faults(): React.JSX.Element {
  * matches nothing looks identical to one that matches everything.
  */
 function RuleTargets({ rule, allTags }: { rule: FaultRule; allTags: string[] }): React.JSX.Element {
+  const { t } = useT()
   const hit = tagsMatching(rule.tagGlob, allTags)
   const members = globMembers(rule.tagGlob)
   const isPattern = members.some((m) => m.includes('*') || m.includes('?')) || rule.tagGlob === '*'
@@ -317,8 +321,8 @@ function RuleTargets({ rule, allTags }: { rule: FaultRule; allTags: string[] }):
     return (
       <>
         <span className="mono">{rule.tagGlob}</span>{' '}
-        <span className="chip tiny bad" title="this rule can never fire as written">
-          matches nothing
+        <span className="chip tiny bad" title={t('faults.neverFires')}>
+          {t('faults.matchesNothing')}
         </span>
       </>
     )
