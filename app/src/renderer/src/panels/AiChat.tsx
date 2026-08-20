@@ -164,11 +164,25 @@ export function AiChat({
 
   return (
     <section className={`ai ${open ? 'open' : ''}`}>
+      {/* Collapsed, this bar is the only thing that says the assistant exists, so it
+          says what the assistant is FOR rather than only what it is called. A row
+          reading "▸ Assistant" in dim grey is indistinguishable from a section nobody
+          needs to open, and this one is worth opening precisely because of the part a
+          name cannot carry: it already has the config and the live probe results, so
+          the questions people actually have are answerable without pasting anything. */}
       <button className="ai-head" onClick={() => setOpen((v) => !v)}>
         <span className="caret">{open ? '▾' : '▸'}</span>
-        <span>Assistant</span>
+        <span className="ai-title">AI Assistant</span>
+        {!open && (
+          <span className="ai-pitch tiny">
+            asks answered against this config and what the balancer is doing right now
+          </span>
+        )}
         {!open && turns.length > 0 && <span className="chip tiny">{turns.length}</span>}
         <span className="spacer" />
+        {/* The state, not an advertisement. Someone who has no key needs to know that
+            opening this leads to entering one; someone who has is told nothing. */}
+        {!open && hasKey === false && <span className="chip tiny">needs an API key</span>}
         {open && (
           <span className="tiny faint">
             {Math.round(contextSize / 1000)}k chars of context

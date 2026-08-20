@@ -122,7 +122,13 @@ function createWindow(): BrowserWindow {
       await new Promise((r) => setTimeout(r, Number(process.env['XRAYSTUDIO_SHOTS_WARMUP'] ?? 9000)))
       for (const step of steps) {
         try {
-          if (step.js) await w.webContents.executeJavaScript(step.js)
+          if (step.js) {
+            // The result goes to the trace. A capture that lands on the wrong panel is
+            // otherwise indistinguishable from one whose script threw, and both look
+            // like a correct screenshot of something else.
+            const r: unknown = await w.webContents.executeJavaScript(step.js)
+            if (r !== undefined) trace(`shot-js returned: ${JSON.stringify(r)}`)
+          }
           await new Promise((r) => setTimeout(r, step.delay ?? 900))
           writeFileSync(step.file, (await w.webContents.capturePage()).toPNG())
           trace(`captured ${step.file}`)

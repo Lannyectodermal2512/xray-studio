@@ -1104,6 +1104,18 @@ button.ghost.on { border-color: var(--bad); color: var(--bad); }
 }
 
 .ai-head:hover { color: var(--fg); }
+
+/* Closed, the bar carries an accent edge and an accented name. It sits at the bottom of
+   the Editor, under a tall block of monospace, which is the easiest place in the window
+   for a dim grey row to be read as a footer and never clicked. Opening it removes both:
+   once you are inside, the panel is the subject and does not need to advertise. */
+.ai:not(.open) { border-left: 2px solid var(--accent); }
+.ai:not(.open) .ai-title { color: var(--accent); }
+.ai-title { font-weight: 500; }
+.ai-pitch { color: var(--fg-dim); }
+/* The pitch is the first thing to go when the panel is narrow: it explains, and the
+   name plus the caret still work without it. */
+@media (max-width: 900px) { .ai-pitch { display: none; } }
 .ai-body { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 0 10px 10px; }
 .ai-bar { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
 .ai-bar select { font-size: 11px; padding: 3px 6px; }

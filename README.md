@@ -270,6 +270,19 @@ something.
 
 Comments and trailing commas are accepted, here and everywhere else in the tool.
 
+**AI Assistant** sits along the bottom of this tab, collapsed until you open it. It is
+worth knowing about because of what it already has rather than what it is: the config in
+front of you *and* the live state — which outbounds the observatory calls alive, their
+deviation, why the balancer rejected each candidate, the faults you have armed. So
+"why is nothing being selected?" or "this outbound is never picked — why?" are
+answerable without pasting anything anywhere.
+
+It stays inert until you enter an API key of your own, for Claude or ChatGPT. Before
+sending, it lists what it will include, and it can replace UUIDs, passwords and Reality
+keys with markers of the same length — the model still sees that the field is there and
+well-formed. The key is encrypted with your OS keychain and kept in the main process;
+the window never sees it.
+
 ### What-if — asking without touching anything
 
 ![The What-if tab](docs/img/whatif.png)
