@@ -25,6 +25,17 @@ interface AppState {
    */
   editRequest: { tag: string; kind: 'outbound' | 'balancer' } | null
 
+  /**
+   * A config path whose documentation the Reference tab should open.
+   *
+   * The editor's hover hint is deliberately a glance: it clamps, because a third of the
+   * upstream entries are longer than a screen. This is the way out of that clamp —
+   * carried as the path rather than the text, so the Reference tab renders it from the
+   * bundle in the reader's chosen documentation language rather than echoing whatever
+   * the popup happened to be showing.
+   */
+  docRequest: string | null
+
   setSnapshot: (s: Snapshot) => void
   setTab: (t: Tab) => void
   selectBalancer: (t: string | null) => void
@@ -36,6 +47,8 @@ interface AppState {
   appendCoreLog: (line: string) => void
   requestEdit: (tag: string, kind?: 'outbound' | 'balancer') => void
   clearEditRequest: () => void
+  requestDoc: (path: string) => void
+  clearDocRequest: () => void
 
   openConfig: () => Promise<void>
   openPastedConfig: (text: string) => Promise<void>
@@ -67,6 +80,7 @@ export const useApp = create<AppState>((set, get) => ({
   configDirty: false,
   coreLog: [],
   editRequest: null,
+  docRequest: null,
 
   setSnapshot: (s) =>
     set((prev) => {
@@ -89,6 +103,9 @@ export const useApp = create<AppState>((set, get) => ({
   requestEdit: (tag, kind = 'outbound') =>
     set({ tab: 'build', editRequest: { tag, kind }, selectedOutbound: tag }),
   clearEditRequest: () => set({ editRequest: null }),
+
+  requestDoc: (path) => set({ tab: 'reference', docRequest: path }),
+  clearDocRequest: () => set({ docRequest: null }),
 
   openConfig: async () => {
     const path = await window.xraystudio.pickConfig()

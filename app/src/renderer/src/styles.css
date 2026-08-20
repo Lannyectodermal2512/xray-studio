@@ -954,6 +954,10 @@ button.ghost.on { border-color: var(--bad); color: var(--bad); }
 .tk-com { color: #6e7781; font-style: italic; }
 .tk-pun { color: #8b96a5; }
 
+/* Hovering is a glance: clamped to a fraction of the viewport and never taking the
+   pointer, so the popup cannot get between the reader and the code. Ten percent of the
+   documented parameters are longer than a screen — `dns.servers` runs to twenty-odd
+   paragraphs — and unclamped those simply ran off the bottom with no way back. */
 .ed-hint {
   background: var(--bg-raised);
   border: 1px solid var(--border);
@@ -964,14 +968,38 @@ button.ghost.on { border-color: var(--bad); color: var(--bad); }
   gap: 6px;
   font-size: 12px;
   line-height: 1.5;
+  max-height: 40vh;
   max-width: 380px;
+  overflow: hidden;
   padding: 9px 11px;
   pointer-events: none;
   position: fixed;
   z-index: 70;
 }
 
-.ed-hint-head { display: flex; gap: 8px; justify-content: space-between; }
+/* Pinned by clicking the token: it stays put, takes the pointer and scrolls. */
+.ed-hint.pinned {
+  border-color: var(--accent);
+  max-height: 70vh;
+  overflow-y: auto;
+  pointer-events: auto;
+}
+
+/* Sits over the clipped tail. `sticky` rather than absolute so it stays at the bottom
+   edge of the box and not at the bottom of the content it is hiding. */
+.ed-hint-more {
+  background: linear-gradient(to bottom, transparent, var(--bg-raised) 55%);
+  bottom: -9px;
+  color: var(--fg-faint);
+  font-size: 10.5px;
+  margin: -28px -11px 0;
+  padding: 20px 11px 7px;
+  position: sticky;
+  text-align: center;
+}
+
+.ed-hint-head { align-items: center; display: flex; gap: 8px; justify-content: space-between; }
+.ed-hint-head .link { padding: 0; }
 
 /* ── graph grouping and density ────────────────────────────────────────────── */
 
@@ -1160,3 +1188,7 @@ button.ghost.on { border-color: var(--bad); color: var(--bad); }
    label, and the "docs" word carries the whole point: it does not translate the UI. */
 .doclang { align-items: center; display: flex; flex: none; gap: 5px; }
 .doclang .seg button { font-size: 10.5px; letter-spacing: .04em; padding: 3px 7px; }
+
+/* The entry the Reference tab was sent to, so the reader can see which of the matches
+   answered the question they arrived with. */
+.card.diag.hit { border-color: var(--accent); }

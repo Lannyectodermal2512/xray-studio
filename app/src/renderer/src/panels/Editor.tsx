@@ -46,6 +46,9 @@ export function Editor(): React.JSX.Element {
   const [saved, setSaved] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [hint, setHint] = useState<Hint | null>(null)
+  // A pinned hint outlives the pointer. Kept apart from the hovered one rather than as
+  // a flag on it, so pinning cannot be undone by the next mouse move over the code.
+  const [pinned, setPinned] = useState<Hint | null>(null)
 
   const docs = useDocs()
   const taRef = useRef<HTMLTextAreaElement | null>(null)
@@ -124,6 +127,11 @@ export function Editor(): React.JSX.Element {
       save()
       return
     }
+    if (e.key === 'Escape' && pinned) {
+      e.preventDefault()
+      setPinned(null)
+      return
+    }
     if (e.key === 'Tab') {
       e.preventDefault()
       const el = e.currentTarget
@@ -150,6 +158,9 @@ export function Editor(): React.JSX.Element {
     const ta = taRef.current
     const m = metricsRef.current
     if (!ta || !m || !docs) return
+    // While something is pinned it owns the popup; a second one over the pointer would
+    // put two overlapping explanations on screen.
+    if (pinned) return
 
     // Measured, not assumed: the character cell comes from a rendered sample in the
     // same font, so a font fallback or a zoom level cannot silently skew the mapping.
@@ -266,13 +277,20 @@ export function Editor(): React.JSX.Element {
             onScroll={onScroll}
             onMouseMove={onMouseMove}
             onMouseLeave={() => setHint(null)}
+            /* Clicking a documented token pins its hint. The click still places the
+               caret, which is what a click in a text editor is for — pinning rides
+               along rather than taking the gesture over. Clicking anywhere without
+               documentation puts the popup away. */
+            onClick={() => setPinned(hint)}
           />
         </div>
       </div>
 
       <AiChat configPath={configPath} configText={draft} diags={diags} />
 
-      {hint && <HintPopup hint={hint} />}
+      {(pinned ?? hint) && (
+        <HintPopup hint={(pinned ?? hint)!} pinned={pinned !== null} onClose={() => setPinned(null)} />
+      )}
     </div>
   )
 }
@@ -285,9 +303,32 @@ interface Hint {
 }
 
 /** Follows the pointer, clamped to the viewport so it is never cut off at an edge. */
-function HintPopup({ hint }: { hint: Hint }): React.JSX.Element {
+/**
+ * The hint, in two modes.
+ *
+ * Hovering is a glance and stays one: the popup is clamped to a fraction of the
+ * viewport and never takes the pointer, so it cannot get between you and the code. A
+ * third of the upstream entries do not fit — `dns.servers` alone is 3kB across
+ * twenty-odd paragraphs — and an unclamped popup for those simply ran off the bottom of
+ * the screen with no way to reach the rest.
+ *
+ * Clicking the token pins it. A pinned hint keeps its place, takes the pointer, scrolls,
+ * and offers the way out to the Reference tab for the entries where scrolling a popup is
+ * still the wrong way to read something.
+ */
+function HintPopup({
+  hint,
+  pinned,
+  onClose,
+}: {
+  hint: Hint
+  pinned: boolean
+  onClose: () => void
+}): React.JSX.Element {
   const ref = useRef<HTMLDivElement | null>(null)
   const [pos, setPos] = useState({ left: hint.x + 16, top: hint.y + 18 })
+  const [clipped, setClipped] = useState(false)
+  const requestDoc = useApp((s) => s.requestDoc)
 
   useEffect(() => {
     const el = ref.current
@@ -295,22 +336,49 @@ function HintPopup({ hint }: { hint: Hint }): React.JSX.Element {
     const r = el.getBoundingClientRect()
     const pad = 8
     let left = hint.x + 16
-    let top = hint.y + 18
     if (left + r.width > window.innerWidth - pad) left = hint.x - r.width - 16
-    if (top + r.height > window.innerHeight - pad) top = hint.y - r.height - 12
+
+    // Prefer below, flip above when that overflows, and slide up as a last resort. The
+    // slide matters for a pinned hint: at 70vh it rarely fits above the pointer either,
+    // and clamping to the top of the window instead would park it over the toolbar —
+    // across Start, Stop and Reload, the controls most likely to be wanted next.
+    let top = hint.y + 18
+    if (top + r.height > window.innerHeight - pad) {
+      const above = hint.y - r.height - 12
+      top = above >= pad ? above : window.innerHeight - pad - r.height
+    }
     setPos({ left: Math.max(pad, left), top: Math.max(pad, top) })
-  }, [hint.x, hint.y, hint.path])
+    setClipped(el.scrollHeight > el.clientHeight + 1)
+  }, [hint.x, hint.y, hint.path, pinned])
 
   return (
-    <div className="ed-hint" ref={ref} style={{ left: pos.left, top: pos.top }}>
+    <div
+      className={pinned ? 'ed-hint pinned' : 'ed-hint'}
+      ref={ref}
+      style={{ left: pos.left, top: pos.top }}
+    >
       <div className="ed-hint-head">
         <code className="mono">{hint.doc.name}</code>
         <code className="tiny dim">{hint.doc.type}</code>
         {!hint.doc.translated && <span className="chip tiny faint">EN</span>}
+        {pinned && (
+          <>
+            <span className="spacer" />
+            <button className="link tiny" onClick={() => requestDoc(hint.path)}>
+              full text ↗
+            </button>
+            <button className="link tiny" onClick={onClose} title="Escape">
+              ✕
+            </button>
+          </>
+        )}
       </div>
       <Prose text={hint.doc.summary} />
       {hint.doc.detail && <p className="tiny dim prewrap">{hint.doc.detail}</p>}
       <code className="tiny faint">{hint.path}</code>
+      {/* Only when there is genuinely more below: a fade over text that already ends
+          would be a promise of content that is not there. */}
+      {!pinned && clipped && <div className="ed-hint-more">click to pin and scroll</div>}
     </div>
   )
 }
