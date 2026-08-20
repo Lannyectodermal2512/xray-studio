@@ -10,11 +10,12 @@ import { Prose } from '../components/Prose'
  * belongs — this extract is a convenience, not a replacement.
  */
 export function Reference(): React.JSX.Element {
-  const bundle = useDocs()
+  const docs = useDocs()
+  const active = docs.active ?? docs.fallback
   const [q, setQ] = useState('')
-  const results = useMemo(() => search(bundle, q), [bundle, q])
+  const results = useMemo(() => search(docs, q), [docs, q])
 
-  if (!bundle) {
+  if (!active) {
     return (
       <div className="pad">
         <p className="dim">
@@ -31,8 +32,9 @@ export function Reference(): React.JSX.Element {
         <div className="card-head">
           <h3>Parameter reference</h3>
           <span className="tiny dim">
-            {Object.keys(bundle.params).length} parameters · docs @{' '}
-            <code>{bundle.docsCommit.slice(0, 7)}</code>
+            {Object.keys(active.params).length} parameters · docs @{' '}
+            <code>{active.docsCommit.slice(0, 7)}</code>
+            {docs.lang !== 'en' && <> · {docs.lang.toUpperCase()}</>}
           </span>
         </div>
         <input

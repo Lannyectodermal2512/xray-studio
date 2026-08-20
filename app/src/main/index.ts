@@ -336,23 +336,27 @@ function registerIpc(): void {
   // observation, so the answer cannot drift from live behaviour.
   // Parameter documentation is a static data file; load it once, lazily, so a missing
   // or unreadable bundle degrades to "no tooltips" rather than breaking startup.
-  let docsCache: unknown = null
-  ipcMain.handle('docs:bundle', async () => {
-    if (docsCache) return docsCache
+  const docsCache = new Map<string, unknown>()
+  ipcMain.handle('docs:bundle', async (_e, lang = 'en') => {
+    // Only a locale name, never a path: this string reaches a filesystem lookup.
+    const loc = /^[a-z]{2}$/.test(String(lang)) ? String(lang) : 'en'
+    if (docsCache.has(loc)) return docsCache.get(loc)
     for (const p of [
-      join(app.getAppPath(), '..', 'data', 'docs-en', 'params.json'),
-      join(app.getAppPath(), 'data', 'docs-en', 'params.json'),
-      join(process.resourcesPath ?? '', 'docs-en', 'params.json'),
+      join(app.getAppPath(), '..', 'data', `docs-${loc}`, 'params.json'),
+      join(app.getAppPath(), 'data', `docs-${loc}`, 'params.json'),
+      join(process.resourcesPath ?? '', `docs-${loc}`, 'params.json'),
     ]) {
       try {
-        docsCache = JSON.parse(await readFile(p, 'utf8'))
-        trace(`docs loaded from ${p}`)
-        return docsCache
+        const bundle = JSON.parse(await readFile(p, 'utf8'))
+        docsCache.set(loc, bundle)
+        trace(`docs[${loc}] loaded from ${p}`)
+        return bundle
       } catch {
         /* try the next location */
       }
     }
-    trace('docs bundle not found; tooltips disabled')
+    trace(`docs bundle for ${loc} not found`)
+    docsCache.set(loc, null)
     return null
   })
 

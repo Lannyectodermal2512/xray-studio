@@ -30,7 +30,16 @@ import (
 // docsCommit pins XTLS/Xray-docs-next.
 const docsCommit = "901005cfbb887f20b60db4d59b5bce466206f5f3" // main @ 2026-08-06
 
-const rawBase = "https://raw.githubusercontent.com/XTLS/Xray-docs-next/" + docsCommit + "/docs/en/"
+// lang selects the documentation locale. The upstream repository carries a full
+// translation per language under docs/<lang>/, and using it beats translating the text
+// here: it is written by the people who wrote the software, it stays consistent with
+// the terms the software itself uses, and it carries the same CC BY-SA licence as the
+// English original rather than becoming a second-hand derivative of a derivative.
+var lang = "en"
+
+func rawBase() string {
+	return "https://raw.githubusercontent.com/XTLS/Xray-docs-next/" + docsCommit + "/docs/" + lang + "/"
+}
 
 // source maps one documentation file to the config paths its object headings describe.
 //
@@ -518,9 +527,14 @@ var (
 
 func main() {
 	offline := flag.Bool("offline", false, "re-parse the cache instead of fetching")
-	outDir := flag.String("out", "data/docs-en", "output directory")
+	outDir := flag.String("out", "", "output directory (default data/docs-<lang>)")
+	langFlag := flag.String("lang", "en", "documentation locale: a directory under docs/ upstream")
 	cacheDir := flag.String("cache", ".build/docs-cache", "download cache")
 	flag.Parse()
+	lang = *langFlag
+	if *outDir == "" {
+		*outDir = "data/docs-" + lang
+	}
 
 	if err := run(*offline, *outDir, *cacheDir); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
@@ -578,14 +592,17 @@ func run(offline bool, outDir, cacheDir string) error {
 }
 
 func fetch(file, cacheDir string, offline bool) ([]byte, error) {
-	cache := filepath.Join(cacheDir, strings.ReplaceAll(file, "/", "_"))
+	// Keyed by locale as well as by path: without it a second run for another language
+	// would silently re-parse the first language's cached markdown and produce a
+	// translated-looking bundle that is actually English.
+	cache := filepath.Join(cacheDir, lang+"_"+strings.ReplaceAll(file, "/", "_"))
 	if b, err := os.ReadFile(cache); err == nil {
 		return b, nil
 	}
 	if offline {
 		return nil, fmt.Errorf("not cached")
 	}
-	req, _ := http.NewRequest(http.MethodGet, rawBase+file, nil)
+	req, _ := http.NewRequest(http.MethodGet, rawBase()+file, nil)
 	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
 	if err != nil {
 		return nil, err
@@ -725,7 +742,7 @@ func clean(s string) string {
 }
 
 func docURL(file string) string {
-	return "https://xtls.github.io/en/" + strings.TrimSuffix(file, ".md") + ".html"
+	return "https://xtls.github.io/" + lang + "/" + strings.TrimSuffix(file, ".md") + ".html"
 }
 
 func writeLicense(dir string) error {

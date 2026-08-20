@@ -306,6 +306,7 @@ function HintPopup({ hint }: { hint: Hint }): React.JSX.Element {
       <div className="ed-hint-head">
         <code className="mono">{hint.doc.name}</code>
         <code className="tiny dim">{hint.doc.type}</code>
+        {!hint.doc.translated && <span className="chip tiny faint">EN</span>}
       </div>
       <Prose text={hint.doc.summary} />
       {hint.doc.detail && <p className="tiny dim prewrap">{hint.doc.detail}</p>}

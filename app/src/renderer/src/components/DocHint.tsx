@@ -24,12 +24,12 @@ const GAP = 6
  * hint is always fully readable no matter where its trigger sits.
  */
 export function DocHint({ path }: { path: string }): React.JSX.Element | null {
-  const bundle = useDocs()
+  const docs = useDocs()
   const [open, setOpen] = useState(false)
   const anchorRef = useRef<HTMLSpanElement | null>(null)
   const popRef = useRef<HTMLDivElement | null>(null)
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
-  const doc = lookup(bundle, path)
+  const doc = lookup(docs, path)
 
   // useLayoutEffect, not useEffect: measuring after paint would show the popup at its
   // unclamped position for one frame, which reads as a jump.
@@ -94,6 +94,9 @@ export function DocHint({ path }: { path: string }): React.JSX.Element | null {
             <span className="dochint-head">
               <code className="mono">{doc.name}</code>
               <code className="tiny dim">{doc.type}</code>
+              {/* A label, not a warning: this one parameter has no translation upstream
+                  yet, so its text is the English original. */}
+              {!doc.translated && <span className="chip tiny faint">EN</span>}
             </span>
             <Prose className="dochint-body" text={doc.summary} />
             {doc.detail && <Prose className="dochint-detail" text={doc.detail} />}

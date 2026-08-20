@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useT } from './i18n'
 import type { DocBundle, ParamDoc } from '@shared/events'
 
 /**
@@ -10,30 +11,53 @@ import type { DocBundle, ParamDoc } from '@shared/events'
  * docs are the authority, and this extract is a convenience.
  */
 
-let cache: DocBundle | null | undefined
-let inflight: Promise<DocBundle | null> | null = null
+const cache = new Map<string, DocBundle | null>()
+const inflight = new Map<string, Promise<DocBundle | null>>()
 
-async function load(): Promise<DocBundle | null> {
-  if (cache !== undefined) return cache
-  inflight ??= window.xraystudio.docs().then((b) => {
-    cache = b
-    return b
-  })
-  return inflight
+async function load(lang: string): Promise<DocBundle | null> {
+  if (cache.has(lang)) return cache.get(lang) ?? null
+  let p = inflight.get(lang)
+  if (!p) {
+    p = window.xraystudio.docs(lang).then((b) => {
+      cache.set(lang, b)
+      return b
+    })
+    inflight.set(lang, p)
+  }
+  return p
 }
 
-export function useDocs(): DocBundle | null {
-  const [bundle, setBundle] = useState<DocBundle | null>(cache ?? null)
+/**
+ * The active locale's bundle, with English behind it.
+ *
+ * Both are loaded, because the fallback is per PARAMETER rather than per bundle: the
+ * upstream translation can be complete today and gain a parameter tomorrow, and the
+ * useful behaviour then is an English description for that one key rather than an empty
+ * tooltip or a wholesale switch back to English.
+ */
+export interface Docs {
+  active: DocBundle | null
+  fallback: DocBundle | null
+  lang: string
+}
+
+export function useDocs(): Docs {
+  const { lang } = useT()
+  const [docs, setDocs] = useState<Docs>({ active: null, fallback: null, lang })
+
   useEffect(() => {
     let alive = true
-    void load().then((b) => {
-      if (alive) setBundle(b)
-    })
+    void Promise.all([load(lang), lang === 'en' ? Promise.resolve(null) : load('en')]).then(
+      ([active, fallback]) => {
+        if (alive) setDocs({ active, fallback, lang })
+      },
+    )
     return () => {
       alive = false
     }
-  }, [])
-  return bundle
+  }, [lang])
+
+  return docs
 }
 
 /**
@@ -41,14 +65,30 @@ export function useDocs(): DocBundle | null {
  * config (`routing.balancers[0].selector`) finds the documented shape
  * (`routing.balancers[].selector`).
  */
-export function lookup(bundle: DocBundle | null, path: string): ParamDoc | null {
+function pick(bundle: DocBundle | null, path: string): ParamDoc | null {
   if (!bundle) return null
   const normalised = path.replace(/\[\d+\]/g, '[]')
   return bundle.params[normalised] ?? bundle.params[path] ?? null
 }
 
+/**
+ * Looks a parameter up in the active language, falling back to English for that one
+ * parameter. `translated` is false when the fallback was used, so the UI can say which
+ * language the reader is actually looking at.
+ */
+export function lookup(
+  docs: Docs,
+  path: string,
+): (ParamDoc & { translated: boolean }) | null {
+  const active = pick(docs.active, path)
+  if (active) return { ...active, translated: true }
+  const fallback = pick(docs.fallback, path)
+  return fallback ? { ...fallback, translated: docs.lang === 'en' } : null
+}
+
 /** Finds every documented parameter whose path or text matches a query. */
-export function search(bundle: DocBundle | null, query: string, limit = 60): ParamDoc[] {
+export function search(docs: Docs, query: string, limit = 60): ParamDoc[] {
+  const bundle = docs.active ?? docs.fallback
   if (!bundle) return []
   const q = query.trim().toLowerCase()
   const all = Object.values(bundle.params)

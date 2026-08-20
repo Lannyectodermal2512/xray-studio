@@ -22,6 +22,8 @@ files:
 extraResources:
   - from: ../data/docs-en
     to: docs-en
+  - from: ../data/docs-ru
+    to: docs-ru
   - from: ../data/schema
     to: schema
   - from: ../examples

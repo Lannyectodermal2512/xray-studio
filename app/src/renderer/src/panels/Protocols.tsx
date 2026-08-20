@@ -187,7 +187,10 @@ function TypeCard({
                       {doc ? (
                         <>
                           <Prose text={doc.summary} />
-                          <span className="tiny faint"> · official docs</span>
+                          <span className="tiny faint">
+                          {' '}
+                          · official docs{doc.translated ? '' : ' (EN)'}
+                        </span>
                         </>
                       ) : f.doc ? (
                         <>

@@ -57,7 +57,7 @@ const api = {
   /** Generated protocol settings schema, or null when unavailable. */
   schema: (): Promise<ProtocolSchema | null> => ipcRenderer.invoke('schema:bundle'),
 
-  docs: (): Promise<DocBundle | null> => ipcRenderer.invoke('docs:bundle'),
+  docs: (lang: string): Promise<DocBundle | null> => ipcRenderer.invoke('docs:bundle', lang),
 
   selfCheck: (): Promise<SelfCheckReport> => ipcRenderer.invoke('selfcheck:run'),
 
