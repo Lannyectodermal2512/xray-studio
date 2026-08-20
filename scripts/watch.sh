@@ -28,12 +28,13 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[[ -x .build/bin/xray-studio-sidecar ]] || {
-  printf '\033[36m•\033[0m building sidecar\n'
-  ./scripts/bootstrap-xray.sh >/dev/null
-  mkdir -p .build/bin
-  go -C sidecar build -o "$ROOT/.build/bin/xray-studio-sidecar" ./cmd/sidecar || exit 1
-}
+# Always, not only when the binary is missing. Go's build cache makes a no-op rebuild
+# nearly free, and the alternative is watching a version of the sidecar you stopped
+# writing some edits ago.
+printf '\033[36m•\033[0m building sidecar\n'
+./scripts/bootstrap-xray.sh >/dev/null
+mkdir -p .build/bin
+go -C sidecar build -o "$ROOT/.build/bin/xray-studio-sidecar" ./cmd/sidecar || exit 1
 
 TMP="$(mktemp -d)"
 cleanup() { [[ -n "${SIDE:-}" ]] && kill "$SIDE" 2>/dev/null; rm -rf "$TMP"; }

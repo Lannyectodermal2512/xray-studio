@@ -11,9 +11,22 @@ export GOFLAGS="${GOFLAGS:-} -mod=readonly"
 ./scripts/bootstrap-xray.sh
 ./scripts/check-pin.sh >/dev/null
 
-printf '\033[36m•\033[0m building sidecar\n'
-mkdir -p .build/bin
-go -C sidecar build -o "$ROOT/.build/bin/xray-studio-sidecar" ./cmd/sidecar
+# Through build-sidecar.sh, so the binary lands where the app actually looks first.
+# This built the unsuffixed .build/bin/xray-studio-sidecar, which sidecarPath() checks
+# only AFTER .build/bin/<platform>-<arch>/ — so once a release build had populated that
+# directory, every dev run silently kept launching the older binary from it. Go code
+# would appear not to take effect, with nothing to see in the app or the logs.
+HOST_OS="$(uname -s)"
+case "$HOST_OS" in
+  Darwin) HOST_PLATFORM=mac ;;
+  Linux)  HOST_PLATFORM=linux ;;
+  *)      HOST_PLATFORM=win ;;
+esac
+case "$(uname -m)" in
+  arm64|aarch64) HOST_ARCH=arm64 ;;
+  *)             HOST_ARCH=x64 ;;
+esac
+./scripts/build-sidecar.sh "$HOST_PLATFORM" "$HOST_ARCH"
 
 if [[ ! -d app/node_modules ]]; then
   printf '\033[36m•\033[0m installing app dependencies\n'
