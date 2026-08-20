@@ -103,9 +103,12 @@ export function RttTimeline(): React.JSX.Element {
     }),
   )
 
+  /** Is there anything to plot at all? See the placeholder below for why this matters. */
+  const hasSamples = (series?.t.length ?? 0) > 0
+
   useEffect(() => {
     const host = hostRef.current
-    if (!host || !series) return
+    if (!host || !series || !hasSamples) return
 
     const data: uPlot.AlignedData = [
       series.t,
@@ -143,6 +146,13 @@ export function RttTimeline(): React.JSX.Element {
               // "0.187s … 0.1892s". Enforce a floor so the early view reads as a
               // timeline rather than a rendering fault.
               range: (_u, min, max) => {
+                // No samples at all — no config open yet, or nothing probed. min and
+                // max are null, every comparison below is NaN, and uPlot ends up with
+                // no x ticks to label, so the axis takes zero height and the plot area
+                // is given the whole canvas. The bottom gridline then sits on the edge
+                // and its "0ms" label falls off it: the chart looks cropped rather
+                // than empty. Same collapse the y axis is guarded against below.
+                if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, MIN_SPAN]
                 if (max - min >= MIN_SPAN) return [min, max]
                 return [min, min + MIN_SPAN]
               },
@@ -208,7 +218,7 @@ export function RttTimeline(): React.JSX.Element {
     // `hidden` is applied through the effect below, not here: rebuilding the plot on
     // every legend click would throw away the zoom and flash the canvas.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [series, logScale])
+  }, [series, logScale, hasSamples])
 
   // Visibility is pushed into the existing plot instance.
   useEffect(() => {
@@ -239,6 +249,12 @@ export function RttTimeline(): React.JSX.Element {
       return next
     })
   }, [])
+
+  useEffect(() => {
+    if (hasSamples) return
+    plotRef.current?.destroy()
+    plotRef.current = null
+  }, [hasSamples])
 
   const toggleGroup = useCallback((g: Group) => {
     setHidden((h) => {
@@ -301,7 +317,24 @@ export function RttTimeline(): React.JSX.Element {
       </div>
 
       <div className="chart-wrap">
-        <div ref={hostRef} className="chart" />
+        {/* With no samples at all, uPlot lays out no x axis — it has no values to make
+            ticks from — and then gives the plot area the whole canvas, so the bottom
+            gridline sits on the edge and its "0ms" label is cut in half. The result
+            reads as a broken chart rather than an empty one.
+
+            Forcing an x range does not help: with no data rows uPlot never calls the
+            scale callback. So nothing is mounted until there is something to draw, and
+            the space is held by a placeholder of the same height — which also keeps the
+            panel from jumping when the first probe lands.
+
+            This is only the nothing-at-all case. Outbounds that exist and are all dead
+            still get a real chart: there ARE samples then, and the forced y range below
+            keeps its axis from collapsing the same way. */}
+        {hasSamples ? (
+          <div ref={hostRef} className="chart" />
+        ) : (
+          <div className="chart chart-empty" />
+        )}
         {hover && (
           <div
             className="rtt-tip"

@@ -250,6 +250,9 @@ input:focus, select:focus { outline: 1px solid var(--accent); border-color: var(
 /* --- chart ----------------------------------------------------------------- */
 
 .chart { width: 100%; height: 220px; }
+/* Holds the chart's space before the first probe, so the panel does not jump when one
+   lands. Deliberately blank: an empty grid with no axis says less than nothing. */
+.chart-empty { pointer-events: none; }
 
 .rtt-actions { align-items: center; display: flex; gap: 12px; }
 
