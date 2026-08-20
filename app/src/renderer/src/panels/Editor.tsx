@@ -564,12 +564,21 @@ const LEGACY_CONTAINERS = new Set(['vnext', 'servers', 'users', 'clients'])
 /**
  * Renamed keys, old spelling to documented one.
  *
- * v26.7.28 declares both members of each pair and reads either, so a config written
- * against older documentation is correct and must still get its hint. Kept as an
- * explicit table rather than inferred: these are two names for one thing only because
- * upstream says so, and guessing from spelling would eventually pair unrelated keys.
+ * `StreamConfig` declares both members of each pair and reads either — `tcpSettings`
+ * and `rawSettings` are both `*TCPConfig`, `splithttpSettings` and `xhttpSettings` both
+ * `*SplitHTTPConfig` — so a config written against older documentation is correct and
+ * must still get its hint.
+ *
+ * Matched as a prefix, because the renamed thing is sometimes a whole subtree: every
+ * key under `tcpSettings` is documented under `rawSettings` and nowhere else.
+ *
+ * An explicit table rather than anything inferred. These are two names for one thing
+ * only because upstream says so, and guessing from spelling would eventually pair keys
+ * that merely look alike.
  */
 const LEGACY_KEYS: Record<string, string> = {
+  'streamSettings.tcpSettings': 'streamSettings.rawSettings',
+  'streamSettings.splithttpSettings': 'streamSettings.xhttpSettings',
   'streamSettings.network': 'streamSettings.method',
   'streamSettings.realitySettings.publicKey': 'streamSettings.realitySettings.password',
 }
@@ -630,8 +639,10 @@ function docPath(
 
   // Old spellings the core still accepts under names upstream has stopped documenting.
   for (const p of [...out]) {
-    const alias = LEGACY_KEYS[p]
-    if (alias) out.push(alias)
+    for (const [from, to] of Object.entries(LEGACY_KEYS)) {
+      if (p === from) out.push(to)
+      else if (p.startsWith(`${from}.`)) out.push(to + p.slice(from.length))
+    }
   }
 
   return out
