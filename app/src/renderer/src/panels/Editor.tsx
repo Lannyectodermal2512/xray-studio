@@ -541,6 +541,19 @@ function tagRange(text: string, tag: string): { offset: number; length: number }
 const LEGACY_CONTAINERS = new Set(['vnext', 'servers', 'users', 'clients'])
 
 /**
+ * Renamed keys, old spelling to documented one.
+ *
+ * v26.7.28 declares both members of each pair and reads either, so a config written
+ * against older documentation is correct and must still get its hint. Kept as an
+ * explicit table rather than inferred: these are two names for one thing only because
+ * upstream says so, and guessing from spelling would eventually pair unrelated keys.
+ */
+const LEGACY_KEYS: Record<string, string> = {
+  'streamSettings.network': 'streamSettings.method',
+  'streamSettings.realitySettings.publicKey': 'streamSettings.realitySettings.password',
+}
+
+/**
  * Config path to documentation keys, best first.
  *
  * More than one because a path can be documented under a shape other than the one it
@@ -584,6 +597,22 @@ function docPath(
     else generic += generic ? `.${p}` : p
   }
   out.push(generic)
+
+  /* Transport settings are documented once, as a shared object keyed `streamSettings.*`,
+     because the same block hangs off both an inbound and an outbound. A config path
+     therefore always carries a section prefix the documentation does not, and without
+     this nothing inside `streamSettings` resolved at all. Re-keying the bundle per
+     section was the alternative, and it would list all sixty-odd entries twice in the
+     Reference tab to say the same thing. */
+  const at = generic.indexOf('streamSettings')
+  if (at > 0) out.push(generic.slice(at))
+
+  // Old spellings the core still accepts under names upstream has stopped documenting.
+  for (const p of [...out]) {
+    const alias = LEGACY_KEYS[p]
+    if (alias) out.push(alias)
+  }
+
   return out
 }
 

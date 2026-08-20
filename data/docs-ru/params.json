@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-20T13:18:53Z",
+  "generated": "2026-08-20T13:48:24Z",
   "docsCommit": "901005cfbb887f20b60db4d59b5bce466206f5f3",
   "license": "CC-BY-SA-4.0",
   "attribution": "Adapted from the XTLS/Xray-docs-next documentation (https://github.com/XTLS/Xray-docs-next), licensed CC BY-SA 4.0. Text was extracted per parameter and reformatted; it is not verbatim.",
@@ -1771,12 +1771,270 @@
       "summary": "Настройки FinalMask для финальной маскировки трафика.",
       "source": "https://xtls.github.io/ru/config/transport.html"
     },
-    "streamSettings.finalmask[].sockopt": {
-      "path": "streamSettings.finalmask[].sockopt",
-      "name": "sockopt",
-      "type": "SockoptObject",
-      "summary": "Настройки низкоуровневого сетевого поведения.",
+    "streamSettings.grpcSettings": {
+      "path": "streamSettings.grpcSettings",
+      "name": "grpcSettings",
+      "type": "GRPCObject",
+      "summary": "Настройки gRPC для потока данных. Действуют только когда `method` равно `grpc`.",
       "source": "https://xtls.github.io/ru/config/transport.html"
+    },
+    "streamSettings.grpcSettings.authority": {
+      "path": "streamSettings.grpcSettings.authority",
+      "name": "authority",
+      "type": "string",
+      "summary": "Строка, которая может использоваться как Host для реализации некоторых других целей.",
+      "source": "https://xtls.github.io/ru/config/transports/grpc.html"
+    },
+    "streamSettings.grpcSettings.health_check_timeout": {
+      "path": "streamSettings.grpcSettings.health_check_timeout",
+      "name": "health_check_timeout",
+      "type": "number",
+      "summary": "Время ожидания ответа проверки работоспособности в секундах. Если в течение этого времени проверка работоспособности не будет завершена и по-прежнему не будет передачи данных, проверка работоспособности будет считаться неудачной. Значение по умолчанию: `20`.",
+      "detail": "Настройка требуется **только** на стороне **исходящего соединения** (**клиента**).",
+      "source": "https://xtls.github.io/ru/config/transports/grpc.html"
+    },
+    "streamSettings.grpcSettings.idle_timeout": {
+      "path": "streamSettings.grpcSettings.idle_timeout",
+      "name": "idle_timeout",
+      "type": "number",
+      "summary": "Проверка работоспособности выполняется, если в течение определенного периода времени, измеряемого в секундах, не происходит передача данных. Если это значение меньше `10`, то в качестве минимального значения будет использоваться `10`.",
+      "detail": "Если не используется обратный прокси-сервер, такой как Caddy или Nginx (**обычно не используется**), и это значение установлено меньше `60`, сервер может отправить непредвиденный кадр h2 GOAWAY, чтобы закрыть существующее соединение.\n\nПо умолчанию проверка работоспособности **отключена**.\n\n**Необходимо настроить только** в `outbound` **(клиент)**.\n\nМожет решить некоторые проблемы с \"обрывом\" соединения.",
+      "source": "https://xtls.github.io/ru/config/transports/grpc.html"
+    },
+    "streamSettings.grpcSettings.initial_windows_size": {
+      "path": "streamSettings.grpcSettings.initial_windows_size",
+      "name": "initial_windows_size",
+      "type": "number",
+      "summary": "Начальный размер окна h2 Stream. Если значение меньше или равно `0`, эта функция не действует. Если значение больше `65535`, механизм динамического окна будет отключен. Значение по умолчанию: `0`, то есть не действует.",
+      "detail": "**Необходимо настроить только** в `outbound` **(клиент)**.\n\nПри использовании CDN Cloudflare можно установить значение `65536` или выше, чтобы отключить механизм динамического окна, что предотвратит отправку непредвиденных кадров h2 GOAWAY CDN Cloudflare для закрытия существующего соединения.",
+      "source": "https://xtls.github.io/ru/config/transports/grpc.html"
+    },
+    "streamSettings.grpcSettings.multiMode": {
+      "path": "streamSettings.grpcSettings.multiMode",
+      "name": "multiMode",
+      "type": "true | false \u003cBadge text=\"BETA\" type=\"warning\"/\u003e",
+      "summary": "`true` включает `multiMode`, значение по умолчанию: `false`.",
+      "detail": "Это **экспериментальная** опция, которая может быть удалена в будущем, и ее совместимость между версиями не гарантируется. Этот режим может обеспечить прирост производительности примерно на 20% **в тестовой среде**, фактическая производительность зависит от скорости передачи.\n\n**Необходимо настроить только** в `outbound` **(клиент)**.",
+      "source": "https://xtls.github.io/ru/config/transports/grpc.html"
+    },
+    "streamSettings.grpcSettings.permit_without_stream": {
+      "path": "streamSettings.grpcSettings.permit_without_stream",
+      "name": "permit_without_stream",
+      "type": "true | false",
+      "summary": "`true` разрешает проверку работоспособности, если нет дочерних подключений. Значение по умолчанию: `false`.",
+      "detail": "**Необходимо настроить только** в `outbound` **(клиент)**.",
+      "source": "https://xtls.github.io/ru/config/transports/grpc.html"
+    },
+    "streamSettings.grpcSettings.serviceName": {
+      "path": "streamSettings.grpcSettings.serviceName",
+      "name": "serviceName",
+      "type": "string",
+      "summary": "Строка, указывающая имя сервиса, **аналогично** пути в HTTP/2. Клиент будет использовать это имя для связи, а сервер будет проверять, совпадает ли имя сервиса.",
+      "detail": "Когда `serviceName` начинается с косой черты, можно настроить собственный путь, используя как минимум две косые черты.\n\nНапример, если на сервере указано `\"serviceName\": \"/my/sample/path1|path2\"`, то на клиенте можно указать `\"serviceName\": \"/my/sample/path1\"` или `\"/my/sample/path2\"`.",
+      "source": "https://xtls.github.io/ru/config/transports/grpc.html"
+    },
+    "streamSettings.grpcSettings.user_agent": {
+      "path": "streamSettings.grpcSettings.user_agent",
+      "name": "user_agent",
+      "type": "string",
+      "summary": "**Необходимо настроить только** в `outbound` **(клиент)**.",
+      "detail": "Установка пользовательского агента gRPC, может предотвратить блокировку трафика gRPC некоторыми CDN.",
+      "source": "https://xtls.github.io/ru/config/transports/grpc.html"
+    },
+    "streamSettings.httpupgradeSettings": {
+      "path": "streamSettings.httpupgradeSettings",
+      "name": "httpupgradeSettings",
+      "type": "HTTPUpgradeObject",
+      "summary": "Настройки HTTPUpgrade для потока данных. Действуют только когда `method` равно `httpupgrade`.",
+      "source": "https://xtls.github.io/ru/config/transport.html"
+    },
+    "streamSettings.httpupgradeSettings.acceptProxyProtocol": {
+      "path": "streamSettings.httpupgradeSettings.acceptProxyProtocol",
+      "name": "acceptProxyProtocol",
+      "type": "true | false",
+      "summary": "Используется только для входящих соединений и указывает, принимать ли протокол PROXY.",
+      "detail": "PROXY protocol предназначен для передачи реального IP-адреса и порта запроса. **Если вы не знакомы с ним, проигнорируйте этот пункт.**\n\nРаспространенные программы для reverse прокси (например, HAProxy, Nginx) и VLESS fallbacks xver могут быть настроены для его включения.\n\nПри установке значения `true`, после установления TCP-соединения на самом нижнем уровне, запрашивающая сторона должна сначала отправить PROXY protocol v1 или v2, в противном случае соединение будет закрыто.",
+      "source": "https://xtls.github.io/ru/config/transports/httpupgrade.html"
+    },
+    "streamSettings.httpupgradeSettings.headers": {
+      "path": "streamSettings.httpupgradeSettings.headers",
+      "name": "headers",
+      "type": "map \\{string: string\\}",
+      "summary": "Только для клиента. Пользовательские HTTP-заголовки, пара ключ-значение, где каждый ключ представляет имя HTTP-заголовка, а соответствующее значение - строка.",
+      "detail": "По умолчанию пустое.",
+      "source": "https://xtls.github.io/ru/config/transports/httpupgrade.html"
+    },
+    "streamSettings.httpupgradeSettings.host": {
+      "path": "streamSettings.httpupgradeSettings.host",
+      "name": "host",
+      "type": "string",
+      "summary": "Хост, отправляемый в HTTP-запросе HTTPUpgrade, по умолчанию пустой. Если значение на стороне сервера пустое, значение хоста, отправляемое клиентом, не проверяется.",
+      "detail": "Когда на стороне сервера указано это значение или в `headers` указан хост, будет проверено соответствие хоста запроса клиента.\n\nПриоритет выбора хоста, отправляемого клиентом: `host` \u003e `headers` \u003e `address`",
+      "source": "https://xtls.github.io/ru/config/transports/httpupgrade.html"
+    },
+    "streamSettings.httpupgradeSettings.path": {
+      "path": "streamSettings.httpupgradeSettings.path",
+      "name": "path",
+      "type": "string",
+      "summary": "HTTP-путь, используемый HTTPUpgrade, по умолчанию `\"/\"`.",
+      "detail": "Если в пути клиента содержится параметр `ed` (например, `/mypath?ed=2560`), будет активирована функция `Early Data` для уменьшения задержки, ее значение - порог длины первого пакета. Если длина первого пакета превышает это значение, `Early Data` не будет активирована. Рекомендуемое значение - 2560.",
+      "source": "https://xtls.github.io/ru/config/transports/httpupgrade.html"
+    },
+    "streamSettings.hysteriaSettings": {
+      "path": "streamSettings.hysteriaSettings",
+      "name": "hysteriaSettings",
+      "type": "HysteriaObject",
+      "summary": "Настройки Hysteria для потока данных. Действуют только когда `method` равно `hysteria`.",
+      "source": "https://xtls.github.io/ru/config/transport.html"
+    },
+    "streamSettings.hysteriaSettings.auth": {
+      "path": "streamSettings.hysteriaSettings.auth",
+      "name": "auth",
+      "type": "string",
+      "summary": "Пароль аутентификации Hysteria, должен совпадать на сервере и клиенте.",
+      "detail": "При использовании с `hysteria inbound` будет переопределён `users` (если он существует).",
+      "source": "https://xtls.github.io/ru/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade": {
+      "path": "streamSettings.hysteriaSettings.masquerade",
+      "name": "masquerade",
+      "type": "MasqObject",
+      "summary": "Маскировка страниц HTTP/3.",
+      "source": "https://xtls.github.io/ru/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade.content": {
+      "path": "streamSettings.hysteriaSettings.masquerade.content",
+      "name": "content",
+      "type": "string",
+      "summary": "Элементы конфигурации, когда `type` имеет значение `string`.",
+      "source": "https://xtls.github.io/ru/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade.dir": {
+      "path": "streamSettings.hysteriaSettings.masquerade.dir",
+      "name": "dir",
+      "type": "string",
+      "summary": "Элементы конфигурации, когда `type` равен `file`.",
+      "source": "https://xtls.github.io/ru/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade.headers": {
+      "path": "streamSettings.hysteriaSettings.masquerade.headers",
+      "name": "headers",
+      "type": "map{ string, string }",
+      "summary": "Элементы конфигурации, когда `type` имеет значение `string`.",
+      "source": "https://xtls.github.io/ru/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade.insecure": {
+      "path": "streamSettings.hysteriaSettings.masquerade.insecure",
+      "name": "insecure",
+      "type": "false | true",
+      "summary": "Элементы конфигурации, когда `type` имеет значение `proxy`.",
+      "source": "https://xtls.github.io/ru/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade.rewriteHost": {
+      "path": "streamSettings.hysteriaSettings.masquerade.rewriteHost",
+      "name": "rewriteHost",
+      "type": "false | true",
+      "summary": "Элементы конфигурации, когда `type` имеет значение `proxy`.",
+      "source": "https://xtls.github.io/ru/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade.statusCode": {
+      "path": "streamSettings.hysteriaSettings.masquerade.statusCode",
+      "name": "statusCode",
+      "type": "int",
+      "summary": "Элементы конфигурации, когда `type` имеет значение `string`.",
+      "source": "https://xtls.github.io/ru/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade.type": {
+      "path": "streamSettings.hysteriaSettings.masquerade.type",
+      "name": "type",
+      "type": "\"file\" | \"proxy\" | \"string\"",
+      "summary": "Если оставить это поле пустым, отобразится стандартная страница ошибки 404.",
+      "source": "https://xtls.github.io/ru/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade.url": {
+      "path": "streamSettings.hysteriaSettings.masquerade.url",
+      "name": "url",
+      "type": "string",
+      "summary": "Элементы конфигурации, когда `type` имеет значение `proxy`.",
+      "source": "https://xtls.github.io/ru/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.udpIdleTimeout": {
+      "path": "streamSettings.hysteriaSettings.udpIdleTimeout",
+      "name": "udpIdleTimeout",
+      "type": "number",
+      "summary": "Единица измерения: секунды, по умолчанию 60.",
+      "detail": "Время ожидания в режиме ожидания для одного соединения `quic native udp`. Если это время слишком велико, соединение может быть не строго соблюдено и может быть сначала разорвано политикой.",
+      "source": "https://xtls.github.io/ru/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.version": {
+      "path": "streamSettings.hysteriaSettings.version",
+      "name": "version",
+      "type": "number",
+      "summary": "Версия Hysteria, должна быть равна 2.",
+      "source": "https://xtls.github.io/ru/config/transports/hysteria.html"
+    },
+    "streamSettings.kcpSettings": {
+      "path": "streamSettings.kcpSettings",
+      "name": "kcpSettings",
+      "type": "KcpObject",
+      "summary": "Настройки mKCP для потока данных. Действуют только когда `method` равно `mkcp`.",
+      "source": "https://xtls.github.io/ru/config/transport.html"
+    },
+    "streamSettings.kcpSettings.congestion": {
+      "path": "streamSettings.kcpSettings.congestion",
+      "name": "congestion",
+      "type": "true | false",
+      "summary": "Включить или отключить контроль перегрузки.",
+      "detail": "При включении контроля перегрузки Xray будет автоматически отслеживать качество сети. При серьезных потерях пакетов он автоматически снизит пропускную способность; при хорошем качестве сети он также будет соответствующим образом увеличивать пропускную способность.\n\nПо умолчанию `false`.",
+      "source": "https://xtls.github.io/ru/config/transports/mkcp.html"
+    },
+    "streamSettings.kcpSettings.downlinkCapacity": {
+      "path": "streamSettings.kcpSettings.downlinkCapacity",
+      "name": "downlinkCapacity",
+      "type": "number",
+      "summary": "Пропускная способность канала приема, то есть максимальная полоса пропускания, используемая хостом для приема данных, в МБ/с (обратите внимание что это байты, а не биты).",
+      "detail": "Может быть установлено в 0, что означает очень маленькую пропускную способность.\n\nПо умолчанию `20`.\n\n`uplinkCapacity` и `downlinkCapacity` определяют скорость передачи mKCP.\n\nВ качестве примера, если клиент отправляет данные, то `uplinkCapacity` клиента определяет скорость отправки данных, а `downlinkCapacity` сервера определяет скорость приема данных. Значение, меньшее из двух, будет использоваться в качестве определяющего.\n\nРекомендуется установить `downlinkCapacity` в большое значение, например, 100, а `uplinkCapacity` - в фактическое значение скорости сети. Когда скорость недостаточна, можно постепенно увеличивать значение `uplinkCapacity` до примерно двух раз больше, чем фактическая скорость сети.",
+      "source": "https://xtls.github.io/ru/config/transports/mkcp.html"
+    },
+    "streamSettings.kcpSettings.mtu": {
+      "path": "streamSettings.kcpSettings.mtu",
+      "name": "mtu",
+      "type": "number",
+      "summary": "Максимальный размер передаваемого блока (maximum transmission unit).",
+      "detail": "Выберите значение от 576 до 1460.\n\nПо умолчанию `1350`.",
+      "source": "https://xtls.github.io/ru/config/transports/mkcp.html"
+    },
+    "streamSettings.kcpSettings.readBufferSize": {
+      "path": "streamSettings.kcpSettings.readBufferSize",
+      "name": "readBufferSize",
+      "type": "number",
+      "summary": "Размер буфера чтения для отдельного соединения, в МБ.",
+      "detail": "По умолчанию `2`.",
+      "source": "https://xtls.github.io/ru/config/transports/mkcp.html"
+    },
+    "streamSettings.kcpSettings.tti": {
+      "path": "streamSettings.kcpSettings.tti",
+      "name": "tti",
+      "type": "number",
+      "summary": "Интервал передачи (transmission time interval), в миллисекундах (ms), mKCP будет отправлять данные с этой частотой.",
+      "detail": "Выберите значение от 10 до 100.\n\nПо умолчанию `50`.",
+      "source": "https://xtls.github.io/ru/config/transports/mkcp.html"
+    },
+    "streamSettings.kcpSettings.uplinkCapacity": {
+      "path": "streamSettings.kcpSettings.uplinkCapacity",
+      "name": "uplinkCapacity",
+      "type": "number",
+      "summary": "Пропускная способность канала отправки, то есть максимальная полоса пропускания, используемая хостом для отправки данных, в МБ/с (обратите внимание это байты, а не биты).",
+      "detail": "Может быть установлено в 0, что означает очень маленькую пропускную способность.\n\nПо умолчанию `5`.",
+      "source": "https://xtls.github.io/ru/config/transports/mkcp.html"
+    },
+    "streamSettings.kcpSettings.writeBufferSize": {
+      "path": "streamSettings.kcpSettings.writeBufferSize",
+      "name": "writeBufferSize",
+      "type": "number",
+      "summary": "Размер буфера записи для отдельного соединения, в МБ.",
+      "detail": "По умолчанию `2`.\n\n`readBufferSize` и `writeBufferSize` определяют размер памяти, используемой для каждого соединения.\n\nПри необходимости высокой скорости передачи, установка больших значений `readBufferSize` и `writeBufferSize` может в некоторой степени повысить скорость, но также будет использовать больше памяти.\n\nПри скорости сети не превышающей 20 МБ/с, значение по умолчанию 1 МБ может удовлетворить требованиям; при превышении этой скорости можно соответствующим образом увеличить значения `readBufferSize` и `writeBufferSize`, а затем вручную сбалансировать скорость и использование памяти.",
+      "source": "https://xtls.github.io/ru/config/transports/mkcp.html"
     },
     "streamSettings.method": {
       "path": "streamSettings.method",
@@ -1792,47 +2050,100 @@
       "summary": "Настройки RAW для потока данных. Действуют только когда `method` равно `raw`.",
       "source": "https://xtls.github.io/ru/config/transport.html"
     },
-    "streamSettings.rawSettings[].xhttpSettings": {
-      "path": "streamSettings.rawSettings[].xhttpSettings",
-      "name": "xhttpSettings",
-      "type": "XHTTPObject",
-      "summary": "Настройки XHTTP для потока данных. Действуют только когда `method` равно `xhttp`.",
-      "source": "https://xtls.github.io/ru/config/transport.html"
+    "streamSettings.rawSettings.acceptProxyProtocol": {
+      "path": "streamSettings.rawSettings.acceptProxyProtocol",
+      "name": "acceptProxyProtocol",
+      "type": "true | false",
+      "summary": "Только для входящих подключений, указывает, следует ли принимать PROXY protocol.",
+      "detail": "PROXY protocol используется для передачи реального исходного IP-адреса и порта запроса, **если вы не знаете, что это такое, проигнорируйте этот параметр**.\n\nРаспространенные программы для обработки обратного прокси (например, HAProxy, Nginx) можно настроить на его отправку, VLESS fallbacks xver также может его отправлять.\n\nЕсли установлено значение `true`, то после установления TCP-соединения на самом нижнем уровне запрашивающая сторона должна сначала отправить PROXY protocol v1 или v2, иначе соединение будет закрыто.\n\nЗначение по умолчанию: `false`.",
+      "source": "https://xtls.github.io/ru/config/transports/raw.html"
     },
-    "streamSettings.rawSettings[].xhttpSettings[].kcpSettings": {
-      "path": "streamSettings.rawSettings[].xhttpSettings[].kcpSettings",
-      "name": "kcpSettings",
-      "type": "KcpObject",
-      "summary": "Настройки mKCP для потока данных. Действуют только когда `method` равно `mkcp`.",
-      "source": "https://xtls.github.io/ru/config/transport.html"
+    "streamSettings.rawSettings.header": {
+      "path": "streamSettings.rawSettings.header",
+      "name": "header",
+      "type": "NoneHeaderObject | HttpHeaderobject",
+      "summary": "Настройки маскировки заголовка пакета данных, значение по умолчанию: `NoneHeaderObject`.",
+      "detail": "HTTP-маскировка не может быть разделена другими HTTP-серверами (например, Nginx), но может быть разделена с помощью VLESS fallbacks path.",
+      "source": "https://xtls.github.io/ru/config/transports/raw.html"
     },
-    "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings": {
-      "path": "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings",
-      "name": "grpcSettings",
-      "type": "GRPCObject",
-      "summary": "Настройки gRPC для потока данных. Действуют только когда `method` равно `grpc`.",
-      "source": "https://xtls.github.io/ru/config/transport.html"
+    "streamSettings.rawSettings.header.request": {
+      "path": "streamSettings.rawSettings.header.request",
+      "name": "request",
+      "type": "HTTPRequestObject",
+      "summary": "HTTP-запрос.",
+      "source": "https://xtls.github.io/ru/config/transports/raw.html"
     },
-    "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings": {
-      "path": "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings",
-      "name": "wsSettings",
-      "type": "WebSocketObject",
-      "summary": "Настройки WebSocket для потока данных. Действуют только когда `method` равно `websocket`.",
-      "source": "https://xtls.github.io/ru/config/transport.html"
+    "streamSettings.rawSettings.header.request.headers": {
+      "path": "streamSettings.rawSettings.header.request.headers",
+      "name": "headers",
+      "type": "map{ string, [ string ]}",
+      "summary": "HTTP-заголовки, пары ключ-значение, где каждый ключ представляет имя HTTP-заголовка, а соответствующее значение является массивом.",
+      "detail": "Каждый запрос будет содержать все ключи и случайно выбранное соответствующее значение. Значение по умолчанию см. в примере выше.",
+      "source": "https://xtls.github.io/ru/config/transports/raw.html"
     },
-    "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings[].httpupgradeSettings": {
-      "path": "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings[].httpupgradeSettings",
-      "name": "httpupgradeSettings",
-      "type": "HTTPUpgradeObject",
-      "summary": "Настройки HTTPUpgrade для потока данных. Действуют только когда `method` равно `httpupgrade`.",
-      "source": "https://xtls.github.io/ru/config/transport.html"
+    "streamSettings.rawSettings.header.request.method": {
+      "path": "streamSettings.rawSettings.header.request.method",
+      "name": "method",
+      "type": "string",
+      "summary": "Метод HTTP, значение по умолчанию — `\"GET\"`.",
+      "source": "https://xtls.github.io/ru/config/transports/raw.html"
     },
-    "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings[].httpupgradeSettings[].hysteriaSettings": {
-      "path": "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings[].httpupgradeSettings[].hysteriaSettings",
-      "name": "hysteriaSettings",
-      "type": "HysteriaObject",
-      "summary": "Настройки Hysteria для потока данных. Действуют только когда `method` равно `hysteria`.",
-      "source": "https://xtls.github.io/ru/config/transport.html"
+    "streamSettings.rawSettings.header.request.path": {
+      "path": "streamSettings.rawSettings.header.request.path",
+      "name": "path",
+      "type": "[ string ]",
+      "summary": "Путь, массив строк. Значение по умолчанию — `[\"/\"]`. Если имеется несколько значений, то при каждом запросе случайным образом выбирается одно из них.",
+      "source": "https://xtls.github.io/ru/config/transports/raw.html"
+    },
+    "streamSettings.rawSettings.header.request.version": {
+      "path": "streamSettings.rawSettings.header.request.version",
+      "name": "version",
+      "type": "string",
+      "summary": "Версия HTTP, значение по умолчанию — `\"1.1\"`.",
+      "source": "https://xtls.github.io/ru/config/transports/raw.html"
+    },
+    "streamSettings.rawSettings.header.response": {
+      "path": "streamSettings.rawSettings.header.response",
+      "name": "response",
+      "type": "HTTPResponseObject",
+      "summary": "HTTP-ответ.",
+      "source": "https://xtls.github.io/ru/config/transports/raw.html"
+    },
+    "streamSettings.rawSettings.header.response.headers": {
+      "path": "streamSettings.rawSettings.header.response.headers",
+      "name": "headers",
+      "type": "map {string, [ string ]}",
+      "summary": "HTTP-заголовки, пары ключ-значение, где каждый ключ представляет имя HTTP-заголовка, а соответствующее значение является массивом.",
+      "detail": "Каждый запрос будет содержать все ключи и случайно выбранное соответствующее значение. Значение по умолчанию см. в примере выше.",
+      "source": "https://xtls.github.io/ru/config/transports/raw.html"
+    },
+    "streamSettings.rawSettings.header.response.reason": {
+      "path": "streamSettings.rawSettings.header.response.reason",
+      "name": "reason",
+      "type": "string",
+      "summary": "Описание состояния HTTP, значение по умолчанию — `\"OK\"`.",
+      "source": "https://xtls.github.io/ru/config/transports/raw.html"
+    },
+    "streamSettings.rawSettings.header.response.status": {
+      "path": "streamSettings.rawSettings.header.response.status",
+      "name": "status",
+      "type": "string",
+      "summary": "Состояние HTTP, значение по умолчанию — `\"200\"`.",
+      "source": "https://xtls.github.io/ru/config/transports/raw.html"
+    },
+    "streamSettings.rawSettings.header.response.version": {
+      "path": "streamSettings.rawSettings.header.response.version",
+      "name": "version",
+      "type": "string",
+      "summary": "Версия HTTP, значение по умолчанию — `\"1.1\"`.",
+      "source": "https://xtls.github.io/ru/config/transports/raw.html"
+    },
+    "streamSettings.rawSettings.header.type": {
+      "path": "streamSettings.rawSettings.header.type",
+      "name": "type",
+      "type": "\"http\"",
+      "summary": "Указывает на выполнение HTTP-маскировки.",
+      "source": "https://xtls.github.io/ru/config/transports/raw.html"
     },
     "streamSettings.realitySettings": {
       "path": "streamSettings.realitySettings",
@@ -1998,6 +2309,13 @@
       "type": "\"none\" | \"reality\" | \"tls\"",
       "summary": "Включать ли защиту транспорта. Поддерживаются следующие значения:",
       "detail": "- `\"none\"` означает, что защита отключена (значение по умолчанию) - `\"reality\"` означает использование REALITY - `\"tls\"` означает использование TLS",
+      "source": "https://xtls.github.io/ru/config/transport.html"
+    },
+    "streamSettings.sockopt": {
+      "path": "streamSettings.sockopt",
+      "name": "sockopt",
+      "type": "SockoptObject",
+      "summary": "Настройки низкоуровневого сетевого поведения.",
       "source": "https://xtls.github.io/ru/config/transport.html"
     },
     "streamSettings.sockopt.V6Only": {
@@ -2341,6 +2659,59 @@
       "summary": "Только для клиента. SNI, используемый при проверке сертификата. Можно указать несколько доменов через `,`; достаточно, чтобы хотя бы один SAN сертификата совпал с одним из них. Это поле переопределяет `serverName`, используемый для проверки, и нужно для специальных сценариев вроде domain fronting.",
       "detail": "Специальное значение `\"FromMitM\"` дополнительно добавляет SNI, извлеченный из TLS, расшифрованного входящим `tunnel`.",
       "source": "https://xtls.github.io/ru/config/transports/tls.html"
+    },
+    "streamSettings.wsSettings": {
+      "path": "streamSettings.wsSettings",
+      "name": "wsSettings",
+      "type": "WebSocketObject",
+      "summary": "Настройки WebSocket для потока данных. Действуют только когда `method` равно `websocket`.",
+      "source": "https://xtls.github.io/ru/config/transport.html"
+    },
+    "streamSettings.wsSettings.acceptProxyProtocol": {
+      "path": "streamSettings.wsSettings.acceptProxyProtocol",
+      "name": "acceptProxyProtocol",
+      "type": "true | false",
+      "summary": "Только для входящих подключений, указывает, следует ли принимать PROXY protocol.",
+      "detail": "PROXY protocol используется для передачи реального исходного IP-адреса и порта запроса, **если вы не знаете, что это такое, проигнорируйте этот параметр**.\n\nРаспространенные программы-обработчики обратного прокси (например, HAProxy, Nginx) можно настроить на его отправку, VLESS fallbacks xver также может его отправлять.\n\nЕсли установлено значение `true`, то после установления TCP-соединения на самом нижнем уровне запрашивающая сторона должна сначала отправить PROXY protocol v1 или v2, иначе соединение будет закрыто.",
+      "source": "https://xtls.github.io/ru/config/transports/websocket.html"
+    },
+    "streamSettings.wsSettings.headers": {
+      "path": "streamSettings.wsSettings.headers",
+      "name": "headers",
+      "type": "map \\{string: string\\}",
+      "summary": "Только для клиента. Пользовательские HTTP-заголовки, пары ключ-значение, где каждый ключ представляет имя HTTP-заголовка, а соответствующее значение является строкой.",
+      "detail": "Значение по умолчанию: пустое.",
+      "source": "https://xtls.github.io/ru/config/transports/websocket.html"
+    },
+    "streamSettings.wsSettings.heartbeatPeriod": {
+      "path": "streamSettings.wsSettings.heartbeatPeriod",
+      "name": "heartbeatPeriod",
+      "type": "int",
+      "summary": "Задает интервал времени для отправки Ping-сообщений с целью поддержания соединения. Если не указано или указано значение 0, Ping-сообщения не отправляются (по умолчанию используется текущее поведение).",
+      "source": "https://xtls.github.io/ru/config/transports/websocket.html"
+    },
+    "streamSettings.wsSettings.host": {
+      "path": "streamSettings.wsSettings.host",
+      "name": "host",
+      "type": "string",
+      "summary": "Хост, отправляемый в HTTP-запросе WebSocket, значение по умолчанию — пустое. Если значение на стороне сервера пустое, значение хоста, отправленное клиентом, не проверяется.",
+      "detail": "Если это значение указано на стороне сервера или `host` указан в `headers`, то проверяется соответствие хоста запроса клиента.\n\nПриоритет выбора хоста для отправки клиентом: `host` \u003e `headers` \u003e `address`.",
+      "source": "https://xtls.github.io/ru/config/transports/websocket.html"
+    },
+    "streamSettings.wsSettings.path": {
+      "path": "streamSettings.wsSettings.path",
+      "name": "path",
+      "type": "string",
+      "summary": "Путь, используемый WebSocket в HTTP-протоколе, значение по умолчанию — `\"/\"`.",
+      "detail": "Если в пути клиента есть параметр `ed` (например, `/mypath?ed=2560`), будет активирован `Early Data` для уменьшения задержки. При этом во время апгрейда данные первого пакета передаются через заголовок `Sec-WebSocket-Protocol`, а значение параметра задает пороговое значение длины первого пакета. Если длина первого пакета превышает это значение, `Early Data` не активируется. Рекомендуемое значение — 2560, максимальное — 8192. Слишком большие значения могут привести к проблемам совместимости; если вы столкнулись с такими проблемами, попробуйте уменьшить порог.",
+      "source": "https://xtls.github.io/ru/config/transports/websocket.html"
+    },
+    "streamSettings.xhttpSettings": {
+      "path": "streamSettings.xhttpSettings",
+      "name": "xhttpSettings",
+      "type": "XHTTPObject",
+      "summary": "Настройки XHTTP для потока данных. Действуют только когда `method` равно `xhttp`.",
+      "source": "https://xtls.github.io/ru/config/transport.html"
     }
   }
 }

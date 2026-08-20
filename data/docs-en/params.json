@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-20T13:18:53Z",
+  "generated": "2026-08-20T13:48:17Z",
   "docsCommit": "901005cfbb887f20b60db4d59b5bce466206f5f3",
   "license": "CC-BY-SA-4.0",
   "attribution": "Adapted from the XTLS/Xray-docs-next documentation (https://github.com/XTLS/Xray-docs-next), licensed CC BY-SA 4.0. Text was extracted per parameter and reformatted; it is not verbatim.",
@@ -1770,12 +1770,270 @@
       "summary": "FinalMask configuration, used for the final stage of traffic obfuscation.",
       "source": "https://xtls.github.io/en/config/transport.html"
     },
-    "streamSettings.finalmask[].sockopt": {
-      "path": "streamSettings.finalmask[].sockopt",
-      "name": "sockopt",
-      "type": "SockoptObject",
-      "summary": "Configuration related to low-level network behavior.",
+    "streamSettings.grpcSettings": {
+      "path": "streamSettings.grpcSettings",
+      "name": "grpcSettings",
+      "type": "GRPCObject",
+      "summary": "gRPC configuration for the data stream. Only valid when `method` is `grpc`.",
       "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.grpcSettings.authority": {
+      "path": "streamSettings.grpcSettings.authority",
+      "name": "authority",
+      "type": "string",
+      "summary": "A string. Can be used as Host to achieve some other purposes.",
+      "source": "https://xtls.github.io/en/config/transports/grpc.html"
+    },
+    "streamSettings.grpcSettings.health_check_timeout": {
+      "path": "streamSettings.grpcSettings.health_check_timeout",
+      "name": "health_check_timeout",
+      "type": "number",
+      "summary": "Unit: seconds. The timeout for health checks. If the health check is not completed within this time, and there is still no data transmission, the health check is considered failed. Default value is `20`.",
+      "detail": "**Only** needs to be configured on **outbound** (**client**).",
+      "source": "https://xtls.github.io/en/config/transports/grpc.html"
+    },
+    "streamSettings.grpcSettings.idle_timeout": {
+      "path": "streamSettings.grpcSettings.idle_timeout",
+      "name": "idle_timeout",
+      "type": "number",
+      "summary": "Unit: seconds. When there is no data transmission during this period, a health check will be performed. If this value is set below `10`, `10` will be used (the minimum value).",
+      "detail": "If you are not using reverse proxy tools like Caddy or Nginx (**usually not**), and set this below `60`, the server might send unexpected h2 GOAWAY frames to close existing connections.\n\nHealth checks are **disabled** by default.\n\n**Only** needs to be configured on **outbound** (**client**).\n\nMay resolve some \"disconnection\" issues.",
+      "source": "https://xtls.github.io/en/config/transports/grpc.html"
+    },
+    "streamSettings.grpcSettings.initial_windows_size": {
+      "path": "streamSettings.grpcSettings.initial_windows_size",
+      "name": "initial_windows_size",
+      "type": "number",
+      "summary": "Initial window size for h2 Stream. When the value is less than or equal to `0`, this feature does not take effect. When the value is greater than `65535`, the Dynamic Window mechanism will be disabled. Default value is `0` (disabled).",
+      "detail": "**Only** needs to be configured on **outbound** (**client**).\n\nWhen going through Cloudflare CDN, you can set the value to `65536` or higher (disabling Dynamic Window) to prevent Cloudflare CDN from sending unexpected h2 GOAWAY frames to close existing connections.",
+      "source": "https://xtls.github.io/en/config/transports/grpc.html"
+    },
+    "streamSettings.grpcSettings.multiMode": {
+      "path": "streamSettings.grpcSettings.multiMode",
+      "name": "multiMode",
+      "type": "true | false \u003cBadge text=\"BETA\" type=\"warning\"/\u003e",
+      "summary": "`true` enables `multiMode`. Default value: `false`.",
+      "detail": "This is an **experimental** option. It may not be kept long-term and cross-version compatibility is not guaranteed. This mode can bring about a 20% performance improvement in **test environments**, but actual results vary depending on transfer rates.\n\n**Only** needs to be configured on **outbound** (**client**).",
+      "source": "https://xtls.github.io/en/config/transports/grpc.html"
+    },
+    "streamSettings.grpcSettings.permit_without_stream": {
+      "path": "streamSettings.grpcSettings.permit_without_stream",
+      "name": "permit_without_stream",
+      "type": "true | false",
+      "summary": "`true` allows health checks when there are no sub-connections (streams). Default value is `false`.",
+      "detail": "**Only** needs to be configured on **outbound** (**client**).",
+      "source": "https://xtls.github.io/en/config/transports/grpc.html"
+    },
+    "streamSettings.grpcSettings.serviceName": {
+      "path": "streamSettings.grpcSettings.serviceName",
+      "name": "serviceName",
+      "type": "string",
+      "summary": "A string. Specifies the service name, **similar to** Path in HTTP/2. The client uses this name for communication, and the server verifies if the service name matches.",
+      "detail": "When `serviceName` starts with a slash, you can customize the path. It requires at least two slashes.\u003cbr\u003e For example, fill in `\"serviceName\": \"/my/sample/path1|path2\"` on the server side, and the client can fill in `\"serviceName\": \"/my/sample/path1\"` or `\"/my/sample/path2\"`.",
+      "source": "https://xtls.github.io/en/config/transports/grpc.html"
+    },
+    "streamSettings.grpcSettings.user_agent": {
+      "path": "streamSettings.grpcSettings.user_agent",
+      "name": "user_agent",
+      "type": "string",
+      "summary": "**Only** needs to be configured on **outbound** (**client**).",
+      "detail": "Set the User-Agent for gRPC. This may prevent some CDNs from blocking gRPC traffic.",
+      "source": "https://xtls.github.io/en/config/transports/grpc.html"
+    },
+    "streamSettings.httpupgradeSettings": {
+      "path": "streamSettings.httpupgradeSettings",
+      "name": "httpupgradeSettings",
+      "type": "HTTPUpgradeObject",
+      "summary": "HTTPUpgrade configuration for the data stream. Only valid when `method` is `httpupgrade`.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.httpupgradeSettings.acceptProxyProtocol": {
+      "path": "streamSettings.httpupgradeSettings.acceptProxyProtocol",
+      "name": "acceptProxyProtocol",
+      "type": "true | false",
+      "summary": "Only used for inbound; indicates whether to accept PROXY protocol.",
+      "detail": "PROXY protocol is dedicated to passing the real source IP and port of the request. **If you don't know what it is, please ignore this item for now.**\n\nCommon reverse proxy software (such as HAProxy, Nginx) can be configured to send it. VLESS fallbacks xver can also send it.\n\nWhen set to `true`, after the underlying TCP connection is established, the requester must send PROXY protocol v1 or v2 first; otherwise, the connection will be closed.",
+      "source": "https://xtls.github.io/en/config/transports/httpupgrade.html"
+    },
+    "streamSettings.httpupgradeSettings.headers": {
+      "path": "streamSettings.httpupgradeSettings.headers",
+      "name": "headers",
+      "type": "map \\{string: string\\}",
+      "summary": "Client-only. Custom HTTP headers. A key-value pair, where each key represents the name of an HTTP header, and the corresponding value is a string.",
+      "detail": "Default value is empty.",
+      "source": "https://xtls.github.io/en/config/transports/httpupgrade.html"
+    },
+    "streamSettings.httpupgradeSettings.host": {
+      "path": "streamSettings.httpupgradeSettings.host",
+      "name": "host",
+      "type": "string",
+      "summary": "The host sent in the HTTP request of HTTPUpgrade. Default value is empty. If the server-side value is empty, the host value sent by the client is not verified.",
+      "detail": "When this value is specified on the server, or specified in `headers`, it will verify whether it is consistent with the host requested by the client.\n\nPriority of the host sent by the client: `host` \u003e `headers` \u003e `address`",
+      "source": "https://xtls.github.io/en/config/transports/httpupgrade.html"
+    },
+    "streamSettings.httpupgradeSettings.path": {
+      "path": "streamSettings.httpupgradeSettings.path",
+      "name": "path",
+      "type": "string",
+      "summary": "The HTTP path used by HTTPUpgrade. Default value is `\"/\"`.",
+      "detail": "If the client path contains the `ed` parameter (e.g., `/mypath?ed=2560`), `Early Data` will be enabled to reduce latency. The value represents the threshold for the first packet length. If the first packet length exceeds this value, `Early Data` will not be enabled. The recommended value is 2560.",
+      "source": "https://xtls.github.io/en/config/transports/httpupgrade.html"
+    },
+    "streamSettings.hysteriaSettings": {
+      "path": "streamSettings.hysteriaSettings",
+      "name": "hysteriaSettings",
+      "type": "HysteriaObject",
+      "summary": "Hysteria configuration for the data stream. Only valid when `method` is `hysteria`.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.hysteriaSettings.auth": {
+      "path": "streamSettings.hysteriaSettings.auth",
+      "name": "auth",
+      "type": "string",
+      "summary": "Hysteria authentication password. Must be consistent between the server and the client.",
+      "detail": "When used with `hysteria inbound`, it will be overridden by `users` (if it exists).",
+      "source": "https://xtls.github.io/en/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade": {
+      "path": "streamSettings.hysteriaSettings.masquerade",
+      "name": "masquerade",
+      "type": "MasqObject",
+      "summary": "HTTP/3 page masquerading.",
+      "source": "https://xtls.github.io/en/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade.content": {
+      "path": "streamSettings.hysteriaSettings.masquerade.content",
+      "name": "content",
+      "type": "string",
+      "summary": "Configuration items when type is string.",
+      "source": "https://xtls.github.io/en/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade.dir": {
+      "path": "streamSettings.hysteriaSettings.masquerade.dir",
+      "name": "dir",
+      "type": "string",
+      "summary": "Configuration items when type is file.",
+      "source": "https://xtls.github.io/en/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade.headers": {
+      "path": "streamSettings.hysteriaSettings.masquerade.headers",
+      "name": "headers",
+      "type": "map{ string, string }",
+      "summary": "Configuration items when type is string.",
+      "source": "https://xtls.github.io/en/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade.insecure": {
+      "path": "streamSettings.hysteriaSettings.masquerade.insecure",
+      "name": "insecure",
+      "type": "false | true",
+      "summary": "Configuration items when type is proxy.",
+      "source": "https://xtls.github.io/en/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade.rewriteHost": {
+      "path": "streamSettings.hysteriaSettings.masquerade.rewriteHost",
+      "name": "rewriteHost",
+      "type": "false | true",
+      "summary": "Configuration items when type is proxy.",
+      "source": "https://xtls.github.io/en/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade.statusCode": {
+      "path": "streamSettings.hysteriaSettings.masquerade.statusCode",
+      "name": "statusCode",
+      "type": "int",
+      "summary": "Configuration items when type is string.",
+      "source": "https://xtls.github.io/en/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade.type": {
+      "path": "streamSettings.hysteriaSettings.masquerade.type",
+      "name": "type",
+      "type": "\"file\" | \"proxy\" | \"string\"",
+      "summary": "If left blank, the default 404 page will be displayed.",
+      "source": "https://xtls.github.io/en/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.masquerade.url": {
+      "path": "streamSettings.hysteriaSettings.masquerade.url",
+      "name": "url",
+      "type": "string",
+      "summary": "Configuration items when type is proxy.",
+      "source": "https://xtls.github.io/en/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.udpIdleTimeout": {
+      "path": "streamSettings.hysteriaSettings.udpIdleTimeout",
+      "name": "udpIdleTimeout",
+      "type": "number",
+      "summary": "Unit: seconds, default 60.",
+      "detail": "Idle wait time for a single `quic native udp` connection. If this time is too long, it may not be strictly adhered to and may be terminated by the policy first.",
+      "source": "https://xtls.github.io/en/config/transports/hysteria.html"
+    },
+    "streamSettings.hysteriaSettings.version": {
+      "path": "streamSettings.hysteriaSettings.version",
+      "name": "version",
+      "type": "number",
+      "summary": "Hysteria version, must be 2.",
+      "source": "https://xtls.github.io/en/config/transports/hysteria.html"
+    },
+    "streamSettings.kcpSettings": {
+      "path": "streamSettings.kcpSettings",
+      "name": "kcpSettings",
+      "type": "KcpObject",
+      "summary": "mKCP configuration for the data stream. Only valid when `method` is `mkcp`.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.kcpSettings.congestion": {
+      "path": "streamSettings.kcpSettings.congestion",
+      "name": "congestion",
+      "type": "true | false",
+      "summary": "Whether to enable congestion control.",
+      "detail": "When congestion control is enabled, Xray automatically monitors network quality. When packet loss is severe, it automatically reduces throughput; when the network is smooth, it appropriately increases throughput.\n\nThe default value is `false`.",
+      "source": "https://xtls.github.io/en/config/transports/mkcp.html"
+    },
+    "streamSettings.kcpSettings.downlinkCapacity": {
+      "path": "streamSettings.kcpSettings.downlinkCapacity",
+      "name": "downlinkCapacity",
+      "type": "number",
+      "summary": "Downlink capacity, i.e., the maximum bandwidth used by the host to receive data. The unit is MB/s. Note that it is Byte, not bit. Can be set to 0, representing a very small bandwidth.",
+      "detail": "The default value is `20`.\n\n`uplinkCapacity` and `downlinkCapacity` determine the transmission speed of mKCP. Taking a client sending data as an example, the client's `uplinkCapacity` specifies the speed of sending data, while the server's `downlinkCapacity` specifies the speed of receiving data. The actual speed will be the smaller of the two values.\n\nIt is recommended to set `downlinkCapacity` to a larger value, such as 100, and set `uplinkCapacity` to the actual network speed. When the speed is insufficient, you can gradually increase the value of `uplinkCapacity` until it is about twice the bandwidth.",
+      "source": "https://xtls.github.io/en/config/transports/mkcp.html"
+    },
+    "streamSettings.kcpSettings.mtu": {
+      "path": "streamSettings.kcpSettings.mtu",
+      "name": "mtu",
+      "type": "number",
+      "summary": "Maximum Transmission Unit. Please select a value between 576 and 1460.",
+      "detail": "The default value is `1350`.",
+      "source": "https://xtls.github.io/en/config/transports/mkcp.html"
+    },
+    "streamSettings.kcpSettings.readBufferSize": {
+      "path": "streamSettings.kcpSettings.readBufferSize",
+      "name": "readBufferSize",
+      "type": "number",
+      "summary": "The read buffer size for a single connection, in MB.",
+      "detail": "The default value is `2`.",
+      "source": "https://xtls.github.io/en/config/transports/mkcp.html"
+    },
+    "streamSettings.kcpSettings.tti": {
+      "path": "streamSettings.kcpSettings.tti",
+      "name": "tti",
+      "type": "number",
+      "summary": "Transmission Time Interval, in milliseconds (ms). mKCP will send data at this frequency. Please select a value between 10 and 100.",
+      "detail": "The default value is `50`.",
+      "source": "https://xtls.github.io/en/config/transports/mkcp.html"
+    },
+    "streamSettings.kcpSettings.uplinkCapacity": {
+      "path": "streamSettings.kcpSettings.uplinkCapacity",
+      "name": "uplinkCapacity",
+      "type": "number",
+      "summary": "Uplink capacity, i.e., the maximum bandwidth used by the host to send data. The unit is MB/s. Note that it is Byte, not bit. Can be set to 0, representing a very small bandwidth.",
+      "detail": "The default value is `5`.",
+      "source": "https://xtls.github.io/en/config/transports/mkcp.html"
+    },
+    "streamSettings.kcpSettings.writeBufferSize": {
+      "path": "streamSettings.kcpSettings.writeBufferSize",
+      "name": "writeBufferSize",
+      "type": "number",
+      "summary": "The write buffer size for a single connection, in MB.",
+      "detail": "The default value is `2`.\n\n`readBufferSize` and `writeBufferSize` specify the memory size used by a single connection. When high-speed transmission is required, specifying larger `readBufferSize` and `writeBufferSize` will improve speed to a certain extent, but it will also use more memory.\n\nWhen the network speed does not exceed 20MB/s, the default value of 1MB can meet the demand; beyond that, you can appropriately increase the values of `readBufferSize` and `writeBufferSize`, and then manually balance the relationship between speed and memory.",
+      "source": "https://xtls.github.io/en/config/transports/mkcp.html"
     },
     "streamSettings.method": {
       "path": "streamSettings.method",
@@ -1791,47 +2049,100 @@
       "summary": "RAW configuration for the data stream. Only valid when `method` is `raw`.",
       "source": "https://xtls.github.io/en/config/transport.html"
     },
-    "streamSettings.rawSettings[].xhttpSettings": {
-      "path": "streamSettings.rawSettings[].xhttpSettings",
-      "name": "xhttpSettings",
-      "type": "XHTTPObject",
-      "summary": "XHTTP configuration for the data stream. Only valid when `method` is `xhttp`.",
-      "source": "https://xtls.github.io/en/config/transport.html"
+    "streamSettings.rawSettings.acceptProxyProtocol": {
+      "path": "streamSettings.rawSettings.acceptProxyProtocol",
+      "name": "acceptProxyProtocol",
+      "type": "true | false",
+      "summary": "Only used for inbound; indicates whether to accept PROXY protocol.",
+      "detail": "PROXY protocol is dedicated to passing the real source IP and port of the request. **If you don't know what it is, please ignore this item for now.**\n\nCommon reverse proxy software (such as HAProxy, Nginx) can be configured to send it. VLESS fallbacks xver can also send it.\n\nWhen set to `true`, after the underlying TCP connection is established, the requester must send PROXY protocol v1 or v2 first; otherwise, the connection will be closed.\n\nDefault value is `false`.",
+      "source": "https://xtls.github.io/en/config/transports/raw.html"
     },
-    "streamSettings.rawSettings[].xhttpSettings[].kcpSettings": {
-      "path": "streamSettings.rawSettings[].xhttpSettings[].kcpSettings",
-      "name": "kcpSettings",
-      "type": "KcpObject",
-      "summary": "mKCP configuration for the data stream. Only valid when `method` is `mkcp`.",
-      "source": "https://xtls.github.io/en/config/transport.html"
+    "streamSettings.rawSettings.header": {
+      "path": "streamSettings.rawSettings.header",
+      "name": "header",
+      "type": "NoneHeaderObject | HttpHeaderobject",
+      "summary": "Packet header obfuscation settings. Default value is `NoneHeaderObject`.",
+      "detail": "HTTP obfuscation cannot be traffic-split by other HTTP servers (like Nginx), but can be split by VLESS fallbacks path.",
+      "source": "https://xtls.github.io/en/config/transports/raw.html"
     },
-    "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings": {
-      "path": "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings",
-      "name": "grpcSettings",
-      "type": "GRPCObject",
-      "summary": "gRPC configuration for the data stream. Only valid when `method` is `grpc`.",
-      "source": "https://xtls.github.io/en/config/transport.html"
+    "streamSettings.rawSettings.header.request": {
+      "path": "streamSettings.rawSettings.header.request",
+      "name": "request",
+      "type": "HTTPRequestObject",
+      "summary": "HTTP Request.",
+      "source": "https://xtls.github.io/en/config/transports/raw.html"
     },
-    "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings": {
-      "path": "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings",
-      "name": "wsSettings",
-      "type": "WebSocketObject",
-      "summary": "WebSocket configuration for the data stream. Only valid when `method` is `websocket`.",
-      "source": "https://xtls.github.io/en/config/transport.html"
+    "streamSettings.rawSettings.header.request.headers": {
+      "path": "streamSettings.rawSettings.header.request.headers",
+      "name": "headers",
+      "type": "map{ string, [ string ]}",
+      "summary": "HTTP headers. A key-value pair, where each key represents the name of an HTTP header, and the corresponding value is an array.",
+      "detail": "All keys will be attached to every request, and one corresponding value will be randomly selected. See the example above for default values.",
+      "source": "https://xtls.github.io/en/config/transports/raw.html"
     },
-    "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings[].httpupgradeSettings": {
-      "path": "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings[].httpupgradeSettings",
-      "name": "httpupgradeSettings",
-      "type": "HTTPUpgradeObject",
-      "summary": "HTTPUpgrade configuration for the data stream. Only valid when `method` is `httpupgrade`.",
-      "source": "https://xtls.github.io/en/config/transport.html"
+    "streamSettings.rawSettings.header.request.method": {
+      "path": "streamSettings.rawSettings.header.request.method",
+      "name": "method",
+      "type": "string",
+      "summary": "HTTP method. Default value is `\"GET\"`.",
+      "source": "https://xtls.github.io/en/config/transports/raw.html"
     },
-    "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings[].httpupgradeSettings[].hysteriaSettings": {
-      "path": "streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[].wsSettings[].httpupgradeSettings[].hysteriaSettings",
-      "name": "hysteriaSettings",
-      "type": "HysteriaObject",
-      "summary": "Hysteria configuration for the data stream. Only valid when `method` is `hysteria`.",
-      "source": "https://xtls.github.io/en/config/transport.html"
+    "streamSettings.rawSettings.header.request.path": {
+      "path": "streamSettings.rawSettings.header.request.path",
+      "name": "path",
+      "type": "[ string ]",
+      "summary": "Path, an array of strings. Default value is `[\"/\"]`. When there are multiple values, one is randomly selected for each request.",
+      "source": "https://xtls.github.io/en/config/transports/raw.html"
+    },
+    "streamSettings.rawSettings.header.request.version": {
+      "path": "streamSettings.rawSettings.header.request.version",
+      "name": "version",
+      "type": "string",
+      "summary": "HTTP version. Default value is `\"1.1\"`.",
+      "source": "https://xtls.github.io/en/config/transports/raw.html"
+    },
+    "streamSettings.rawSettings.header.response": {
+      "path": "streamSettings.rawSettings.header.response",
+      "name": "response",
+      "type": "HTTPResponseObject",
+      "summary": "HTTP Response.",
+      "source": "https://xtls.github.io/en/config/transports/raw.html"
+    },
+    "streamSettings.rawSettings.header.response.headers": {
+      "path": "streamSettings.rawSettings.header.response.headers",
+      "name": "headers",
+      "type": "map {string, [ string ]}",
+      "summary": "HTTP headers. A key-value pair, where each key represents the name of an HTTP header, and the corresponding value is an array.",
+      "detail": "All keys will be attached to every request, and one corresponding value will be randomly selected. See the example above for default values.",
+      "source": "https://xtls.github.io/en/config/transports/raw.html"
+    },
+    "streamSettings.rawSettings.header.response.reason": {
+      "path": "streamSettings.rawSettings.header.response.reason",
+      "name": "reason",
+      "type": "string",
+      "summary": "HTTP status reason phrase. Default value is `\"OK\"`.",
+      "source": "https://xtls.github.io/en/config/transports/raw.html"
+    },
+    "streamSettings.rawSettings.header.response.status": {
+      "path": "streamSettings.rawSettings.header.response.status",
+      "name": "status",
+      "type": "string",
+      "summary": "HTTP status code. Default value is `\"200\"`.",
+      "source": "https://xtls.github.io/en/config/transports/raw.html"
+    },
+    "streamSettings.rawSettings.header.response.version": {
+      "path": "streamSettings.rawSettings.header.response.version",
+      "name": "version",
+      "type": "string",
+      "summary": "HTTP version. Default value is `\"1.1\"`.",
+      "source": "https://xtls.github.io/en/config/transports/raw.html"
+    },
+    "streamSettings.rawSettings.header.type": {
+      "path": "streamSettings.rawSettings.header.type",
+      "name": "type",
+      "type": "\"http\"",
+      "summary": "Specifies HTTP obfuscation.",
+      "source": "https://xtls.github.io/en/config/transports/raw.html"
     },
     "streamSettings.realitySettings": {
       "path": "streamSettings.realitySettings",
@@ -1997,6 +2308,13 @@
       "type": "\"none\" | \"reality\" | \"tls\"",
       "summary": "Whether to enable transport security. Supported options are:",
       "detail": "- `\"none\"` means disabled (default). - `\"reality\"` means using REALITY. - `\"tls\"` means using TLS.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.sockopt": {
+      "path": "streamSettings.sockopt",
+      "name": "sockopt",
+      "type": "SockoptObject",
+      "summary": "Configuration related to low-level network behavior.",
       "source": "https://xtls.github.io/en/config/transport.html"
     },
     "streamSettings.sockopt.V6Only": {
@@ -2340,6 +2658,59 @@
       "summary": "Client-only. The SNI used for certificate verification. Multiple domain names can be separated with `,`; it is enough for any one SAN in the certificate to match one of them. This overrides the `serverName` used for verification and is intended for special cases such as domain fronting.",
       "detail": "Special value `\"FromMitM\"` causes Xray to additionally include the SNI extracted from TLS decrypted by a `tunnel` inbound.",
       "source": "https://xtls.github.io/en/config/transports/tls.html"
+    },
+    "streamSettings.wsSettings": {
+      "path": "streamSettings.wsSettings",
+      "name": "wsSettings",
+      "type": "WebSocketObject",
+      "summary": "WebSocket configuration for the data stream. Only valid when `method` is `websocket`.",
+      "source": "https://xtls.github.io/en/config/transport.html"
+    },
+    "streamSettings.wsSettings.acceptProxyProtocol": {
+      "path": "streamSettings.wsSettings.acceptProxyProtocol",
+      "name": "acceptProxyProtocol",
+      "type": "true | false",
+      "summary": "Only used for inbound, indicating whether to receive PROXY protocol.",
+      "detail": "PROXY protocol is specifically used to pass the real source IP and port of the request. **If you don't understand it, please ignore this item.**\n\nCommon reverse proxy software (such as HAProxy, Nginx) can be configured to send it, and VLESS fallbacks xver can also send it.\n\nWhen set to `true`, after the underlying TCP connection is established, the requester must send PROXY protocol v1 or v2 first; otherwise, the connection will be closed.",
+      "source": "https://xtls.github.io/en/config/transports/websocket.html"
+    },
+    "streamSettings.wsSettings.headers": {
+      "path": "streamSettings.wsSettings.headers",
+      "name": "headers",
+      "type": "map \\{string: string\\}",
+      "summary": "Client only. Custom HTTP headers, key-value pairs. Each key represents the name of an HTTP header, and the corresponding value is a string.",
+      "detail": "Default is empty.",
+      "source": "https://xtls.github.io/en/config/transports/websocket.html"
+    },
+    "streamSettings.wsSettings.heartbeatPeriod": {
+      "path": "streamSettings.wsSettings.heartbeatPeriod",
+      "name": "heartbeatPeriod",
+      "type": "int",
+      "summary": "Specifies a fixed time interval to send a Ping message to keep the connection alive. If not specified or set to 0, no Ping message is sent, which is the current default behavior.",
+      "source": "https://xtls.github.io/en/config/transports/websocket.html"
+    },
+    "streamSettings.wsSettings.host": {
+      "path": "streamSettings.wsSettings.host",
+      "name": "host",
+      "type": "string",
+      "summary": "The host sent in the WebSocket HTTP request. Default value is empty. If the server-side value is empty, the host value sent by the client is not verified.",
+      "detail": "When this value is specified on the server side, or `host` is specified in `headers`, it will verify whether it matches the client request host.\n\nClient priority for sending host: `host` \u003e `headers` \u003e `address`.",
+      "source": "https://xtls.github.io/en/config/transports/websocket.html"
+    },
+    "streamSettings.wsSettings.path": {
+      "path": "streamSettings.wsSettings.path",
+      "name": "path",
+      "type": "string",
+      "summary": "The HTTP protocol path used by WebSocket. The default value is `\"/\"`.",
+      "detail": "If the client path contains the `ed` parameter (e.g., `/mypath?ed=2560`), `Early Data` will be enabled to reduce latency. It uses the `Sec-WebSocket-Protocol` header to carry the first packet data during the upgrade, where the value represents the first packet length threshold. If the length of the first packet exceeds this value, `Early Data` will not be enabled. The recommended value is 2560, and the maximum value is 8192. Excessively large values may cause some compatibility issues. If you encounter compatibility issues, try lowering the threshold.",
+      "source": "https://xtls.github.io/en/config/transports/websocket.html"
+    },
+    "streamSettings.xhttpSettings": {
+      "path": "streamSettings.xhttpSettings",
+      "name": "xhttpSettings",
+      "type": "XHTTPObject",
+      "summary": "XHTTP configuration for the data stream. Only valid when `method` is `xhttp`.",
+      "source": "https://xtls.github.io/en/config/transport.html"
     }
   }
 }

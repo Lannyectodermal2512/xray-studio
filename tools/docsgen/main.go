@@ -486,6 +486,49 @@ var sources = []source{
 		file:    "config/transports/sockopt.md",
 		objects: map[string]string{"SockoptObject": "streamSettings.sockopt"},
 	},
+	/* The per-transport pages. Without these, everything inside `wsSettings`,
+	   `kcpSettings`, `grpcSettings` and the rest was undocumented — which is most of
+	   what a real config puts under streamSettings.
+
+	   config/transports/xhttp.md is prose with no object heading, and
+	   config/transports/finalmask.md interleaves its parameters with sections named
+	   `TCPMask`, `UDPMask` and `quicParams`. Those are not `*Object` names, so the
+	   extractor keeps the enclosing prefix through them and would file quic tuning
+	   under `streamSettings.finalmask`. Neither page is listed: no entry beats a wrong
+	   one. */
+	{
+		file: "config/transports/raw.md",
+		objects: map[string]string{
+			"RawObject":          "streamSettings.rawSettings",
+			"NoneHeaderObject":   "streamSettings.rawSettings.header",
+			"HttpHeaderObject":   "streamSettings.rawSettings.header",
+			"HTTPRequestObject":  "streamSettings.rawSettings.header.request",
+			"HTTPResponseObject": "streamSettings.rawSettings.header.response",
+		},
+	},
+	{
+		file:    "config/transports/mkcp.md",
+		objects: map[string]string{"KcpObject": "streamSettings.kcpSettings"},
+	},
+	{
+		file:    "config/transports/grpc.md",
+		objects: map[string]string{"GRPCObject": "streamSettings.grpcSettings"},
+	},
+	{
+		file:    "config/transports/websocket.md",
+		objects: map[string]string{"WebSocketObject": "streamSettings.wsSettings"},
+	},
+	{
+		file:    "config/transports/httpupgrade.md",
+		objects: map[string]string{"HTTPUpgradeObject": "streamSettings.httpupgradeSettings"},
+	},
+	{
+		file: "config/transports/hysteria.md",
+		objects: map[string]string{
+			"HysteriaObject": "streamSettings.hysteriaSettings",
+			"MasqObject":     "streamSettings.hysteriaSettings.masquerade",
+		},
+	},
 	{
 		file:    "config/dns.md",
 		objects: map[string]string{"DnsObject": "dns", "DNSObject": "dns", "ServerObject": "dns.servers[]"},
@@ -717,9 +760,15 @@ func extract(md string, src source, out map[string]Param) int {
 			// `streamSettings`, `proxySettings` and `mux` were published as
 			// `outbounds[].settings.tag` and friends. Paths no config can produce, so
 			// hovering any of them in the editor found nothing at all.
+			//
+			// A link of any kind disqualifies it, not just a same-page anchor. The
+			// transport page types every method as `[RawObject](./transports/raw.md)`,
+			// and treating those as inline chained them into each other:
+			// `streamSettings.rawSettings[].xhttpSettings[].kcpSettings[].grpcSettings[]…`,
+			// six levels of paths no config can express.
 			raw := m[2]
 			if obj := reInlineObject.FindString(raw); obj != "" &&
-				!strings.Contains(raw, "](#") && !documentedElsewhere(obj) {
+				!strings.Contains(raw, "](") && !documentedElsewhere(obj) {
 				nested = parent + "." + m[1]
 				if reIsArray.MatchString(strings.TrimSpace(raw)) {
 					nested += "[]"
