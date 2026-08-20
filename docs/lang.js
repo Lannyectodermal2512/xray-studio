@@ -24,7 +24,7 @@ const RU = {
     'Xray Studio следит за балансировщиками и объясняет их поведение, имитируя сетевые ' +
     'реалии',
   'hero.download': 'Скачать',
-  'hero.github': 'Открыть на GitHub',
+  'hero.github': 'GitHub',
   'hero.built': 'Собрано с Xray-core · macOS · Windows · Linux',
   'hero.caption':
     'Смотрите этапы решения <code>leastLoad</code>: кандидаты, арифметика, dice, кто ' +
