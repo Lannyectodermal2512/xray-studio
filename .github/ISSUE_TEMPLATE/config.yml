@@ -1,0 +1,7 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question about Xray itself
+    url: https://xtls.github.io/en/config/
+    about: >
+      Configuration questions belong upstream. This tool tests configs; it does not
+      define what they mean.

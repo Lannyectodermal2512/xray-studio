@@ -170,6 +170,18 @@ If stray `* 2.*` files reappear:
 find . -name "* [0-9].*" -not -path "./.git/*" -delete
 ```
 
+## Releasing
+
+Cutting a release is one command, and [RELEASING.md](RELEASING.md) is the procedure:
+
+```bash
+scripts/release.sh 0.2.0
+```
+
+It verifies, versions, tags and pushes; the tag starts the workflow; the workflow builds
+every platform and leaves a draft release for you to look at before anyone can download
+it.
+
 ## Packaging
 
 ```bash

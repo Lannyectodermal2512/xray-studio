@@ -1,0 +1,34 @@
+name: The tool explained something wrongly
+description: A claim about Xray's behaviour that does not match what Xray does
+labels: [correctness]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the most valuable kind of report. The whole tool is assertions about
+        someone else's code — a decision funnel, a rejection reason, a validator
+        finding — and a wrong one is worse than a missing one, because it is believed.
+
+  - type: textarea
+    id: claim
+    attributes:
+      label: What the tool said
+      description: Which panel, and the exact wording.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happens
+      description: >
+        How you know — an Xray log line, a source reference, an observed behaviour.
+        The Self-check tab sometimes catches these on its own; say so if it did.
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Config (scrubbed)
+      render: json

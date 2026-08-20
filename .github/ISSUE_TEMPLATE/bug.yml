@@ -1,0 +1,60 @@
+name: Bug report
+description: Something the tool got wrong
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Before anything else: scrub your config.** An Xray config carries UUIDs,
+        passwords and Reality private keys. None of them are needed to reproduce a bug
+        about a balancer — replace them with `xxx` and the report is just as useful.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Config (scrubbed)
+      description: >
+        The smallest config that still shows it. Most balancer bugs reproduce with
+        `freedom` outbounds and no credentials at all.
+      render: json
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The version in the window title bar, or the tag you built from.
+      placeholder: 0.1.0-alpha.1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: System
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Windows x64
+        - Windows ARM
+        - Linux x86_64
+        - Linux ARM
+        - Built from source
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log output
+      description: >
+        The Log tab prints the paths it writes to at the top. Anything from the failing
+        moment helps; the last error line most of all.
+      render: text

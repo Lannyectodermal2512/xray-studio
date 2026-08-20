@@ -462,7 +462,6 @@ export interface ParamDoc {
 }
 
 export interface DocBundle {
-  generated: string
   docsCommit: string
   license: string
   attribution: string

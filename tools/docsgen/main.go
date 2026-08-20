@@ -547,7 +547,6 @@ type Param struct {
 
 // Bundle is the emitted file.
 type Bundle struct {
-	Generated   string           `json:"generated"`
 	DocsCommit  string           `json:"docsCommit"`
 	License     string           `json:"license"`
 	Attribution string           `json:"attribution"`
@@ -607,7 +606,6 @@ func run(offline bool, outDir, cacheDir string) error {
 	}
 
 	bundle := Bundle{
-		Generated:  time.Now().UTC().Format(time.RFC3339),
 		DocsCommit: docsCommit,
 		License:    "CC-BY-SA-4.0",
 		Attribution: "Adapted from the XTLS/Xray-docs-next documentation " +
