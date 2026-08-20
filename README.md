@@ -10,11 +10,6 @@ that is indistinguishable from a real network failure.
 
 Built against **Xray-core v26.7.28**.
 
-> **Alpha.** Interfaces and file formats may change without notice. More importantly:
-> fault injection acts on the **real servers in the config you open** — there is no
-> sandbox or lab mode, by design, because a simulated failure would not prove anything
-> about your actual setup. Do not point it at production you cannot afford to disturb.
-
 ![The decision funnel](docs/img/funnel.png)
 
 <sup>Every stage of a real `leastLoad` decision: the candidates, the arithmetic, the one
