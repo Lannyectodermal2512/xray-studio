@@ -124,16 +124,27 @@ export function Editor(): React.JSX.Element {
     const ta = taRef.current
     const m = metricsRef.current
     if (!ta || !m || !loaded || !selectedOutbound) return
-    const at = tagRange(textRef.current, selectedOutbound)
+    const at = outboundAt(textRef.current, selectedOutbound)
     if (!at) return
 
     const lineH = m.getBoundingClientRect().height || 19
-    const line = textRef.current.slice(0, at.offset).split('\n').length - 1
-    // A third of the way down rather than at the very top: the lines above an outbound
-    // are its opening brace and its neighbour, and both are context worth seeing.
-    ta.scrollTop = Math.max(0, line * lineH - ta.clientHeight / 3)
+    const lineOf = (offset: number): number =>
+      textRef.current.slice(0, offset).split('\n').length - 1
+    const first = lineOf(at.start)
+    const last = lineOf(at.end)
+
+    /* Park the outbound's last line on the bottom edge, so the whole block is on screen
+       and the reading starts at its opening brace rather than somewhere in the middle.
+       
+       Unless it does not fit — a wireguard peer list or a long fallback set can be
+       taller than the window, and then the end-at-the-bottom rule would put the tag off
+       the top, leaving a screen of settings with nothing saying whose they are. The
+       `min` picks whichever constraint binds: end at the bottom when the block fits,
+       start at the top when it does not. */
+    const endAtBottom = (last + 1) * lineH - ta.clientHeight
+    ta.scrollTop = Math.max(0, Math.min(first * lineH, endAtBottom))
     ta.focus({ preventScroll: true })
-    ta.setSelectionRange(at.offset, at.offset + at.length)
+    ta.setSelectionRange(at.tagOffset, at.tagOffset + at.tagLength)
   }, [selectedOutbound, loaded])
 
   const save = useCallback(() => {
@@ -509,20 +520,30 @@ function readProtocols(text: string): { outbounds: string[]; inbounds: string[] 
  * things per protocol and a positional index would collide them.
  */
 /**
- * Where an outbound's `tag` value sits in the text.
+ * Where an outbound lives in the text: its `tag` value, and the whole object.
  *
  * Located through the parse tree rather than by searching for the tag as a string: a
  * tag can appear in a routing rule, a balancer selector or a fallbackTag long before it
  * appears in the outbound it names, and jumping to the first textual occurrence would
  * land somewhere else entirely.
  */
-function tagRange(text: string, tag: string): { offset: number; length: number } | null {
+function outboundAt(
+  text: string,
+  tag: string,
+): { tagOffset: number; tagLength: number; start: number; end: number } | null {
   const root = jsonc.parseTree(text)
   if (!root) return null
   const arr = jsonc.findNodeAtLocation(root, ['outbounds'])
   for (const item of arr?.children ?? []) {
     const node = jsonc.findNodeAtLocation(item, ['tag'])
-    if (node && node.value === tag) return { offset: node.offset, length: node.length }
+    if (node && node.value === tag) {
+      return {
+        tagOffset: node.offset,
+        tagLength: node.length,
+        start: item.offset,
+        end: item.offset + item.length,
+      }
+    }
   }
   return null
 }
