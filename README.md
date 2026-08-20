@@ -22,6 +22,29 @@ matches are not exposed at all, and when a strategy returns nothing the dispatch
 silently falls through to the first outbound in your file and discards the error. This
 tool runs a patched core that emits the missing part.
 
+## No accounts, no telemetry, free
+
+**The application collects nothing and reports nothing.** No analytics, no crash
+reporting, no update check, no usage counter — none of that code is in it. That is
+checkable rather than promised: the window runs under a `connect-src 'self'` policy, so
+it cannot reach the network at all, and the process behind it talks to `127.0.0.1` and
+nothing else.
+
+**Your configs never leave your machine.** They are read from disk and nothing is
+uploaded, registered or sent anywhere to be processed. The only traffic the tool causes
+is the traffic your own config describes — it runs Xray against the servers you listed,
+which is the entire point of it.
+
+**One exception, and it is yours to switch on.** The AI assistant sends what you ask it,
+with an API key you supply, to the provider you chose. It does nothing until you enter a
+key, it lists exactly what it will include, and it can replace UUIDs, passwords and
+Reality keys with markers of the same length before anything is sent. Never open it and
+nothing ever leaves.
+
+**Free, with nothing to buy.** No paid tier, no licence key, no account. The source is
+[MPL-2.0](LICENSE) — read it, build it, change it. (Using the AI assistant costs
+whatever your provider charges for their API. That is between you and them; this project
+takes nothing.)
 
 ## Install
 
