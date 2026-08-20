@@ -1,12 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../store/app'
-import { useT } from '../lib/i18n'
 
 const SEVERITIES = ['error', 'warning', 'info', 'debug', 'unknown']
 
 export function LogPanel(): React.JSX.Element {
   const { snap, coreLog } = useApp()
-  const { t } = useT()
   const [minSeverity, setMinSeverity] = useState('info')
   const [connFilter, setConnFilter] = useState('')
 
@@ -34,50 +32,51 @@ export function LogPanel(): React.JSX.Element {
       {snap.logPaths && (
         <section className="panel log-paths">
           <div className="panel-head">
-            <h3>{t('log.files')}</h3>
-            <span className="tiny dim">{t('log.filesSub')}</span>
+            <h3>Log files</h3>
+            <span className="tiny dim">written by this instance</span>
           </div>
           <div className="log-path-row">
-            <span className="tiny dim">{t('log.access')}</span>
+            <span className="tiny dim">access</span>
             <code className="mono">{snap.logPaths.access}</code>
             <button
               className="ghost tiny"
               onClick={() => void navigator.clipboard.writeText(snap.logPaths!.access)}
             >
-              {t('log.copy')}
+              copy
             </button>
           </div>
           <div className="log-path-row">
-            <span className="tiny dim">{t('log.error')}</span>
+            <span className="tiny dim">error</span>
             <code className="mono">{snap.logPaths.error}</code>
             <button
               className="ghost tiny"
               onClick={() => void navigator.clipboard.writeText(snap.logPaths!.error)}
             >
-              {t('log.copy')}
+              copy
             </button>
           </div>
           <p className="tiny faint">
-            {t('log.filesNote')}
+            These are set by Xray Studio, not by the config. The config file itself is
+            never modified.
           </p>
         </section>
       )}
 
       <section className="panel">
         <div className="panel-head">
-          <h3>{t('log.coreLog')}</h3>
+          <h3>Core log</h3>
           <div className="log-filters">
             <select value={minSeverity} onChange={(e) => setMinSeverity(e.target.value)}>
               {SEVERITIES.map((s) => (
                 <option key={s} value={s}>
-                  {t('log.andAbove', { severity: s })}
+                  {s} and above
                 </option>
               ))}
             </select>
             <input
               value={connFilter}
               onChange={(e) => setConnFilter(e.target.value)}
-              placeholder={t('log.connId')}
+              placeholder="conn id"
               className="mono"
               size={10}
             />
@@ -85,11 +84,13 @@ export function LogPanel(): React.JSX.Element {
         </div>
 
         <p className="dim">
-          {t('log.teeNote')} <code>log.access</code> / <code>log.error</code> {t('log.teeNoteTail')}
+          Structured records from the core&apos;s own logger, teed rather than replaced —
+          whatever <code>log.access</code> / <code>log.error</code> your config sets up
+          still works.
         </p>
 
         <div className="log-stream mono">
-          {rows.length === 0 && <div className="dim">{t('log.nothingAtLevel')}</div>}
+          {rows.length === 0 && <div className="dim">Nothing at this level.</div>}
           {rows.map((l) => (
             <div key={l.seq} className={`log-line sev-${l.severity}`}>
               <span className="dim">{(l.mono_ns / 1e9).toFixed(2)}s</span>
@@ -109,9 +110,9 @@ export function LogPanel(): React.JSX.Element {
       </section>
 
       <section className="panel">
-        <h3>{t('log.routingDecisions')}</h3>
+        <h3>Routing decisions</h3>
         {snap.recentRules.length === 0 ? (
-          <p className="dim">{t('log.noRouting')}</p>
+          <p className="dim">No routing decisions yet.</p>
         ) : (
           <div className="log-stream mono">
             {snap.recentRules
@@ -121,14 +122,14 @@ export function LogPanel(): React.JSX.Element {
                 <div key={r.seq} className="log-line">
                   <span className="dim">{(r.mono_ns / 1e9).toFixed(2)}s</span>
                   {r.rule_idx < 0 ? (
-                    <span className="bad" title={t('log.noRuleMatchedHelp')}>
-                      {t('log.noRuleMatched')}
+                    <span className="bad" title="Nothing matched, so traffic silently took the default outbound — the first one in the config.">
+                      no rule matched → default outbound
                     </span>
                   ) : (
                     <>
                       <span className="chip tiny">#{r.rule_idx}</span>
                       {r.pass === 2 && (
-                        <span className="chip tiny" title={t('log.secondPass')}>
+                        <span className="chip tiny" title="second pass, after IPIfNonMatch resolved IPs">
                           pass 2
                         </span>
                       )}
@@ -144,9 +145,9 @@ export function LogPanel(): React.JSX.Element {
       </section>
 
       <section className="panel">
-        <h3>{t('log.sidecarStdout')}</h3>
+        <h3>Sidecar stdout</h3>
         <div className="log-stream mono dim">
-          {coreLog.length === 0 && <div>{t('log.nothingYet')}</div>}
+          {coreLog.length === 0 && <div>Nothing yet.</div>}
           {coreLog.slice(-100).map((l, i) => (
             <div key={i} className="log-line">
               {l}

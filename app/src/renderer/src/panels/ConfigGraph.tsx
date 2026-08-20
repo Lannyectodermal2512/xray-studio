@@ -3,7 +3,6 @@ import { effectiveConfigPath, useApp } from '../store/app'
 import { natural, splitTag } from '../lib/tags'
 
 import type { Selection } from './Inspector'
-import { tr, useT } from '../lib/i18n'
 
 interface Node {
   id: string
@@ -101,7 +100,6 @@ export function ConfigGraph({
   selection?: Selection
   onSelect?: (s: Selection) => void
 } = {}): React.JSX.Element {
-  const { t, lang } = useT()
   const configPath = useApp(effectiveConfigPath)
   const snap = useApp((s) => s.snap)
   const [raw, setRaw] = useState<string | null>(null)
@@ -133,7 +131,7 @@ export function ConfigGraph({
   }, [configPath, source])
 
   const text = source ?? raw
-  const model = useMemo(() => (text ? buildModel(text, snap) : null), [text, snap, lang])
+  const model = useMemo(() => (text ? buildModel(text, snap) : null), [text, snap])
   const base = useMemo(() => (model ? layout(model.nodes, spacing) : null), [model, spacing])
 
   /** Base layout plus manual moves. */
@@ -308,13 +306,13 @@ export function ConfigGraph({
     drag.current = null
   }
 
-  if (!configPath) return <div className="panel empty">{t('graph.openToSee')}</div>
+  if (!configPath) return <div className="panel empty">Open a config to see its structure.</div>
   if (err) return <div className="panel empty bad">{err}</div>
-  if (!model || !base || !placed) return <div className="panel empty">{t('graph.parsing')}</div>
+  if (!model || !base || !placed) return <div className="panel empty">Parsing…</div>
   if (model.error) {
     return (
       <div className="panel empty bad">
-        {t('graph.parseFailed', { err: model.error })}
+        Could not parse the config for display: {model.error}
       </div>
     )
   }
@@ -342,16 +340,17 @@ export function ConfigGraph({
   return (
     <div className="panel graph-panel">
       <div className="panel-head">
-        <h3>{t('graph.structure')}</h3>
+        <h3>Structure</h3>
         <span className="dim tiny graph-hint">
-          {onSelect ? t('graph.clickToEdit') : t('graph.readOnly')} · {t('graph.navHint')}
+          {onSelect ? 'click a node to edit' : 'read-only'} · scroll or drag to pan ·
+          pinch or ⌘-scroll to zoom · drag a heading to move its group
         </span>
         <span className="spacer" />
         <label
           className="graph-density"
-          title={t('graph.spacingHelp')}
+          title="Widens the gap BETWEEN COLUMNS. Every edge crosses that gap, so it is the only dimension where more room buys legibility; row height is fixed because taller rows tell you nothing new."
         >
-          <span className="tiny dim">{t('graph.gap')}</span>
+          <span className="tiny dim">gap</span>
           <input
             type="range"
             min={0.6}
@@ -362,17 +361,16 @@ export function ConfigGraph({
           />
           <span className="tiny mono dim">{spacing.toFixed(1)}×</span>
         </label>
-        <button className="ghost tiny" onClick={fit} title={t('graph.frameAll')}>
+        <button className="ghost tiny" onClick={fit} title="Frame everything">
           Fit
         </button>
         <button
           className="ghost tiny"
           disabled={movedCount === 0}
           onClick={() => setMoved({})}
-          title={t('graph.resetGroups')}
+          title="Put every group back where the layout put it"
         >
-          {t('graph.resetMoves')}
-          {movedCount > 0 ? ` (${movedCount})` : ''}
+          Reset moves{movedCount > 0 ? ` (${movedCount})` : ''}
         </button>
       </div>
 
@@ -692,7 +690,7 @@ function buildModel(raw: string, snap: ReturnType<typeof useApp.getState>['snap'
       kind: 'balancer',
       status: matched.length === 0 ? 'bad' : undefined,
       ...(matched.length === 0
-        ? { warn: tr('graph.warnSelectorEmpty') }
+        ? { warn: 'This selector matches no outbound tag. Xray never checks this at load time.' }
         : {}),
     })
 
@@ -719,7 +717,7 @@ function buildModel(raw: string, snap: ReturnType<typeof useApp.getState>['snap'
     }
     if ((strategy === 'leastPing' || strategy === 'leastLoad') && !obs) {
       warnings.push(
-        tr('graph.warnNoObservatory', { tag, strategy }),
+        `Balancer "${tag}" uses ${strategy} but the config has no observatory or burstObservatory. The instance will fail to start with "not all dependencies are resolved."`,
       )
     }
   })
@@ -767,7 +765,7 @@ function buildModel(raw: string, snap: ReturnType<typeof useApp.getState>['snap'
 
     if (selectors.length === 0) {
       warnings.push(
-        tr('graph.warnEmptySubjectSelector'),
+        'The observatory has an empty subjectSelector, so it never starts. Balancers depending on it will return nothing.',
       )
     }
 
@@ -807,7 +805,7 @@ function buildModel(raw: string, snap: ReturnType<typeof useApp.getState>['snap'
 
     if (servers.length === 0) {
       warnings.push(
-        tr('graph.warnDnsNoServers'),
+        'The dns block has no servers, so every lookup falls through to the system resolver — which is what configuring dns is normally meant to prevent.',
       )
     }
 

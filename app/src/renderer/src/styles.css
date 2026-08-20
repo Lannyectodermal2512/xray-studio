@@ -1156,6 +1156,7 @@ button.ghost.on { border-color: var(--bad); color: var(--bad); }
 .log-paths .log-path-row > span { flex: none; width: 46px; }
 .log-paths code { flex: 1; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Language switch. Sits in the topbar, so it must not grow with its label. */
-.lang-switch { flex: none; }
-.lang-switch button { font-size: 10.5px; letter-spacing: .04em; padding: 3px 7px; }
+/* Documentation-language switch. Sits in the topbar, so it must not grow with its
+   label, and the "docs" word carries the whole point: it does not translate the UI. */
+.doclang { align-items: center; display: flex; flex: none; gap: 5px; }
+.doclang .seg button { font-size: 10.5px; letter-spacing: .04em; padding: 3px 7px; }

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { parse, type ParseError, printParseErrorCode } from 'jsonc-parser'
-import { useT } from '../lib/i18n'
 
 /**
  * Paste a config instead of picking a file.
@@ -23,7 +22,6 @@ export function PasteConfig({
 }): React.JSX.Element {
   const [text, setText] = useState('')
   const ref = useRef<HTMLTextAreaElement | null>(null)
-  const { t } = useT()
 
   useEffect(() => {
     ref.current?.focus()
@@ -40,9 +38,9 @@ export function PasteConfig({
     <div className="modal-scrim" onMouseDown={onCancel}>
       <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h3>{t('paste.title')}</h3>
+          <h3>Paste config JSON</h3>
           <button className="link" onClick={onCancel}>
-            {t('paste.close')}
+            close
           </button>
         </div>
 
@@ -62,12 +60,14 @@ export function PasteConfig({
           <span className="spacer" />
           <button onClick={onCancel}>Cancel</button>
           <button className="primary" disabled={check.kind !== 'ok'} onClick={() => onAccept(text)}>
-            {t('paste.use')}
+            Use this config
           </button>
         </div>
 
         <p className="tiny faint">
-          {t('paste.scratchNote')}
+          Saved to the app&apos;s own scratch directory, never beside your configs, and
+          opened from there. Edits in the Graph tab save back to that copy — your
+          original is untouched because there is no original on disk.
         </p>
       </div>
     </div>

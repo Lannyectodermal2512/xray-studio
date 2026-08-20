@@ -201,13 +201,6 @@ function watchConfig(path: string): void {
 }
 
 function registerIpc(): void {
-  ipcMain.on('app:language', (_e, lang: string) => {
-    if (lang !== 'en' && lang !== 'ru') return
-    if (lang === menuLang) return
-    menuLang = lang
-    buildMenu()
-  })
-
   ipcMain.handle('app:versions', () => ({
     app: app.getVersion(),
     electron: process.versions.electron,
@@ -475,33 +468,18 @@ trace('main module loaded')
  * Paste dialog. Roles are used throughout: Electron wires them to the native clipboard
  * and localises the labels, which hand-rolled handlers would not.
  */
-/**
- * The two labels Electron cannot supply.
- *
- * Every other item is a `role`, which Electron localises to the OS language on its own.
- * These two are ours, so they follow the app's own language switch instead — the
- * renderer pushes its choice over IPC and the menu is rebuilt.
- */
-const MENU_TEXT = {
-  en: { file: 'File', openConfig: 'Open config…' },
-  ru: { file: 'Файл', openConfig: 'Открыть…' },
-} as const
-
-let menuLang: keyof typeof MENU_TEXT = 'en'
-
 function buildMenu(): void {
   const isMac = process.platform === 'darwin'
-  const text = MENU_TEXT[menuLang]
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       ...(isMac
         ? ([{ role: 'appMenu' }] as Electron.MenuItemConstructorOptions[])
         : []),
       {
-        label: text.file,
+        label: 'File',
         submenu: [
           {
-            label: text.openConfig,
+            label: 'Open config…',
             accelerator: 'CmdOrCtrl+O',
             click: () => win?.webContents.send('menu:open-config'),
           },

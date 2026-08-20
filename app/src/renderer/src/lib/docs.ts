@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useT } from './i18n'
+import { useDocLang } from './docLang'
 import type { DocBundle, ParamDoc } from '@shared/events'
 
 /**
@@ -42,7 +42,7 @@ export interface Docs {
 }
 
 export function useDocs(): Docs {
-  const { lang } = useT()
+  const lang = useDocLang()
   const [docs, setDocs] = useState<Docs>({ active: null, fallback: null, lang })
 
   useEffect(() => {

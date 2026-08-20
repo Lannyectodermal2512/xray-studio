@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { FaultKind, FaultRule } from '@shared/events'
 import { globMembers, tagsMatching } from '@shared/events'
-import { useCopy } from '../lib/copy'
-import { useT } from '../lib/i18n'
+import { faultHelp, faultLabel } from '../lib/copy'
 import { useApp } from '../store/app'
 import { FaultEvidence } from './FaultEvidence'
 
@@ -23,8 +22,6 @@ const KINDS: FaultKind[] = [
 const HARD_DOWN: FaultKind[] = ['blackhole', 'refuse', 'host_unreachable', 'net_unreachable', 'dns_fail']
 
 export function Faults(): React.JSX.Element {
-  const { faultLabel, faultHelp } = useCopy()
-  const { t } = useT()
   const { snap, applyFaults, toggleFault } = useApp()
   const [kind, setKind] = useState<FaultKind>('blackhole')
   const [tagGlob, setTagGlob] = useState('')
@@ -71,19 +68,19 @@ export function Faults(): React.JSX.Element {
   return (
     <div className="faults">
       <section className="panel">
-        <h3>{t('faults.inject')}</h3>
+        <h3>Inject a fault</h3>
         <div className="fault-form">
           <label className="grow">
-            <span>{t('faults.pickOutbounds')}</span>
+            <span>Outbounds — click to build a group</span>
             <input
               value={tagGlob}
               onChange={(e) => setTagGlob(e.target.value)}
-              placeholder={t('faults.tagsPlaceholder')}
+              placeholder="LTE-1, LTE-4, REGULAR-*   (empty = all)"
             />
           </label>
 
           <label>
-            <span>{t('faults.failureMode')}</span>
+            <span>Failure mode</span>
             <select value={kind} onChange={(e) => setKind(e.target.value as FaultKind)}>
               {KINDS.map((k) => (
                 <option key={k} value={k}>
@@ -95,7 +92,7 @@ export function Faults(): React.JSX.Element {
 
           {needsDelay && (
             <label>
-              <span>{kind === 'blackhole' ? t('faults.holdMs') : t('faults.delayMs')}</span>
+              <span>{kind === 'blackhole' ? 'Hold (ms)' : 'Delay (ms)'}</span>
               <input
                 value={delayMs}
                 onChange={(e) => setDelayMs(e.target.value)}
@@ -106,14 +103,14 @@ export function Faults(): React.JSX.Element {
           )}
 
           <button className="primary" onClick={() => void add()}>
-            {t('faults.add')}
+            Add
           </button>
         </div>
 
         <div className="tag-picker">
           {allTags.length === 0 ? (
             <span className="tiny dim">
-              {t('faults.noOutboundsSeen')}
+              No outbounds seen yet — start an instance, or type tags by hand above.
             </span>
           ) : (
             allTags.map((tag) => (
@@ -125,7 +122,7 @@ export function Faults(): React.JSX.Element {
                 onClick={() => toggleTag(tag)}
                 title={
                   willHit.includes(tag) && !selected.has(tag)
-                    ? t('faults.coveredByPattern')
+                    ? 'covered by a pattern in the field above'
                     : undefined
                 }
               >
@@ -138,7 +135,7 @@ export function Faults(): React.JSX.Element {
         <div className="tag-actions">
           {groups.length > 0 && (
             <>
-              <span className="tiny dim">{t('faults.groups')}</span>
+              <span className="tiny dim">groups:</span>
               {groups.map((g) => (
                 <button key={g} className="link" onClick={() => setTagGlob(`${g}*`)}>
                   {g}*
@@ -148,16 +145,16 @@ export function Faults(): React.JSX.Element {
             </>
           )}
           <button className="link" onClick={() => setTagGlob(allTags.join(', '))}>
-            {t('faults.selectAll')}
+            all
           </button>
           <button className="link" onClick={() => setTagGlob('')}>
-            {t('faults.selectNone')}
+            none
           </button>
           <button
             className="link"
             onClick={() => setTagGlob(allTags.filter((t) => !willHit.includes(t)).join(', '))}
           >
-            {t('faults.selectInvert')}
+            invert
           </button>
         </div>
 
@@ -165,12 +162,13 @@ export function Faults(): React.JSX.Element {
           <p className={willHit.length === 0 ? 'note bad' : 'note info'}>
             {willHit.length === 0 ? (
               <>
-                {t('faults.thisMatches')} <strong>{t('faults.matchNone')}</strong>{' '}
-                {t('faults.matchesNoneOf', { n: allTags.length })}
+                This matches <strong>none</strong> of the {allTags.length} outbounds. The
+                rule would be accepted and then never fire — check for a typo, or that the
+                instance is running.
               </>
             ) : (
               <>
-                {t('faults.willHitLabel')} <strong>{willHit.length}</strong> of {allTags.length} outbounds:{' '}
+                Will hit <strong>{willHit.length}</strong> of {allTags.length} outbounds:{' '}
                 <span className="mono">{willHit.join('  ')}</span>
               </>
             )}
@@ -181,15 +179,23 @@ export function Faults(): React.JSX.Element {
 
         {kind === 'blackhole' && (
           <p className="note warn">
-            {t('faults.blackholeNote')}
+            A blackhole holds each dial for up to 16s, matching Xray&apos;s own dialer
+            timeout. The observatory dials with a long-lived context rather than the
+            per-request one, so a probe gives up at its 5s timeout while the dial keeps
+            occupying a goroutine — set a shorter hold if you are probing frequently.
           </p>
         )}
 
         <p className="note info">
-          {t('faults.rulesMatchOn')} <strong>{t('faults.outboundTag')}</strong>{t('faults.tagNotAddress')}
+          Rules match on the <strong>outbound tag</strong>, not on an address. That is
+          the point: two outbounds can share a server IP and port, and a packet filter
+          cannot tell them apart. First matching rule wins, in list order.
         </p>
         <p className="note info">
-          {t('faults.groupIs')} <strong>{t('faults.oneRule')}</strong>{t('faults.oneRuleNote')}
+          A group is <strong>one rule</strong>, so the checkbox arms and disarms the whole
+          set in a single swap. That matters for correctness, not just convenience:
+          toggling members one at a time would pass through half-failed states that look
+          exactly like the real partial outage you are trying to observe.
         </p>
       </section>
 
@@ -197,18 +203,18 @@ export function Faults(): React.JSX.Element {
 
       <section className="panel">
         <h3>
-          {t('faults.activeRules')} <span className="dim">{snap.faults.length}</span>
+          Active rules <span className="dim">{snap.faults.length}</span>
         </h3>
         {snap.faults.length === 0 ? (
-          <p className="dim">{t('faults.none')}</p>
+          <p className="dim">No faults. Everything is behaving normally.</p>
         ) : (
           <table className="grid">
             <thead>
               <tr>
                 <th />
-                <th>{t('faults.colOutbounds')}</th>
-                <th>{t('faults.colMode')}</th>
-                <th>{t('faults.colParams')}</th>
+                <th>outbounds</th>
+                <th>mode</th>
+                <th>params</th>
                 <th />
               </tr>
             </thead>
@@ -220,7 +226,7 @@ export function Faults(): React.JSX.Element {
                       type="checkbox"
                       checked={r.enabled}
                       onChange={() => void toggleFault(r.id)}
-                      title={r.enabled ? t('faults.disarmGroup') : t('faults.armGroup')}
+                      title={r.enabled ? 'disarm this group' : 'arm this group'}
                     />
                   </td>
                   <td>
@@ -229,8 +235,8 @@ export function Faults(): React.JSX.Element {
                   <td>
                     {faultLabel[r.kind]}
                     {HARD_DOWN.includes(r.kind) && (
-                      <span className="chip tiny" title={t('faults.hardDown')}>
-                        {t('faults.killsLiveConns')}
+                      <span className="chip tiny" title="also tears down existing connections">
+                        kills live conns
                       </span>
                     )}
                   </td>
@@ -257,25 +263,33 @@ export function Faults(): React.JSX.Element {
       </section>
 
       <section className="panel">
-        <h3>{t('faults.cannotReproduce')}</h3>
+        <h3>What these faults cannot reproduce</h3>
         <p className="dim">
-          {t('faults.gapsLead')}
+          The claim is &ldquo;as if genuinely unreachable&rdquo;, and it is only mostly
+          true. Five honest gaps:
         </p>
         <ol className="gaps">
           <li>
-            <code>sockopt.dialerProxy</code> {t('faults.gapDialerProxy')}
+            <code>sockopt.dialerProxy</code> hops receive a pipe from Xray&apos;s
+            internal redirect and never reach the dialer, so faults do not apply to them.
           </li>
           <li>
-            {t('faults.gapWireguard')}
+            WireGuard&apos;s inner gVisor netstack dials bypass the dialer; only the
+            outer UDP to the peer is covered.
           </li>
           <li>
-            <code>burstObservatory</code>&apos;s <code>connectivity</code> {t('faults.gapConnectivity1')} <em>{t('faults.discard')}</em> {t('faults.gapConnectivity2')}
+            <code>burstObservatory</code>&apos;s <code>connectivity</code> check uses a
+            plain HTTP client outside Xray entirely — and when it decides the network is
+            down, it makes the observatory <em>discard</em> failures rather than record
+            them, which can hide an injected fault. Leave it unset while testing.
           </li>
           <li>
-            {t('faults.gapTcp')}
+            No TCP segment loss: userspace can stall and jitter a stream but cannot drop
+            a segment beneath the kernel. No ICMP, no PMTUD blackholes.
           </li>
           <li>
-            {t('faults.gapDns')} <code>domainStrategy</code>.
+            DNS failure is partial — resolution may already have happened before the
+            dialer is reached, depending on <code>domainStrategy</code>.
           </li>
         </ol>
       </section>
@@ -291,7 +305,6 @@ export function Faults(): React.JSX.Element {
  * matches nothing looks identical to one that matches everything.
  */
 function RuleTargets({ rule, allTags }: { rule: FaultRule; allTags: string[] }): React.JSX.Element {
-  const { t } = useT()
   const hit = tagsMatching(rule.tagGlob, allTags)
   const members = globMembers(rule.tagGlob)
   const isPattern = members.some((m) => m.includes('*') || m.includes('?')) || rule.tagGlob === '*'
@@ -304,8 +317,8 @@ function RuleTargets({ rule, allTags }: { rule: FaultRule; allTags: string[] }):
     return (
       <>
         <span className="mono">{rule.tagGlob}</span>{' '}
-        <span className="chip tiny bad" title={t('faults.neverFires')}>
-          {t('faults.matchesNothing')}
+        <span className="chip tiny bad" title="this rule can never fire as written">
+          matches nothing
         </span>
       </>
     )

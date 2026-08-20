@@ -4,8 +4,6 @@ import { effectiveConfigPath, useApp } from '../store/app'
 import { parseConfig } from '../graph/edit'
 import { ConfigGraph } from './ConfigGraph'
 import { Inspector, type Selection } from './Inspector'
-import { useT, type Key } from '../lib/i18n'
-import { diagMessage } from '../lib/diag'
 
 /**
  * Visual config editing.
@@ -20,16 +18,7 @@ import { diagMessage } from '../lib/diag'
  *     maintains by hand; overwriting it on every keystroke would be indefensible, and
  *     the file watcher would fight the editor.
  */
-/** Severity labels; the value itself is a machine token. */
-const SEVERITY_KEY: Record<Diagnostic['severity'], Key> = {
-  error: 'sev.error',
-  dysfunction: 'sev.dysfunction',
-  warning: 'sev.warning',
-  info: 'sev.info',
-}
-
 export function Build(): React.JSX.Element {
-  const { t } = useT()
   const configPath = useApp(effectiveConfigPath)
   const editRequest = useApp((s) => s.editRequest)
   const clearEditRequest = useApp((s) => s.clearEditRequest)
@@ -103,8 +92,8 @@ export function Build(): React.JSX.Element {
     if (warn?.length) setWarnings(warn)
   }, [])
 
-  if (!configPath) return <div className="panel empty">{t('build.openToEdit')}</div>
-  if (!draft || !cfg) return <div className="panel empty">{t('common.loading')}</div>
+  if (!configPath) return <div className="panel empty">Open a config to edit it.</div>
+  if (!draft || !cfg) return <div className="panel empty">Loading…</div>
 
   const blocking = (diags ?? []).filter((d) => d.severity === 'error')
 
@@ -112,14 +101,14 @@ export function Build(): React.JSX.Element {
     <div className="build">
       <div className="build-bar">
         <span className={dirty ? 'chip warn' : 'chip dim'}>
-          {dirty ? t('build.unsaved') : t('build.noChanges')}
+          {dirty ? 'unsaved changes' : 'no changes'}
         </span>
         {checking && <span className="tiny dim">validating…</span>}
         {!checking && dirty && blocking.length > 0 && (
-          <span className="tiny bad">{t('build.errorsFixFirst', { n: blocking.length })}</span>
+          <span className="tiny bad">{blocking.length} error(s) — fix before saving</span>
         )}
         {!checking && dirty && blocking.length === 0 && (
-          <span className="tiny ok">{t('build.parsesCleanly')}</span>
+          <span className="tiny ok">parses cleanly</span>
         )}
         <span className="spacer" />
         <button
@@ -130,7 +119,7 @@ export function Build(): React.JSX.Element {
             setSaved(null)
           }}
         >
-          {t('common.revert')}
+          Revert
         </button>
         <button
           className="primary"
@@ -145,13 +134,14 @@ export function Build(): React.JSX.Element {
               .catch((e: Error) => setError(e.message))
           }}
         >
-          {t('build.saveToFile')}
+          Save to file
         </button>
       </div>
 
       {saved && (
         <p className="note ok">
-          {t('build.savedAt', { time: saved })}
+          Saved at {saved}. The instance keeps running the previous config until you press
+          Reload — a config is only applied by starting a fresh process.
         </p>
       )}
       {error && <p className="note bad">{error}</p>}
@@ -161,10 +151,12 @@ export function Build(): React.JSX.Element {
           which is how the click that raised this silently did nothing at all. */}
       {notFound !== null && (
         <p className="note warn">
-          <code className="inline-code">{notFound || t('tags.noOutboundTag')}</code> is
-          {t('build.notInConfigText')}
+          <code className="inline-code">{notFound || '(no outbound tag)'}</code> is
+          reported by the running instance but is not in this config text — either it was
+          renamed in the draft, or the dial was made outside any outbound (the
+          connectivity check and the built-in DNS client both do this).
           <button className="tiny" onClick={() => setNotFound(null)}>
-            {t('common.dismiss')}
+            dismiss
           </button>
         </p>
       )}
@@ -175,7 +167,7 @@ export function Build(): React.JSX.Element {
             <p key={i}>{w}</p>
           ))}
           <button className="tiny" onClick={() => setWarnings([])}>
-            {t('common.dismiss')}
+            dismiss
           </button>
         </div>
       )}
@@ -184,12 +176,12 @@ export function Build(): React.JSX.Element {
         <div className="build-diags">
           {diags.slice(0, 6).map((d, i) => (
             <p key={i} className={`tiny ${d.severity === 'error' ? 'bad' : 'warn'}`}>
-              <strong>{t(SEVERITY_KEY[d.severity])}</strong> {diagMessage(d, t)}
+              <strong>{d.severity}</strong> {d.message}
             </p>
           ))}
           {diags.length > 6 && (
             <p className="tiny dim">
-              {t('build.andMoreSee', { n: diags.length - 6, tab: t('tab.validate') })}
+              …and {diags.length - 6} more — see the Validate tab for the full report.
             </p>
           )}
         </div>

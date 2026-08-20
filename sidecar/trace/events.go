@@ -67,14 +67,6 @@ type Diagnostic struct {
 	Detail   string `json:"detail,omitempty"`
 	Line     int    `json:"line,omitempty"`
 	Column   int    `json:"column,omitempty"`
-
-	// Key identifies the SENTENCE, where Code identifies the RULE: one rule can report
-	// two different findings (a clamped tolerance and a negative expected are both
-	// leastload_clamped), so the code is not enough to look up a translation. Vars
-	// carries the values interpolated into Message, so a client can rebuild the sentence
-	// in another language instead of parsing it back out of English.
-	Key  string            `json:"key,omitempty"`
-	Vars map[string]string `json:"vars,omitempty"`
 }
 
 // ConfigDiag carries the result of validating a config.

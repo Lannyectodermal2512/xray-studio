@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Diagnostic } from '@shared/events'
 import { useApp } from '../store/app'
 import { buildContext, SYSTEM_PROMPT, type ContextOptions } from '../lib/aiContext'
-import { useT, type Key } from '../lib/i18n'
 
 type Provider = 'anthropic' | 'openai'
 
@@ -46,7 +45,6 @@ export function AiChat({
   configText: string | null
   diags: Diagnostic[] | null
 }): React.JSX.Element {
-  const { t } = useT()
   const snap = useApp((s) => s.snap)
   const [open, setOpen] = useState(false)
   const [provider, setProvider] = useState<Provider>('anthropic')
@@ -168,7 +166,7 @@ export function AiChat({
     <section className={`ai ${open ? 'open' : ''}`}>
       <button className="ai-head" onClick={() => setOpen((v) => !v)}>
         <span className="caret">{open ? '▾' : '▸'}</span>
-        <span>{t('ai.assistant')}</span>
+        <span>Assistant</span>
         {!open && turns.length > 0 && <span className="chip tiny">{turns.length}</span>}
         <span className="spacer" />
         {open && (
@@ -204,13 +202,13 @@ export function AiChat({
               {showSettings ? 'Hide setup' : 'Setup'}
             </button>
             {(['includeConfig', 'includeTelemetry', 'redactSecrets'] as const).map((k) => (
-              <label key={k} className="tiny lbl" title={t(OPT_HELP[k])}>
+              <label key={k} className="tiny lbl" title={OPT_HELP[k]}>
                 <input
                   type="checkbox"
                   checked={opts[k]}
                   onChange={(e) => setOpts((o) => ({ ...o, [k]: e.target.checked }))}
                 />
-                {t(OPT_LABEL[k])}
+                {OPT_LABEL[k]}
               </label>
             ))}
           </div>
@@ -218,9 +216,9 @@ export function AiChat({
           {(hasKey === false || showSettings) && (
             <div className="ai-key">
               <p className="tiny dim">
-                {t('ai.keyNote', {
-                  provider: provider === 'anthropic' ? 'Anthropic' : 'OpenAI',
-                })}
+                Paste an API key for {provider === 'anthropic' ? 'Anthropic' : 'OpenAI'}. It is
+                encrypted with your OS keychain and kept in the main process — the window
+                never sees it, and it is never written to the project.
               </p>
               <div className="row gap">
                 <input
@@ -241,22 +239,22 @@ export function AiChat({
                   audience that runs Xray because their network is filtered, that is the
                   difference between the assistant working and a bare 403. */}
               <p className="tiny dim proxy-note">
-                {t('ai.proxyFor')}{' '}
+                Proxy for provider calls:{' '}
                 {proxy.value ? (
                   <>
                     <code className="mono">{proxy.value}</code>{' '}
                     <span className="faint">
-                      ({proxy.source === 'env' ? t('ai.proxyFromEnv') : t('ai.proxySavedHere')})
+                      ({proxy.source === 'env' ? 'from the environment' : 'saved here'})
                     </span>
                   </>
                 ) : (
-                  <span className="warn">{t('ai.proxyNone')}</span>
+                  <span className="warn">none — requests go out directly</span>
                 )}
               </p>
               <div className="row gap">
                 <input
                   className="grow mono"
-                  placeholder={t('ai.proxyPlaceholder')}
+                  placeholder="http://127.0.0.1:20809  (leave empty to use the environment)"
                   value={proxyInput}
                   onChange={(e) => setProxyInput(e.target.value)}
                 />
@@ -278,10 +276,13 @@ export function AiChat({
             {turns.length === 0 && (
               <div className="ai-empty tiny dim">
                 <p>
-                  {t('ai.contextLead')} <em>and</em> {t('ai.contextTail')}
+                  Asks are answered against this config <em>and</em> the running instance:
+                  which outbounds the observatory calls alive, their deviation, the reason
+                  the balancer rejected each candidate, and any faults you have armed.
                 </p>
                 <p className="faint">
-                  {t('ai.tryExamples')}
+                  Try: “why is nothing being selected?” · “what does costs 5000 do here?” ·
+                  “this outbound is never picked — why?”
                 </p>
               </div>
             )}
@@ -300,7 +301,7 @@ export function AiChat({
           <div className="ai-input">
             <textarea
               value={input}
-              placeholder={hasKey ? t('ai.askPlaceholder') : t('ai.setKeyFirst')}
+              placeholder={hasKey ? 'Ask about this config…  (⏎ to send, ⇧⏎ for a new line)' : 'Set an API key first'}
               disabled={!hasKey}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -326,14 +327,16 @@ export function AiChat({
   )
 }
 
-const OPT_LABEL: Record<keyof typeof OPT_HELP, Key> = {
-  includeConfig: 'ai.optConfig',
-  includeTelemetry: 'ai.optTelemetry',
-  redactSecrets: 'ai.optRedact',
-}
+const OPT_LABEL = {
+  includeConfig: 'config',
+  includeTelemetry: 'telemetry',
+  redactSecrets: 'mask secrets',
+} as const
 
 const OPT_HELP = {
-  includeConfig: 'ai.optConfigHelp',
-  includeTelemetry: 'ai.optTelemetryHelp',
-  redactSecrets: 'ai.optRedactHelp',
+  includeConfig: 'Send the config text with the first message.',
+  includeTelemetry:
+    'Send live state: liveness, delays, deviation, the balancer decision funnel, armed faults and recent log lines.',
+  redactSecrets:
+    'Replace UUIDs, passwords and Reality keys with a marker of the same length. The model still sees that the field exists and is well-formed.',
 } as const

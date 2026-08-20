@@ -9,7 +9,6 @@ import {
   type JSONPath,
   type ParseError,
 } from 'jsonc-parser'
-import { tr } from '../lib/i18n'
 
 /**
  * Surgical edits to a config's TEXT.
@@ -162,12 +161,10 @@ export function renameOutbound(
     const matching = (b.selector ?? []).filter((s) => prev.startsWith(s) && !next.startsWith(s))
     if (matching.length > 0) {
       warnings.push(
-        tr('edit.warnPrefixNoLongerMatches', {
-          balancer: String(b.tag ?? i),
-          prefixes: matching.map((s) => `"${s}"`).join(', '),
-          prev,
-          next,
-        }),
+        `Balancer "${b.tag ?? i}" selects by prefix ${matching.map((s) => `"${s}"`).join(', ')}, ` +
+          `which matched "${prev}" but does not match "${next}". It has been left as-is — ` +
+          `a prefix is a pattern, not a reference, so rewriting it would be a guess. ` +
+          `The outbound is no longer part of that balancer.`,
       )
     }
   })

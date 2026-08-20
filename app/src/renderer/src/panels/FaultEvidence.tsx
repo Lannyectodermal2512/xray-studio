@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { effectiveConfigPath, useApp } from '../store/app'
-import { useT } from '../lib/i18n'
 
 /**
  * Immediate evidence that injected faults are firing.
@@ -19,7 +18,6 @@ import { useT } from '../lib/i18n'
  * and state plainly when the health status will catch up.
  */
 export function FaultEvidence(): React.JSX.Element | null {
-  const { t } = useT()
   const snap = useApp((s) => s.snap)
   const configPath = useApp(effectiveConfigPath)
   const [lag, setLag] = useState<ObservatoryLag | null>(null)
@@ -52,24 +50,27 @@ export function FaultEvidence(): React.JSX.Element | null {
 
   return (
     <section className="panel">
-      <h3>{t('evidence.title')}</h3>
+      <h3>Is it working?</h3>
 
       {hit.length === 0 ? (
         <p className="note warn">
-          {t('evidence.noDial')}
+          No dial has been intercepted yet. A fault only applies when something actually
+          dials — the observatory probes on its own schedule, and user traffic only when
+          you send some. Give it one probe interval, or send a request through the inbound.
         </p>
       ) : (
         <>
           <p className="note ok">
-            {t('evidence.working')}
+            The fault engine is intercepting dials right now. This is direct evidence,
+            independent of the health status below.
           </p>
           <table className="tbl">
             <thead>
               <tr>
-                <th>{t('evidence.colOutbound')}</th>
-                <th>{t('evidence.colBlocked')}</th>
-                <th>{t('evidence.colLast')}</th>
-                <th>{t('evidence.colHealth')}</th>
+                <th>outbound</th>
+                <th>dials blocked</th>
+                <th>last</th>
+                <th>reported health status</th>
               </tr>
             </thead>
             <tbody>
@@ -79,7 +80,7 @@ export function FaultEvidence(): React.JSX.Element | null {
                   <td className="mono bad">{o.faultHits}</td>
                   <td className="mono dim">{ago(nowNs, o.lastFaultMonoNs)}</td>
                   <td className={o.alive === false ? 'bad' : 'warn'}>
-                    {o.alive === false ? t('common.dead') : t('evidence.stillShownAlive')}
+                    {o.alive === false ? 'dead' : 'still shown alive'}
                   </td>
                 </tr>
               ))}
@@ -92,22 +93,28 @@ export function FaultEvidence(): React.JSX.Element | null {
         <p className={lag.seconds > 60 ? 'note warn' : 'note info'}>
           {lag.kind === 'burst' ? (
             <>
-              {t('evidence.burstLead', { interval: lag.interval, sampling: lag.sampling })}{' '}
-              <strong>{fmtDuration(lag.seconds)}</strong>. {t('evidence.burstTail')}
+              This config uses <code className="inline-code">burstObservatory</code> with
+              interval <code className="inline-code">{lag.interval}</code> and sampling{' '}
+              <code className="inline-code">{lag.sampling}</code>, so one round takes{' '}
+              <strong>{fmtDuration(lag.seconds)}</strong>. An outbound counts as alive while{' '}
+              <em>any</em> sample in the window succeeded, so the dot can take a full round —
+              or more — to turn red. That is Xray&apos;s behaviour, not a delay we add.
             </>
           ) : lag.kind === 'plain' ? (
             <>
+              This config uses the plain <code className="inline-code">observatory</code> with
+              probeInterval <code className="inline-code">{lag.interval}</code>
               {lag.concurrent
-                ? t('evidence.plainLeadConcurrent', { interval: lag.interval })
-                : t('evidence.plainLeadSequential', {
-                    interval: lag.interval,
-                    n: lag.outbounds,
-                  })}{' '}
-              <strong>{fmtDuration(lag.seconds)}</strong> {t('evidence.plainTail')}
+                ? ', probing all outbounds concurrently'
+                : `, probing SEQUENTIALLY (enableConcurrency is not set), so a full cycle over ${lag.outbounds} outbounds`}{' '}
+              takes about <strong>{fmtDuration(lag.seconds)}</strong> before the status
+              updates.
             </>
           ) : (
             <>
-              {t('evidence.noObservatory')}
+              This config has no observatory, so nothing ever probes these outbounds and the
+              alive column will never change. Faults still apply to real traffic — the
+              counter above is the only signal you will get.
             </>
           )}
         </p>

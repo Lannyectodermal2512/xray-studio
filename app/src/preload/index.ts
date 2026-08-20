@@ -77,9 +77,6 @@ const api = {
     return () => ipcRenderer.off('core:log', h)
   },
 
-  /** Tells the main process which language the menu should be in. */
-  setLanguage: (lang: string): void => ipcRenderer.send('app:language', lang),
-
   onMenuOpenConfig: (cb: () => void): (() => void) => {
     const h = (): void => cb()
     ipcRenderer.on('menu:open-config', h)

@@ -3,7 +3,6 @@ import type { BalancerView, OutboundView } from '@shared/events'
 import { useApp } from '../store/app'
 import { fmtMsFromMs, isDeadSentinel } from '../lib/copy'
 import { groupBy, natural } from '../lib/tags'
-import { useT, type T } from '../lib/i18n'
 
 const SPARK_W = 72
 const SPARK_H = 16
@@ -102,11 +101,11 @@ function statusColor(ob: OutboundView): string {
  * LTE outbounds that was most of the column. `alive === null` is the observatory saying
  * it has no record, so say that instead.
  */
-function valueText(ob: OutboundView, t: T): string {
-  if (isDeadSentinel(ob.delayMs)) return t('common.dead')
+function valueText(ob: OutboundView): string {
+  if (isDeadSentinel(ob.delayMs)) return 'dead'
   // 0 means "no measurement". Which of the two it is depends on whether the observatory
   // has an opinion: no record at all, or a probed outbound whose window is all failures.
-  if (ob.delayMs === 0) return ob.alive === false ? t('common.dead') : '—'
+  if (ob.delayMs === 0) return ob.alive === false ? 'dead' : '—'
   return fmtMsFromMs(ob.delayMs)
 }
 
@@ -116,10 +115,10 @@ function valueTone(ob: OutboundView): string {
   return 'dim'
 }
 
-function statusTitle(ob: OutboundView, t: T): string {
-  if (ob.faultKind) return t('rail.faultActive', { kind: ob.faultKind })
-  if (ob.alive === null) return t('rail.statusNeverProbed')
-  return ob.alive ? t('rail.statusAlive') : t('rail.statusDead')
+function statusTitle(ob: OutboundView): string {
+  if (ob.faultKind) return `fault active: ${ob.faultKind}`
+  if (ob.alive === null) return 'never probed — the observatory has no record of this outbound'
+  return ob.alive ? 'alive' : 'dead'
 }
 
 export function Sidebar(): React.JSX.Element {
@@ -132,7 +131,6 @@ export function Sidebar(): React.JSX.Element {
     requestEdit,
   } = useApp()
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
-  const { t } = useT()
 
   // Grouped and naturally ordered, matching the RTT legend. A flat lexicographic list
   // puts LTE-10 between LTE-1 and LTE-2, which at twenty outbounds is unreadable.
@@ -164,17 +162,17 @@ export function Sidebar(): React.JSX.Element {
     <aside className="rail">
       <section>
         <h2>
-          {t('rail.outbounds')} <span className="dim">{snap.outbounds.length}</span>
+          Outbounds <span className="dim">{snap.outbounds.length}</span>
           {snap.outbounds.length > 0 && (
             <span
               className="dim scale-note"
-              title={t('rail.scaleTitle')}
+              title="All sparklines share this ceiling, so their heights are comparable between rows."
             >
-              {t('rail.scale', { n: sparkMax })}
+              scale 0–{sparkMax}ms
             </span>
           )}
         </h2>
-        {snap.outbounds.length === 0 && <p className="dim pad">{t('rail.noOutbounds')}</p>}
+        {snap.outbounds.length === 0 && <p className="dim pad">No outbounds seen yet.</p>}
 
         {groups.map((g) => {
           const dead = g.items.filter((o) => o.alive === false).length
@@ -188,19 +186,19 @@ export function Sidebar(): React.JSX.Element {
                 <span className="dim tiny">{g.items.length}</span>
                 <span className="spacer" />
                 {faulted > 0 && (
-                  <span className="chip tiny bad" title={t('rail.faultTitle')}>
-                    {t('rail.fault', { n: faulted })}
+                  <span className="chip tiny bad" title="outbounds with a fault injected">
+                    {faulted} fault
                   </span>
                 )}
                 {dead > 0 && (
                   <span
                     className="chip tiny bad"
-                    title={t('rail.deadTitle')}
+                    title="reported dead by the observatory, out of the group's total"
                   >
                     {/* Out of how many: "12 dead" reads very differently in a group of
                         twelve than in a group of sixteen, and the count alone gave no
                         way to tell those apart. */}
-                    {t('rail.dead', { n: dead, total: g.items.length })}
+                    {dead}/{g.items.length} dead
                   </span>
                 )}
               </button>
@@ -221,13 +219,13 @@ export function Sidebar(): React.JSX.Element {
                           <span
                             className="dot"
                             style={{ background: statusColor(ob) }}
-                            title={statusTitle(ob, t)}
+                            title={statusTitle(ob)}
                           />
                           <span
                             className="ob-tag"
                             title={
                               ob.tag ||
-                              t('rail.untagged')
+                              'Dials made outside any outbound — the connectivity check and the built-in DNS client both do this. They cannot be edited or faulted by tag.'
                             }
                           >
                             {/* The full tag, not just the part after the group prefix.
@@ -238,15 +236,15 @@ export function Sidebar(): React.JSX.Element {
                             {ob.tag === '' ? '—' : ob.tag}
                           </span>
                           {ob.inFlight > 0 && (
-                            <span className="chip tiny" title={t('rail.probesInFlight')}>
+                            <span className="chip tiny" title="probes in flight">
                               {ob.inFlight}
                             </span>
                           )}
                           {ob.faultKind && (
-                            <span className="fault-dot" title={t('rail.faultActive', { kind: ob.faultKind })} />
+                            <span className="fault-dot" title={`fault injected: ${ob.faultKind}`} />
                           )}
                           <Spark data={ob.spark} max={sparkMax} tone={statusColor(ob)} />
-                          <span className={`ob-val mono ${valueTone(ob)}`}>{valueText(ob, t)}</span>
+                          <span className={`ob-val mono ${valueTone(ob)}`}>{valueText(ob)}</span>
                           {/* Revealed on hover: the rail is a status list first, and a
                               permanent button on every row would compete with the
                               health dot for attention. Omitted entirely for untagged
@@ -254,13 +252,13 @@ export function Sidebar(): React.JSX.Element {
                           {ob.tag !== '' && (
                             <button
                               className="ob-edit"
-                              title={t('rail.editTitle', { tag: ob.tag })}
+                              title={`Edit ${ob.tag} in the graph`}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 requestEdit(ob.tag)
                               }}
                             >
-                              {t('rail.edit')}
+                              edit
                             </button>
                           )}
                         </div>
@@ -276,9 +274,9 @@ export function Sidebar(): React.JSX.Element {
 
       <section>
         <h2>
-          {t('rail.balancers')} <span className="dim">{snap.balancers.length}</span>
+          Balancers <span className="dim">{snap.balancers.length}</span>
         </h2>
-        {snap.balancers.length === 0 && <p className="dim pad">{t('rail.noBalancerDecisions')}</p>}
+        {snap.balancers.length === 0 && <p className="dim pad">No balancer decisions yet.</p>}
         <ul className="bal-list">
           {balancers.map((b: BalancerView) => (
             <li
@@ -292,20 +290,20 @@ export function Sidebar(): React.JSX.Element {
                 <span className="spacer" />
                 <button
                   className="ob-edit"
-                  title={t('rail.editTitle', { tag: b.tag })}
+                  title={`Edit ${b.tag} in the graph`}
                   onClick={(e) => {
                     e.stopPropagation()
                     requestEdit(b.tag, 'balancer')
                   }}
                 >
-                  {t('rail.edit')}
+                  edit
                 </button>
               </div>
               <div className="ob-meta">
                 <span className="dim">→</span>
                 <span className="mono">{b.selected || '(none)'}</span>
                 {b.source === 'override' && (
-                  <span className="chip tiny bad" title={t('rail.pinnedBypass')}>
+                  <span className="chip tiny bad" title="pinned; the strategy is bypassed">
                     pinned
                   </span>
                 )}

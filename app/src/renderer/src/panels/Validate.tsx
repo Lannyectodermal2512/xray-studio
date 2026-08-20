@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Diagnostic } from '@shared/events'
 import { effectiveConfigPath, useApp } from '../store/app'
-import { useT, type Key } from '../lib/i18n'
-import { diagDetail, diagMessage } from '../lib/diag'
 
 /**
  * Config validation.
@@ -21,17 +19,27 @@ const severityRank: Record<Diagnostic['severity'], number> = {
   info: 3,
 }
 
-/** Severity presentation. The label and blurb are keys; only `cls` is not language. */
-const severityCopy: Record<Diagnostic['severity'], { label: Key; cls: string; blurb: Key | null }> =
-  {
-    error: { label: 'sev.error', cls: 'bad', blurb: 'sev.errorBlurb' },
-    dysfunction: { label: 'sev.dysfunction', cls: 'warn', blurb: 'sev.dysfunctionBlurb' },
-    warning: { label: 'sev.warning', cls: 'warn', blurb: 'sev.warningBlurb' },
-    info: { label: 'sev.info', cls: '', blurb: null },
-  }
+const severityCopy: Record<Diagnostic['severity'], { label: string; cls: string; blurb: string }> = {
+  error: {
+    label: 'error',
+    cls: 'bad',
+    blurb: 'Xray will refuse to start.',
+  },
+  dysfunction: {
+    label: 'silently broken',
+    cls: 'warn',
+    blurb:
+      'The config loads and starts. This part of it simply never does anything, with no error and nothing in the logs.',
+  },
+  warning: {
+    label: 'warning',
+    cls: 'warn',
+    blurb: 'Works, but probably not the way you expect.',
+  },
+  info: { label: 'note', cls: '', blurb: '' },
+}
 
 export function Validate(): React.JSX.Element {
-  const { t } = useT()
   const state = useApp()
   const path = effectiveConfigPath(state)
 
@@ -66,7 +74,7 @@ export function Validate(): React.JSX.Element {
   if (!path) {
     return (
       <div className="pad">
-        <p className="dim">{t('validate.openToValidate')}</p>
+        <p className="dim">Open a config to validate it.</p>
       </div>
     )
   }
@@ -83,26 +91,27 @@ export function Validate(): React.JSX.Element {
     <div className="whatif">
       <section className="card">
         <div className="card-head">
-          <h3>{t('validate.title')}</h3>
+          <h3>Validation</h3>
           <div className="row gap">
-            {busy && <span className="dim tiny">{t('validate.checking')}</span>}
-            {diags !== null && sorted.length === 0 && <span className="chip ok">{t('validate.clean')}</span>}
+            {busy && <span className="dim tiny">checking…</span>}
+            {diags !== null && sorted.length === 0 && <span className="chip ok">clean</span>}
             {(['error', 'dysfunction', 'warning'] as const).map((s) =>
               counts[s] ? (
                 <span key={s} className={`chip ${severityCopy[s].cls}`}>
-                  {counts[s]} {t(severityCopy[s].label)}
+                  {counts[s]} {severityCopy[s].label}
                 </span>
               ) : null,
             )}
             <button className="ghost" onClick={() => void run()}>
-              {t('validate.recheck')}
+              Re-check
             </button>
           </div>
         </div>
 
         <p className="note info">
-          {t('validate.lead')} <em>{t('validate.accepts')}</em> {t('validate.leadMid')}{' '}
-          <strong>{t('validate.silentlyBroken')}</strong>.
+          Xray already rejects malformed configs. What it will not tell you about is the
+          config it <em>accepts</em> and then does not act on — those appear here as{' '}
+          <strong>silently broken</strong>.
         </p>
       </section>
 
@@ -111,7 +120,8 @@ export function Validate(): React.JSX.Element {
       {diags !== null && sorted.length === 0 && (
         <section className="card">
           <p className="dim">
-            {t('validate.clean2')}
+            Nothing to report. Every balancer has candidates, every referenced tag exists, and
+            every key is read by something.
           </p>
         </section>
       )}
@@ -121,16 +131,16 @@ export function Validate(): React.JSX.Element {
           <div className="card-head">
             <div className="row gap">
               <span className={`chip ${severityCopy[d.severity].cls}`}>
-                {t(severityCopy[d.severity].label)}
+                {severityCopy[d.severity].label}
               </span>
               {d.path && <code className="mono dim">{d.path}</code>}
             </div>
             <code className="tiny dim">{d.code}</code>
           </div>
-          <p className="diag-msg">{diagMessage(d, t)}</p>
-          {diagDetail(d, t) && <p className="tiny dim">{diagDetail(d, t)}</p>}
+          <p className="diag-msg">{d.message}</p>
+          {d.detail && <p className="tiny dim">{d.detail}</p>}
           {severityCopy[d.severity].blurb && (
-            <p className="tiny faint">{t(severityCopy[d.severity].blurb!)}</p>
+            <p className="tiny faint">{severityCopy[d.severity].blurb}</p>
           )}
         </section>
       ))}
