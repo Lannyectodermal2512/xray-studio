@@ -68,6 +68,25 @@ p:last-child { margin-bottom: 0; }
 .top nav a { color: var(--fg-dim); font-size: 14px; }
 .top nav a:hover { color: var(--fg); text-decoration: none; }
 
+/* The language switch stays at every width. It is the only control on the page that a
+   reader cannot work around by scrolling, and someone who landed in the wrong language
+   needs it most on the screen where there is least room. */
+.lang { display: inline-flex; }
+.lang button {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--fg-faint);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: .04em;
+  padding: 3px 8px;
+}
+.lang button:first-child { border-radius: 5px 0 0 5px; }
+.lang button:last-child { border-radius: 0 5px 5px 0; margin-left: -1px; }
+.lang button:hover { color: var(--fg); }
+.lang button.on { background: var(--bg-raised); border-color: var(--accent); color: var(--accent); }
+
 /* The section links are the first thing to go on a narrow screen: the page is short
    enough to scroll, and the two that matter — download and the repository — are not
    reachable any other way. */

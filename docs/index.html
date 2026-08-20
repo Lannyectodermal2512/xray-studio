@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Xray Studio — see why your balancer chose that outbound</title>
+<title data-i18n="title">Xray Studio — see why your balancer chose that outbound</title>
 <meta name="description" content="A desktop tool for testing Xray-core configurations. It shows why a load balancer picked a particular outbound, and makes one unreachable in a way indistinguishable from a real network failure. No telemetry, free.">
 <link rel="icon" href="icon.png">
 <link rel="canonical" href="https://x-ray.studio/">
@@ -21,10 +21,14 @@
   <div class="shell" style="display:flex;align-items:center;gap:14px">
     <a class="brand" href="#top"><img src="icon.png" alt="">Xray&nbsp;Studio</a>
     <nav>
-      <a class="opt" href="#why">Why</a>
-      <a class="opt" href="#features">Features</a>
-      <a href="#download">Download</a>
+      <a class="opt" href="#why" data-i18n="nav.why">Why</a>
+      <a class="opt" href="#features" data-i18n="nav.features">Features</a>
+      <a href="#download" data-i18n="nav.download">Download</a>
       <a href="https://github.com/notacircle/xray-studio">GitHub</a>
+      <span class="lang">
+        <button type="button" data-lang="en" class="on" aria-pressed="true" lang="en">EN</button>
+        <button type="button" data-lang="ru" aria-pressed="false" lang="ru">RU</button>
+      </span>
     </nav>
   </div>
 </header>
@@ -32,21 +36,21 @@
 <main id="top">
 
   <section class="hero shell">
-    <h1>See why your balancer chose that outbound</h1>
-    <p class="lede">
+    <h1 data-i18n="hero.h1">See why your balancer chose that outbound</h1>
+    <p class="lede" data-i18n="hero.lede">
       Xray Studio runs your config, traces every balancer decision down to the reason,
       and can make one outbound fail in a way that is indistinguishable from a real
       network outage.
     </p>
     <div class="cta">
-      <a class="btn primary" href="#download">Download</a>
-      <a class="btn" href="https://github.com/notacircle/xray-studio">View on GitHub</a>
+      <a class="btn primary" href="#download" data-i18n="hero.download">Download</a>
+      <a class="btn" href="https://github.com/notacircle/xray-studio" data-i18n="hero.github">View on GitHub</a>
     </div>
-    <p class="built">Built against Xray-core v26.7.28 · macOS · Windows · Linux</p>
+    <p class="built" data-i18n="hero.built">Built against Xray-core v26.7.28 · macOS · Windows · Linux</p>
 
     <figure class="hero-shot">
       <a class="zoom" href="img/funnel.png" title="Open the full-size screenshot"><img src="img/funnel.png" alt="The decision funnel, showing each stage of a leastLoad decision" width="2580" height="1784"></a>
-      <figcaption>
+      <figcaption data-i18n="hero.caption">
         Every stage of a real <code>leastLoad</code> decision: the candidates, the
         arithmetic, the one that was cut and why — and the dice roll at the end, stated
         as a dice roll.
@@ -58,30 +62,30 @@
     <div class="shell">
       <div class="cards">
         <div class="card">
-          <h3>Nothing is collected</h3>
-          <p>
+          <h3 data-i18n="promise.1.h">Nothing is collected</h3>
+          <p data-i18n="f.lead.0">
             No analytics, no crash reporting, no update check, no usage counter. The
             window runs under a policy that cannot reach the network at all; the process
             behind it talks to <code>127.0.0.1</code> and nothing else.
           </p>
         </div>
         <div class="card">
-          <h3>Your configs stay yours</h3>
-          <p>
+          <h3 data-i18n="promise.2.h">Your configs stay yours</h3>
+          <p data-i18n="f.lead.1">
             Read from disk, never uploaded. The only traffic the tool causes is the
             traffic your own config describes — it runs Xray against the servers you
             listed, which is the point of it.
           </p>
         </div>
         <div class="card">
-          <h3>Free, nothing to buy</h3>
-          <p>
+          <h3 data-i18n="promise.3.h">Free, nothing to buy</h3>
+          <p data-i18n="f.lead.2">
             No paid tier, no licence key, no account. Source under MPL-2.0 — read it,
             build it, change it.
           </p>
         </div>
       </div>
-      <p class="foot">
+      <p class="foot" data-i18n="promise.foot">
         One exception, and you switch it on: the AI Assistant sends what you ask it, with
         an API key you supply. It does nothing until you enter one.
       </p>
@@ -90,16 +94,16 @@
 
   <section id="why" class="feature shell">
     <div class="lead">
-      <div class="kicker">Why it exists</div>
-      <h2>Xray will not tell you how it decided</h2>
-      <p>
+      <div class="kicker" data-i18n="why.kicker">Why it exists</div>
+      <h2 data-i18n="why.h">Xray will not tell you how it decided</h2>
+      <p data-i18n="f.lead.9">
         Its API reports which outbound a balancer would pick and nothing about how it got
         there — no strategy, no candidates, no scores, no rejection reasons. Probe
         results, individual RTT samples and per-connection rule matches are not exposed
         at all. When a strategy returns nothing, the dispatcher silently falls through to
         the first outbound in your file and discards the error.
       </p>
-      <p>
+      <p data-i18n="f.lead.10">
         This tool runs a patched core that emits the missing part — threaded through the
         real balancer code, not reimplemented beside it, so the explanation cannot drift
         from the behaviour it explains.
@@ -111,19 +115,19 @@
 
     <section class="feature shell">
       <div class="lead">
-        <div class="kicker">Observe</div>
-        <h2>Every probe, on one time axis</h2>
-        <p>
+        <div class="kicker" data-i18n="f1.kicker">Observe</div>
+        <h2 data-i18n="f1.h">Every probe, on one time axis</h2>
+        <p data-i18n="f.lead.3">
           The RTT chart and a lane beneath it showing every probe — successful and
           failed — against the same clock, so a fault and the failover it caused line up
           by eye.
         </p>
       </div>
       <ul class="points">
-        <li><b>Failures are never drawn as values.</b> A dead probe has no RTT; the observatory stores a sentinel, and charting it would flatten every real measurement.</li>
-        <li><b>Sub-millisecond reads are marked.</b> Xray truncates delay to whole milliseconds, so a fast server reports <code>0</code> — the table says so instead of implying instant.</li>
-        <li><b>The columns the strategy sorts by are highlighted.</b> The table explains the ranking rather than being a wall of numbers.</li>
-        <li><b>Log scale turns itself on</b> when one probe is far slower than the rest and would flatten the others.</li>
+        <li data-i18n="pt.0"><b>Failures are never drawn as values.</b> A dead probe has no RTT; the observatory stores a sentinel, and charting it would flatten every real measurement.</li>
+        <li data-i18n="pt.1"><b>Sub-millisecond reads are marked.</b> Xray truncates delay to whole milliseconds, so a fast server reports <code>0</code> — the table says so instead of implying instant.</li>
+        <li data-i18n="pt.2"><b>The columns the strategy sorts by are highlighted.</b> The table explains the ranking rather than being a wall of numbers.</li>
+        <li data-i18n="pt.3"><b>Log scale turns itself on</b> when one probe is far slower than the rest and would flatten the others.</li>
       </ul>
       <figure class="shot">
         <a class="zoom" href="img/observe.png" title="Open the full-size screenshot"><img src="img/observe.png" alt="The Observe tab: RTT chart, probe lane and the probe results table" loading="lazy" width="2580" height="1784"></a>
@@ -132,19 +136,19 @@
 
     <section class="feature shell">
       <div class="lead">
-        <div class="kicker">Faults</div>
-        <h2>Make one outbound unreachable, for real</h2>
-        <p>
+        <div class="kicker" data-i18n="f2.kicker">Faults</div>
+        <h2 data-i18n="f2.h">Make one outbound unreachable, for real</h2>
+        <p data-i18n="f.lead.4">
           Blackhole, refuse, host unreachable, TLS garbage, latency, throttle, packet
           loss. The synthesized errors are asserted byte-identical to what the kernel
           produces for the same condition.
         </p>
       </div>
       <ul class="points">
-        <li><b>Keyed on the outbound tag, not an address.</b> Two outbounds can share a server IP and port; a packet filter physically cannot tell them apart, and a tag can.</li>
-        <li><b>Probes and traffic take the same path,</b> so health checks see the failure exactly the way real connections do — which is how a firewall behaves.</li>
-        <li><b>Live connections are torn down too.</b> A firewall does not wait politely for existing flows to finish.</li>
-        <li><b>The five things it cannot reproduce are listed in the panel,</b> beside the rules themselves, rather than buried in a footnote.</li>
+        <li data-i18n="pt.4"><b>Keyed on the outbound tag, not an address.</b> Two outbounds can share a server IP and port; a packet filter physically cannot tell them apart, and a tag can.</li>
+        <li data-i18n="pt.5"><b>Probes and traffic take the same path,</b> so health checks see the failure exactly the way real connections do — which is how a firewall behaves.</li>
+        <li data-i18n="pt.6"><b>Live connections are torn down too.</b> A firewall does not wait politely for existing flows to finish.</li>
+        <li data-i18n="pt.7"><b>The five things it cannot reproduce are listed in the panel,</b> beside the rules themselves, rather than buried in a footnote.</li>
       </ul>
       <figure class="shot">
         <a class="zoom" href="img/faults.png" title="Open the full-size screenshot"><img src="img/faults.png" alt="The Faults tab: fault rules and the outbounds each one will hit" loading="lazy" width="2580" height="1784"></a>
@@ -153,18 +157,18 @@
 
     <section class="feature shell">
       <div class="lead">
-        <div class="kicker">Graph &amp; Editor</div>
-        <h2>Edit the config, keep the file</h2>
-        <p>
+        <div class="kicker" data-i18n="f3.kicker">Graph &amp; Editor</div>
+        <h2 data-i18n="f3.h">Edit the config, keep the file</h2>
+        <p data-i18n="f.lead.5">
           Click a node in the diagram to change it, or edit the text directly. Every
           change is a minimal patch to the JSON, never a re-serialisation.
         </p>
       </div>
       <ul class="points">
-        <li><b>Your comments and formatting survive.</b> Protocol settings, TLS, Reality and <code>mux</code> are untouched — the graph models tags and routing, and rebuilding the file from it would delete the rest.</li>
-        <li><b>Renames follow their references</b> — <code>fallbackTag</code>, <code>outboundTag</code>, a rule's <code>balancerTag</code> — but deliberately not balancer selectors, because a selector is a pattern, not a reference.</li>
-        <li><b>Nothing is written until you press Save,</b> and the draft is validated through the real loader first.</li>
-        <li><b>Hover any key for its documentation:</b> 360 parameters from the official Xray docs, in English or Russian.</li>
+        <li data-i18n="pt.8"><b>Your comments and formatting survive.</b> Protocol settings, TLS, Reality and <code>mux</code> are untouched — the graph models tags and routing, and rebuilding the file from it would delete the rest.</li>
+        <li data-i18n="pt.9"><b>Renames follow their references</b> — <code>fallbackTag</code>, <code>outboundTag</code>, a rule's <code>balancerTag</code> — but deliberately not balancer selectors, because a selector is a pattern, not a reference.</li>
+        <li data-i18n="pt.10"><b>Nothing is written until you press Save,</b> and the draft is validated through the real loader first.</li>
+        <li data-i18n="pt.11"><b>Hover any key for its documentation:</b> 360 parameters from the official Xray docs, in English or Russian.</li>
       </ul>
       <figure class="shot">
         <a class="zoom" href="img/graph.png" title="Open the full-size screenshot"><img src="img/graph.png" alt="The Graph tab: the config drawn as inbounds, rules, balancers and outbounds" loading="lazy" width="2580" height="1784"></a>
@@ -173,17 +177,17 @@
 
     <section class="feature shell">
       <div class="lead">
-        <div class="kicker">What-if</div>
-        <h2>Ask without touching anything</h2>
-        <p>
+        <div class="kicker" data-i18n="f4.kicker">What-if</div>
+        <h2 data-i18n="f4.h">Ask without touching anything</h2>
+        <p data-i18n="f.lead.6">
           What would this balancer do if <code>maxRTT</code> were 200 ms, or if this
           outbound died? Answered by running the real strategy code against a frozen
           observation — not a model of it.
         </p>
       </div>
       <ul class="points">
-        <li><b>Reported over 1,000 trials.</b> <code>random</code> and <code>leastLoad</code> finish with a uniform draw, so with more than one survivor there is no single answer — only a distribution.</li>
-        <li><b>Works with no traffic at all,</b> because it does not need a live decision to answer.</li>
+        <li data-i18n="pt.12"><b>Reported over 1,000 trials.</b> <code>random</code> and <code>leastLoad</code> finish with a uniform draw, so with more than one survivor there is no single answer — only a distribution.</li>
+        <li data-i18n="pt.13"><b>Works with no traffic at all,</b> because it does not need a live decision to answer.</li>
       </ul>
       <figure class="shot">
         <a class="zoom" href="img/whatif.png" title="Open the full-size screenshot"><img src="img/whatif.png" alt="The What-if tab: sliders per outbound and the resulting distribution" loading="lazy" width="2580" height="1784"></a>
@@ -192,19 +196,19 @@
 
     <section class="feature shell">
       <div class="lead">
-        <div class="kicker">Validate</div>
-        <h2>Configs that load, and then do nothing</h2>
-        <p>
+        <div class="kicker" data-i18n="f5.kicker">Validate</div>
+        <h2 data-i18n="f5.h">Configs that load, and then do nothing</h2>
+        <p data-i18n="f.lead.7">
           Xray already rejects malformed configs. What it will not tell you about is the
           config it accepts and then never acts on. Those are reported as
           <em>silently broken</em>.
         </p>
       </div>
       <ul class="points">
-        <li><b>A key nothing reads.</b> Go's JSON decoder ignores unknown fields, so <code>"balancer"</code> instead of <code>"balancers"</code> behaves exactly as if the block were absent.</li>
-        <li><b>A selector matching no outbound</b> — never checked at load time, because balancers are built before outbounds exist.</li>
-        <li><b>A <code>fallbackTag</code> pointing nowhere,</b> so traffic quietly leaves through the first outbound in the file.</li>
-        <li><b>The known-key set is derived from the parser itself,</b> by reflection, so it cannot drift as Xray evolves.</li>
+        <li data-i18n="pt.14"><b>A key nothing reads.</b> Go's JSON decoder ignores unknown fields, so <code>"balancer"</code> instead of <code>"balancers"</code> behaves exactly as if the block were absent.</li>
+        <li data-i18n="pt.15"><b>A selector matching no outbound</b> — never checked at load time, because balancers are built before outbounds exist.</li>
+        <li data-i18n="pt.16"><b>A <code>fallbackTag</code> pointing nowhere,</b> so traffic quietly leaves through the first outbound in the file.</li>
+        <li data-i18n="pt.17"><b>The known-key set is derived from the parser itself,</b> by reflection, so it cannot drift as Xray evolves.</li>
       </ul>
       <figure class="shot">
         <a class="zoom" href="img/validate.png" title="Open the full-size screenshot"><img src="img/validate.png" alt="The Validate tab, listing silently broken findings in a config" loading="lazy" width="2580" height="1784"></a>
@@ -213,9 +217,9 @@
 
     <section class="feature shell">
       <div class="lead">
-        <div class="kicker">Self-check</div>
-        <h2>The tool audits its own claims</h2>
-        <p>
+        <div class="kicker" data-i18n="f6.kicker">Self-check</div>
+        <h2 data-i18n="f6.h">The tool audits its own claims</h2>
+        <p data-i18n="f.lead.8">
           Everything this app says about Xray is an assertion about someone else's code.
           These checks re-derive those assertions from the core's own answers, so a wrong
           one becomes visible instead of quietly misleading.
@@ -230,8 +234,8 @@
 
   <section id="download" class="download">
     <div class="shell">
-      <h2>Download</h2>
-      <p class="sub">
+      <h2 data-i18n="dl.h">Download</h2>
+      <p class="sub" data-i18n="dl.sub">
         One file per system, on the
         <a href="https://github.com/notacircle/xray-studio/releases">releases page</a>.
         Nothing to install on Windows, nothing to sign up for anywhere.
@@ -239,33 +243,33 @@
 
       <div class="files">
         <div class="file">
-          <span class="os">macOS 14+</span>
+          <span class="os" data-i18n="dl.os.0">macOS 14+</span>
           <span class="name">macos-universal.dmg</span>
-          <span class="note">Open, drag to Applications. Intel and Apple Silicon in one build.</span>
+          <span class="note" data-i18n="dl.note.0">Open, drag to Applications. Intel and Apple Silicon in one build.</span>
         </div>
         <div class="file">
-          <span class="os">Windows 10+</span>
+          <span class="os" data-i18n="dl.os.1">Windows 10+</span>
           <span class="name">win-x64.zip</span>
-          <span class="note">Portable — unpack anywhere and run. This is the one to take.</span>
+          <span class="note" data-i18n="dl.note.1">Portable — unpack anywhere and run. This is the one to take.</span>
         </div>
         <div class="file">
-          <span class="os">Windows 11 on ARM</span>
+          <span class="os" data-i18n="dl.os.2">Windows 11 on ARM</span>
           <span class="name">win-arm64.zip</span>
-          <span class="note">Only for native speed on a Snapdragon machine; the x64 build runs there too.</span>
+          <span class="note" data-i18n="dl.note.2">Only for native speed on a Snapdragon machine; the x64 build runs there too.</span>
         </div>
         <div class="file">
-          <span class="os">Arch Linux</span>
+          <span class="os" data-i18n="dl.os.3">Arch Linux</span>
           <span class="name">linux-x86_64.pkg.tar.zst</span>
-          <span class="note"><code>sudo pacman -U &lt;file&gt;</code>. An <code>aarch64</code> package is there too.</span>
+          <span class="note" data-i18n="dl.note.3"><code>sudo pacman -U &lt;file&gt;</code>. An <code>aarch64</code> package is there too.</span>
         </div>
         <div class="file">
-          <span class="os">Any other Linux</span>
+          <span class="os" data-i18n="dl.os.4">Any other Linux</span>
           <span class="name">linux-x86_64.AppImage</span>
-          <span class="note"><code>chmod +x</code> and run. No install, no dependency resolution.</span>
+          <span class="note" data-i18n="dl.note.4"><code>chmod +x</code> and run. No install, no dependency resolution.</span>
         </div>
       </div>
 
-      <p class="notes">
+      <p class="notes" data-i18n="dl.p.0">
         <strong>Nothing is signed.</strong> macOS needs the quarantine flag cleared once
         (<code>xattr -dr com.apple.quarantine "/Applications/Xray Studio.app"</code>) and
         Windows will warn about an unknown publisher. The
@@ -273,7 +277,7 @@
         which file is yours if you are unsure, and every release carries the sources it
         was built from.
       </p>
-      <p class="notes">
+      <p class="notes" data-i18n="dl.p.1">
         <strong>Windows writes nothing outside its folder</strong> — no registry keys, no
         uninstall entry. Delete the folder and every trace is gone; copy it to a USB
         stick and your setup travels with it.
@@ -286,13 +290,12 @@
 <footer>
   <div class="shell">
     <div class="row">
-      <a href="https://github.com/notacircle/xray-studio">Repository</a>
-      <a href="https://github.com/notacircle/xray-studio/releases">Releases</a>
-      <a href="https://github.com/notacircle/xray-studio/issues">Report something</a>
-      <a href="https://github.com/notacircle/xray-studio/blob/main/README.ru.md">По-русски</a>
+      <a href="https://github.com/notacircle/xray-studio" data-i18n="foot.repo">Repository</a>
+      <a href="https://github.com/notacircle/xray-studio/releases" data-i18n="foot.releases">Releases</a>
+      <a href="https://github.com/notacircle/xray-studio/issues" data-i18n="foot.issues">Report something</a>
     </div>
     <div class="row">
-      <span>
+      <span data-i18n="foot.licence">
         Xray-core is MPL-2.0 and so are the patches applied to it. The parameter
         documentation is adapted from
         <a href="https://github.com/XTLS/Xray-docs-next">XTLS/Xray-docs-next</a> under
@@ -300,10 +303,11 @@
       </span>
     </div>
     <div class="row">
-      <span>Not affiliated with the XTLS project.</span>
+      <span data-i18n="foot.affil">Not affiliated with the XTLS project.</span>
     </div>
   </div>
 </footer>
 
+<script src="lang.js"></script>
 </body>
 </html>
