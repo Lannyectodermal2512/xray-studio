@@ -23,7 +23,6 @@ export function Build(): React.JSX.Element {
   const editRequest = useApp((s) => s.editRequest)
   const clearEditRequest = useApp((s) => s.clearEditRequest)
   const selectedOutbound = useApp((s) => s.selectedOutbound)
-  const selectOutbound = useApp((s) => s.selectOutbound)
   const [notFound, setNotFound] = useState<string | null>(null)
   const [original, setOriginal] = useState<string | null>(null)
   const [draft, setDraft] = useState<string | null>(null)
@@ -70,15 +69,27 @@ export function Build(): React.JSX.Element {
     clearEditRequest()
   }, [editRequest, cfg, clearEditRequest])
 
-  /* Follow the rail's selection. Picking an outbound there is a statement about which
-     host you are looking at, not about which tab you want, so this does not steal the
-     view the way "Edit" does — the diagram is simply already on the right node when you
-     arrive. Resolved by tag against the parsed draft for the same reason as above: the
-     rail's order is telemetry's, not the config's. */
+  /* Follow the rail's selection, and only ever in that direction.
+     
+     Picking an outbound in the rail is a statement about which host you are looking at,
+     not about which tab you want, so this does not steal the view the way "Edit" does —
+     the diagram is simply already on the right node when you arrive. Resolved by tag
+     against the parsed draft for the same reason as above: the rail's order is
+     telemetry's, not the config's.
+     
+     `applied` is what keeps it one-way in practice. The effect has to depend on `cfg`,
+     because on arrival the draft has usually not parsed yet — but `cfg` is rebuilt on
+     every keystroke, and without the guard every edit would drag the selection back to
+     whatever the rail last said, undoing a node you clicked here. Recorded only once
+     the tag actually resolves, so a selection made while the draft was still loading is
+     not lost. */
+  const applied = useRef<string | null>(null)
   useEffect(() => {
-    if (!selectedOutbound || !cfg) return
+    if (!selectedOutbound || !cfg || applied.current === selectedOutbound) return
     const i = cfg.outbounds.findIndex((o) => o.tag === selectedOutbound)
-    if (i >= 0) setSelection({ kind: 'outbound', index: i })
+    if (i < 0) return
+    applied.current = selectedOutbound
+    setSelection({ kind: 'outbound', index: i })
   }, [selectedOutbound, cfg])
 
   // Validate the draft through the sidecar, which parses it with the very loader the
@@ -202,17 +213,7 @@ export function Build(): React.JSX.Element {
 
       <div className="build-body">
         <div className="build-graph">
-          <ConfigGraph
-            source={draft}
-            selection={selection}
-            onSelect={(sel) => {
-              setSelection(sel)
-              // Push it back to the rail, so the highlighted host is the same one in
-              // both places. A diagram and a list disagreeing about what is selected is
-              // worse than neither showing anything.
-              if (sel?.kind === 'outbound') selectOutbound(cfg?.outbounds[sel.index]?.tag ?? null)
-            }}
-          />
+          <ConfigGraph source={draft} selection={selection} onSelect={setSelection} />
         </div>
         <aside className="build-side">
           <Inspector
