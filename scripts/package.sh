@@ -130,13 +130,21 @@ else
      cannot be checked against anything."
 fi
 
-# electron-builder's ${arch} macro yields "x64" for Intel but "aarch64" for ARM in the
-# pacman target, so the pair looks like it came from two different naming schemes — and
-# the x64 file does not match the x86_64 its own .PKGINFO declares. Rename to what
-# `uname -m` prints, which is the string a user actually compares against.
+# electron-builder's ${arch} macro is not consistent between Linux targets: the pacman
+# build yields "x64" for Intel but "aarch64" for ARM, while the AppImage yields "x86_64"
+# and "arm64". Left alone, one release carries four Linux files under three different
+# naming schemes, and the pacman x64 file contradicts the x86_64 its own .PKGINFO
+# declares.
+#
+# Normalise all of them to what `uname -m` prints, since that is the command the README
+# tells people to run when they are unsure which file is theirs.
 for f in .build/dist/*-linux-x64.pkg.tar.zst; do
   [[ -e "$f" ]] || continue
   mv "$f" "${f/-linux-x64.pkg.tar.zst/-linux-x86_64.pkg.tar.zst}"
+done
+for f in .build/dist/*-linux-arm64.AppImage; do
+  [[ -e "$f" ]] || continue
+  mv "$f" "${f/-linux-arm64.AppImage/-linux-aarch64.AppImage}"
 done
 
 printf '\033[32m✓\033[0m artifacts in .build/dist/\n'

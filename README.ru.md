@@ -37,6 +37,8 @@
 | **Windows** 11 ARM | `win-arm64.zip` | опционально. Имеет смысл только ради нативной скорости на машине со Snapdragon — сборка x64 там тоже работает, под эмуляцией |
 | **Arch Linux** x86_64 | `linux-x86_64.pkg.tar.zst` | `sudo pacman -U <файл>` |
 | **Arch Linux** ARM | `linux-aarch64.pkg.tar.zst` | `sudo pacman -U <файл>` |
+| **Любой другой Linux** x86_64 | `linux-x86_64.AppImage` | `chmod +x` и запустить. Без установки и без разрешения зависимостей |
+| **Любой другой Linux** ARM | `linux-aarch64.AppImage` | так же |
 
 Если взять не тот файл для Windows, она скажет *«This app can't run on your PC»* — это
 сообщение всегда означает несовпадение архитектуры и никогда не означает битую загрузку.

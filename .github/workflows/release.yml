@@ -141,7 +141,7 @@ jobs:
             # x86_64/aarch64, not x64/arm64: package.sh renames the pacman files to
             # what `uname -m` prints, which is the string the README tells people to
             # compare against and the one the package's own .PKGINFO declares.
-            linux) want=("*-linux-x86_64.pkg.tar.zst" "*-linux-aarch64.pkg.tar.zst" "*.AppImage") ;;
+            linux) want=("*-linux-x86_64.pkg.tar.zst" "*-linux-aarch64.pkg.tar.zst" "*-linux-x86_64.AppImage" "*-linux-aarch64.AppImage") ;;
           esac
           for pattern in "${want[@]}"; do
             # shellcheck disable=SC2086

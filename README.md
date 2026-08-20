@@ -34,6 +34,8 @@ Download from [Releases](../../releases). One file per system:
 | **Windows** 11 ARM | `win-arm64.zip` | optional. Only worth it for native speed on a Snapdragon machine — the x64 build runs there too, under emulation |
 | **Arch Linux** x86_64 | `linux-x86_64.pkg.tar.zst` | `sudo pacman -U <file>` |
 | **Arch Linux** ARM | `linux-aarch64.pkg.tar.zst` | `sudo pacman -U <file>` |
+| **Any other Linux** x86_64 | `linux-x86_64.AppImage` | `chmod +x` and run. No install, no dependency resolution |
+| **Any other Linux** ARM | `linux-aarch64.AppImage` | same |
 
 If you take the wrong Windows file, Windows says *"This app can't run on your PC"* — that
 message always means an architecture mismatch, never a broken download. `win-x64.zip` is
