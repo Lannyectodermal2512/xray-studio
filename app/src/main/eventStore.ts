@@ -126,14 +126,30 @@ export class EventStore {
     this.dirty = true
 
     if (ev.epoch > this.sidecarEpoch) {
-      // A new instance lifetime: drop per-instance aggregates but keep the chart so
-      // the user can see across a restart.
+      /* A new instance lifetime: everything measured about the previous one goes.
+      
+         The chart used to survive this, so a restart could be read across. In practice
+         it made a Stop/Start look broken rather than useful: the outbound rows, the
+         sparklines and the probe table were all cleared here, and the chart alone kept
+         its history — so half the screen reset and half did not, with old measurements
+         sitting under a fresh, empty table.
+      
+         There is a correctness reason too. Reload also comes through here, and a
+         reloaded config can rename, add or remove outbounds; the surviving columns were
+         then keyed to tags the new instance may never mention again, drawn as live
+         series that can never gain another point. */
       this.sidecarEpoch = ev.epoch
       this.epoch++
       this.outbounds.clear()
       this.balancers.clear()
       this.lastEvals = {}
-      this.markers.push({ t: ev.mono_ns / 1e9, label: `epoch ${this.epoch}`, kind: 'epoch' })
+      this.rttT = []
+      this.rttByTag.clear()
+      this.failures = []
+      // Markers annotate positions on the chart. With the chart gone they would all
+      // point into empty space, and an epoch marker at the origin says nothing that
+      // the empty chart does not.
+      this.markers = []
     }
 
     switch (ev.type) {

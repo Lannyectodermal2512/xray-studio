@@ -94,7 +94,7 @@ export function App(): React.JSX.Element {
         </div>
 
         <div className="tb-mid">
-          <button className="primary" disabled={!configPath || busy || running} onClick={() => void start()}>
+          <button className="primary" disabled={!shownPath || busy || running} onClick={() => void start()}>
             Start
           </button>
           <button disabled={!running || busy} onClick={() => void stop()}>

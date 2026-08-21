@@ -125,7 +125,14 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   start: async () => {
-    const path = get().configPath
+    // The same path the header displays, not the raw field.
+    //
+    // configPath is only set when the user picked a file here. A config opened any
+    // other way — XRAYSTUDIO_CONFIG, or a sidecar that was already running one —
+    // arrives on the snapshot instead, and reading the raw field made Start a no-op
+    // for exactly those sessions: the header showed a config, Stop worked, and Start
+    // then stayed disabled with nothing to explain why.
+    const path = effectiveConfigPath(get())
     if (!path) return
     set({ busy: true, error: null })
     try {
