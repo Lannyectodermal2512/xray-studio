@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.1.0-alpha.3
+
+A bad field in a config could take the whole window down. It cannot any more, and when
+something else does, there is now a report to send.
+
+### Fixed
+
+- **A malformed field no longer blanks the application.** A number where a duration was
+  expected — `"interval": 30` instead of `"30s"` — threw while rendering the observatory
+  and React took the entire interface with it: no panel, no error, nothing to click.
+  `"subjectSelector": "proxy-"` as a bare string did the same to the Graph. Nine places
+  read the config with casts that assert a shape rather than check one; they check now,
+  and forgivingly, since this is a tool for looking at broken configs and Validate is
+  what should object.
+- **A faulted outbound is no longer reported dead when it is alive.** The rail turned a
+  host red the moment any fault was armed on it. That was indistinguishable from the
+  truth while every fault made the outbound unreachable, and wrong the moment one did
+  not: with a quota freeze the probes keep passing, and the dot was asserting "dead"
+  over telemetry saying the opposite — hiding the exact disagreement that fault exists
+  to show. The dot reports the observatory's opinion and nothing else; a hard-down fault
+  still turns it red once that becomes true.
+
+### Added
+
+- **A crash dialog.** When something in the interface throws, it now names what failed
+  and shows the message, the stack, the platform and the versions in one block, with a
+  Copy button and a restart. It says the defect is in this tool rather than in your
+  config, that nothing was written to your file, and that the Xray instance is still
+  running — and the report deliberately carries no part of the config, so it is safe to
+  paste as it is. Coverage includes the shell itself and the failures an error boundary
+  structurally cannot see: a rejected IPC call, or a throw inside an event handler.
+- **An unimplemented fault kind is refused instead of ignored.** A rule naming a kind the
+  engine does not have was accepted, listed, and completely inert — everything reporting
+  success while no dial was ever faulted. That is the failure this whole tool exists to
+  expose, and it was the tool's own behaviour.
+
+### For anyone building from source
+
+- `npm run dev` rebuilds the sidecar when its sources are newer, and refuses to start if
+  that build fails. It used to launch whatever Go binary was on disk, so a new interface
+  could talk to an old engine with no sign that anything was wrong.
+
 ## 0.1.0-alpha.2
 
 One new failure mode, and two things that were quietly telling you the wrong thing.
