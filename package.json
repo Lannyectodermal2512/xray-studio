@@ -6,7 +6,7 @@
   "scripts": {
     "bootstrap": "scripts/bootstrap-xray.sh",
     "check-pin": "scripts/check-pin.sh",
-    "build:sidecar": "mkdir -p .build/bin && go -C sidecar build -o \"$PWD/.build/bin/xray-studio-sidecar\" ./cmd/sidecar",
+    "build:sidecar": "node scripts/ensure-sidecar.mjs",
     "test:sidecar": "go -C sidecar test ./...",
     "dev": "scripts/dev.sh",
     "install:app": "npm --prefix app install",

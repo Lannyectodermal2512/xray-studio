@@ -5,6 +5,7 @@
   "type": "module",
   "main": "./out/main/index.js",
   "scripts": {
+    "predev": "node ../scripts/ensure-sidecar.mjs",
     "dev": "electron-vite dev",
     "build": "tsc --noEmit && electron-vite build",
     "preview": "electron-vite preview",
@@ -34,7 +35,7 @@
     "vite": "7.3.6"
   },
   "productName": "Xray Studio",
-  "description": "Xray Studio — desktop tester for Xray-core configurations",
+  "description": "Xray Studio \u2014 desktop tester for Xray-core configurations",
   "license": "MPL-2.0",
   "homepage": "https://github.com/NotACircle/xray-studio",
   "author": {
