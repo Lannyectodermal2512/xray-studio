@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.1.0-alpha.4
+
+Three things the interface was reporting wrongly, all of them about state that had moved
+on without the screen noticing.
+
+### Fixed
+
+- **Stop then Start clears the chart.** The RTT history and the probe lane used to
+  survive a restart while the outbound rows, the sparklines and the probe table were
+  cleared — half the screen resetting and half not, with measurements from the previous
+  run sitting under a fresh, empty table. Reload takes the same path, and a reloaded
+  config can rename or drop outbounds, which left columns keyed to tags the new instance
+  will never mention again.
+- **Start can be pressed after Stop.** It guarded on the config path recorded when you
+  pick a file in the window, so a config opened any other way — through
+  `XRAYSTUDIO_CONFIG`, or by a sidecar already running one — left the button disabled
+  with a config visible in the header and nothing to explain the contradiction.
+- **The probe lane no longer shows a failing outbound as plainly healthy.** The row
+  highlight is the observatory's verdict and the marks are the individual probes; an
+  outbound stays alive while any sample in `interval × sampling` succeeded, so after it
+  starts failing the verdict lags by up to a whole window — a minute and a half with the
+  defaults. The row was tinted green with a run of red marks beside it.
+
+  It now has its own amber state, because that disagreement is worth seeing rather than
+  smoothing away: an outbound in it is still eligible, and a balancer will keep picking
+  it. The tooltip says what the state means and when it will flip.
+
 ## 0.1.0-alpha.3
 
 A bad field in a config could take the whole window down. It cannot any more, and when
