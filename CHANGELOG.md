@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.1.0-alpha.2
+
+One new failure mode, and two things that were quietly telling you the wrong thing.
+
+### Fault injection
+
+- **Quota freeze — TSPU 16/20 KB.** A per-connection byte quota, the way Russian TSPU
+  equipment throttles TLS leaving the country. The handshake completes and small
+  exchanges succeed; once roughly 16 KB has been sent or 20 KB received on one
+  connection, it stops carrying bytes — no RST, no error, silence until the caller times
+  out. A new connection gets a fresh quota, which is why a page loads in fragments and a
+  large download never finishes.
+
+  It reproduces the one failure none of the existing kinds could. Blackhole, refuse and
+  the unreachables fail the dial, so the probe fails too and the observatory correctly
+  reports the outbound dead. `reset_after` delivers a visible `ECONNRESET`. This
+  produces neither: a health check fetching a 204 moves a few hundred bytes, never
+  reaches the quota, and reports the outbound perfectly alive while every real transfer
+  through it dies. Reach for it when the observatory says alive and users say broken.
+
+  Both thresholds are editable, because they are not constants — the trigger is a packet
+  count, around 25 in either direction, so the payload figure depends on the MSS and
+  operators report anywhere from 15 to 20 KB.
+
+### Fixed
+
+- **The RTT chart no longer looks broken before the first probe.** With no samples uPlot
+  laid out no x axis, gave the plot area the whole canvas, and cut the bottom gridline's
+  label in half, so an empty chart read as a failed one. Nothing is drawn now until
+  there is something to draw, and the space is held so the panel does not jump when the
+  first measurement lands.
+
+### Interface
+
+- **The assistant is called AI Assistant** and says what it is for while collapsed,
+  instead of sitting at the bottom of the Editor as a grey row that reads like a footer.
+
+### Project
+
+- A [website](https://x-ray.studio), English and Russian, switched in place without
+  leaving the page.
+- The README says plainly what the application collects, which is nothing: no analytics,
+  no crash reporting, no update check. The one exception is the AI Assistant, and it
+  does nothing until you give it a key of your own.
+
 ## 0.1.0-alpha.1
 
 First public build. Alpha: interfaces and file formats may change without notice, and
