@@ -87,8 +87,23 @@ function Spark({
   )
 }
 
+/**
+ * The dot is what the OBSERVATORY thinks, and nothing else.
+ *
+ * It used to go red the moment a fault was armed, which was indistinguishable from a
+ * real one while every fault made the outbound unreachable. It stopped being true with
+ * quota_freeze: that one leaves probes passing on purpose, so the observatory reports
+ * the outbound alive while real traffic through it dies — and the dot was asserting
+ * "dead" over telemetry that said the opposite, hiding the one thing that fault exists
+ * to show.
+ *
+ * A hard-down fault still turns the dot red, a sampling window later, because by then
+ * the observatory genuinely says so. Waiting for that is the honest behaviour: how long
+ * a fault takes to become visible is itself a thing this tool is here to demonstrate.
+ * The fault is not hidden meanwhile — it has its own dot beside the name, and the group
+ * header counts it.
+ */
 function statusColor(ob: OutboundView): string {
-  if (ob.faultKind) return 'var(--bad)'
   if (ob.alive === null) return 'var(--idle)'
   return ob.alive ? 'var(--ok)' : 'var(--bad)'
 }
@@ -116,9 +131,15 @@ function valueTone(ob: OutboundView): string {
 }
 
 function statusTitle(ob: OutboundView): string {
-  if (ob.faultKind) return `fault active: ${ob.faultKind}`
-  if (ob.alive === null) return 'never probed — the observatory has no record of this outbound'
-  return ob.alive ? 'alive' : 'dead'
+  const state =
+    ob.alive === null
+      ? 'never probed — the observatory has no record of this outbound'
+      : ob.alive
+        ? 'alive'
+        : 'dead'
+  // Both, when both apply. "alive, with quota_freeze armed" is the interesting state
+  // and the one worth being able to read off a tooltip.
+  return ob.faultKind ? `${state}, with ${ob.faultKind} armed` : state
 }
 
 export function Sidebar(): React.JSX.Element {

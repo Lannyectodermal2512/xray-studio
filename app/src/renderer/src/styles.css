@@ -1208,18 +1208,26 @@ button.ghost.on { border-color: var(--bad); color: var(--bad); }
    answered the question they arrived with. */
 .card.diag.hit { border-color: var(--accent); }
 
-/* A panel that threw. Deliberately plain and deliberately not alarming-red: the tool
-   still works, and the message is an admission rather than a warning about the config. */
-.panel-crash { padding: 28px 24px; max-width: 60em; }
-.panel-crash h3 { font-size: 15px; margin: 0 0 10px; }
-.panel-crash pre {
+/* ── the crash dialog ──────────────────────────────────────────────────────────
+   Above every other modal: it can appear while one is open, and it is the only one
+   the user cannot dismiss by clicking away. */
+.crash-scrim { z-index: 200; }
+.crash { max-width: 720px; width: min(720px, 100% - 32px); }
+.crash-lede { color: var(--fg-dim); font-size: 13.5px; margin: 0 0 12px; }
+.crash-lede strong { color: var(--fg); }
+
+/* The trace is the payload. Bounded so a deep stack cannot push the buttons off the
+   bottom of a short window — the report is no use if Copy cannot be reached. */
+.crash-trace {
   background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: 6px;
-  color: var(--bad);
-  font-size: 12px;
-  margin: 14px 0;
-  overflow-x: auto;
+  font-size: 11.5px;
+  line-height: 1.5;
+  max-height: 40vh;
+  overflow: auto;
   padding: 10px 12px;
+  user-select: text;
   white-space: pre-wrap;
+  word-break: break-word;
 }
