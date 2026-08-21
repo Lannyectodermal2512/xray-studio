@@ -12,6 +12,7 @@
 package fault
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"sync/atomic"
@@ -91,6 +92,24 @@ const (
 	DefaultFreezeUpBytes   int64 = 16 << 10
 	DefaultFreezeDownBytes int64 = 20 << 10
 )
+
+// Known lists every kind the engine implements.
+//
+// Written out rather than inferred, because the failure it prevents is specific: a rule
+// naming a kind this build does not have was accepted and then quietly did nothing. A
+// newer interface talking to an older sidecar — the usual shape of a dev run that
+// rebuilt the app but not the binary — produced a fault that was armed, listed, and
+// completely inert. "Accepted and does nothing" is exactly the class of failure this
+// whole tool exists to make visible, so it must not be how the tool itself behaves.
+func (k Kind) Known() bool {
+	switch k {
+	case KindBlackhole, KindRefuse, KindHostUnreachable, KindNetUnreachable, KindDNSFail,
+		KindTLSHang, KindTLSGarbage, KindLatency, KindThrottle, KindResetAfter,
+		KindUDPLoss, KindQuotaFreeze:
+		return true
+	}
+	return false
+}
 
 // HardDown reports whether this kind prevents a connection from being established at
 // all. Those kinds also poison already-open connections, because a real firewall does
@@ -183,6 +202,13 @@ func Compile(rules []*Rule) (*RuleSet, error) {
 	for _, r := range rules {
 		if !r.Enabled {
 			continue
+		}
+		if !r.Kind.Known() {
+			return nil, fmt.Errorf(
+				"unknown fault kind %q — this sidecar does not implement it. "+
+					"If the interface offers it, the two were built from different sources: "+
+					"rebuild the sidecar (scripts/build-sidecar.sh) and restart the app",
+				r.Kind)
 		}
 		cp := *r
 		re, err := globToRegexp(cp.TagGlob)
