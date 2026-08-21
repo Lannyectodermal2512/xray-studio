@@ -215,6 +215,7 @@ export type FaultKind =
   | 'throttle'
   | 'reset_after'
   | 'udp_loss'
+  | 'quota_freeze'
 
 export interface FaultRule {
   id: string
@@ -237,6 +238,9 @@ export interface FaultRule {
   burstBytes?: number
   afterBytes?: number
   lossPercent?: number
+  upBytes?: number
+  downBytes?: number
+  freezeMs?: number
   probability?: number
   upMs?: number
   downMs?: number

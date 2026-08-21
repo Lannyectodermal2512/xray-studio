@@ -16,6 +16,7 @@ const KINDS: FaultKind[] = [
   'latency',
   'throttle',
   'reset_after',
+  'quota_freeze',
   'udp_loss',
 ]
 
@@ -26,6 +27,10 @@ export function Faults(): React.JSX.Element {
   const [kind, setKind] = useState<FaultKind>('blackhole')
   const [tagGlob, setTagGlob] = useState('')
   const [delayMs, setDelayMs] = useState('')
+  // Quota, in kilobytes, because that is the unit the behaviour is discussed in and
+  // nobody wants to type 16384. Stored in bytes, which is what the engine counts.
+  const [upKb, setUpKb] = useState('')
+  const [downKb, setDownKb] = useState('')
 
   const allTags = useMemo(() => snap.outbounds.map((o) => o.tag), [snap.outbounds])
   const selected = useMemo(() => new Set(globMembers(tagGlob)), [tagGlob])
@@ -53,10 +58,14 @@ export function Faults(): React.JSX.Element {
       kind,
       tagGlob: tagGlob.trim() || '*',
       ...(delayMs ? { delayMs: Number(delayMs) } : {}),
+      ...(kind === 'quota_freeze' && upKb ? { upBytes: Number(upKb) * 1024 } : {}),
+      ...(kind === 'quota_freeze' && downKb ? { downBytes: Number(downKb) * 1024 } : {}),
     }
     await applyFaults([...snap.faults, rule])
     setTagGlob('')
     setDelayMs('')
+    setUpKb('')
+    setDownKb('')
   }
 
   const remove = async (id: string): Promise<void> => {
@@ -100,6 +109,31 @@ export function Faults(): React.JSX.Element {
                 inputMode="numeric"
               />
             </label>
+          )}
+
+          {kind === 'quota_freeze' && (
+            <>
+              <label>
+                <span>Upload (KB)</span>
+                <input
+                  value={upKb}
+                  onChange={(e) => setUpKb(e.target.value)}
+                  placeholder="16"
+                  inputMode="numeric"
+                  title="Bytes this connection may send before it stops carrying traffic. Empty uses 16 KB."
+                />
+              </label>
+              <label>
+                <span>Download (KB)</span>
+                <input
+                  value={downKb}
+                  onChange={(e) => setDownKb(e.target.value)}
+                  placeholder="20"
+                  inputMode="numeric"
+                  title="Bytes this connection may receive before it stops carrying traffic. Empty uses 20 KB."
+                />
+              </label>
+            </>
           )}
 
           <button className="primary" onClick={() => void add()}>
@@ -246,6 +280,10 @@ export function Faults(): React.JSX.Element {
                       r.rateBps && `rate=${r.rateBps}B/s`,
                       r.lossPercent && `loss=${r.lossPercent}%`,
                       r.afterBytes && `after=${r.afterBytes}B`,
+                      r.kind === 'quota_freeze' &&
+                        `up=${Math.round((r.upBytes ?? 16384) / 1024)}KB  down=${Math.round(
+                          (r.downBytes ?? 20480) / 1024,
+                        )}KB`,
                     ]
                       .filter(Boolean)
                       .join('  ') || '—'}

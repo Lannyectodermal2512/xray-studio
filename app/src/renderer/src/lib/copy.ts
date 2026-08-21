@@ -153,6 +153,7 @@ export const faultLabel: Record<FaultKind, string> = {
   throttle: 'Bandwidth throttle',
   reset_after: 'Reset mid-connection',
   udp_loss: 'UDP packet loss',
+  quota_freeze: 'Quota freeze — TSPU 16/20 KB',
 }
 
 export const faultHelp: Record<FaultKind, string> = {
@@ -171,6 +172,14 @@ export const faultHelp: Record<FaultKind, string> = {
   throttle: 'Token-bucket rate limit in both directions.',
   reset_after: 'Passes traffic, then tears the connection down with ECONNRESET.',
   udp_loss: 'Drops a percentage of datagrams. Meaningful for QUIC, KCP and hysteria.',
+  quota_freeze:
+    'A per-connection byte quota, the way Russian TSPU equipment throttles TLS leaving ' +
+    'the country. The handshake completes and small exchanges succeed; once ~16 KB has ' +
+    'been sent or ~20 KB received on ONE connection, it stops carrying bytes — no RST, ' +
+    'no error, just silence until the caller times out. A new connection gets a fresh ' +
+    'quota, which is why a page loads in fragments and a large download never finishes. ' +
+    'The one to reach for when the observatory says an outbound is alive and users say ' +
+    'it is not: a probe fetching a 204 never reaches the quota.',
 }
 
 export function fmtMs(ns: number | undefined): string {

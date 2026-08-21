@@ -29,6 +29,14 @@ func errTimeout(network string, addr net.Addr) error {
 	return &net.OpError{Op: "dial", Net: network, Addr: addr, Err: os.ErrDeadlineExceeded}
 }
 
+// errIOTimeout is the same deadline error on a read or a write rather than a dial.
+//
+// The Op matters: a caller that logs the error prints "read tcp …: i/o timeout", and a
+// stall reported as a failed dial would point at the wrong end of the connection.
+func errIOTimeout(op, network string, addr net.Addr) error {
+	return &net.OpError{Op: op, Net: network, Addr: addr, Err: os.ErrDeadlineExceeded}
+}
+
 // errDNS is the resolution failure.
 func errDNS(host string) error {
 	return &net.DNSError{

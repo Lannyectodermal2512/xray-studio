@@ -58,6 +58,38 @@ const (
 
 	// KindUDPLoss drops a percentage of datagrams. Meaningful for QUIC/KCP/hysteria.
 	KindUDPLoss Kind = "udp_loss"
+
+	// KindQuotaFreeze reproduces the per-connection byte quota Russian TSPU equipment
+	// applies to TLS connections leaving the country — the behaviour usually referred
+	// to by the sizes involved, "16/20".
+	//
+	// The handshake completes and small exchanges succeed. Once roughly 16 KB has been
+	// written or 20 KB read on one connection, the middlebox stops forwarding and the
+	// connection simply stops producing bytes. There is no RST: from the client's side
+	// nothing is wrong until its own timeout fires. A new connection starts with a
+	// fresh quota, which is why a page loads in fragments and a large download does
+	// not finish at all.
+	//
+	// It has no equivalent among the kinds above and is not a variation on one.
+	// Blackhole and refuse stop the dial, so a probe fails and the observatory marks
+	// the outbound dead; reset_after produces a visible ECONNRESET. This produces
+	// neither. A health check fetching a 204 moves a few hundred bytes, never reaches
+	// the quota, and reports the outbound perfectly alive — while every real transfer
+	// through it dies. That gap between what the observatory measures and what the
+	// user experiences is the exact failure this tool exists to make visible, and
+	// until now nothing here could reproduce it.
+	KindQuotaFreeze Kind = "quota_freeze"
+)
+
+// Defaults for KindQuotaFreeze, in bytes.
+//
+// Reported thresholds vary by operator — 15 to 20 KB — because the trigger is a packet
+// count (around 25 in either direction) rather than a byte count, so the payload figure
+// depends on the MSS in use. These are the middle of the reported range and the numbers
+// the behaviour is named after.
+const (
+	DefaultFreezeUpBytes   int64 = 16 << 10
+	DefaultFreezeDownBytes int64 = 20 << 10
 )
 
 // HardDown reports whether this kind prevents a connection from being established at
@@ -111,6 +143,18 @@ type Rule struct {
 	AfterBytes int64 `json:"afterBytes,omitempty"`
 	// LossPercent: 0..100, for udp_loss.
 	LossPercent int `json:"lossPercent,omitempty"`
+
+	// UpBytes/DownBytes: the per-connection quota for quota_freeze. Zero takes the
+	// default for that direction; a direction cannot be disabled by zeroing it,
+	// because a quota that only counts one way is not a thing any middlebox does.
+	UpBytes   int64 `json:"upBytes,omitempty"`
+	DownBytes int64 `json:"downBytes,omitempty"`
+
+	// FreezeMs caps how long a frozen connection blocks before it reports a timeout.
+	// The real thing never unfreezes and the client gives up on its own deadline;
+	// this stands in for that deadline so a frozen connection cannot pin a goroutine
+	// for the lifetime of the process. Zero takes 16s, matching Xray's dialer.
+	FreezeMs int64 `json:"freezeMs,omitempty"`
 
 	// Probability applies the fault to only this fraction of dials (0..1).
 	// Zero means "always" — an unset field must not silently disable the rule.

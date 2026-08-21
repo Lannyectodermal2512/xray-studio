@@ -29,13 +29,26 @@ func wrap(c net.Conn, r *Rule, reg *Registry, tag string) net.Conn {
 	if r == nil && reg == nil {
 		return c
 	}
-	base := &trackedConn{Conn: c, rule: r, tag: tag, reg: reg, opened: time.Now()}
+	base := &trackedConn{Conn: c, rule: r, tag: tag, reg: reg, opened: time.Now(), gone: make(chan struct{})}
 	if r != nil {
 		base.bucket = newBucket(r.RateBps, r.BurstBytes)
 		if r.Kind == KindResetAfter {
 			base.resetAfter = r.AfterBytes
 			if r.DelayMs > 0 {
 				base.resetAt = time.Now().Add(time.Duration(r.DelayMs) * time.Millisecond)
+			}
+		}
+		if r.Kind == KindQuotaFreeze {
+			base.upQuota, base.downQuota = r.UpBytes, r.DownBytes
+			if base.upQuota <= 0 {
+				base.upQuota = DefaultFreezeUpBytes
+			}
+			if base.downQuota <= 0 {
+				base.downQuota = DefaultFreezeDownBytes
+			}
+			base.freezeFor = 16 * time.Second
+			if r.FreezeMs > 0 {
+				base.freezeFor = time.Duration(r.FreezeMs) * time.Millisecond
 			}
 		}
 	}
@@ -83,6 +96,17 @@ type trackedConn struct {
 	resetAfter int64
 	resetAt    time.Time
 
+	// quota_freeze state. upQuota/downQuota are the per-direction budgets; freezeFor
+	// stands in for the client's own deadline once the budget is gone.
+	upQuota   int64
+	downQuota int64
+	freezeFor time.Duration
+	frozen    atomic.Bool
+	// Closed when the connection closes, so a frozen Read unblocks then rather than
+	// holding a goroutine until the cap expires.
+	gone     chan struct{}
+	goneOnce sync.Once
+
 	// poison, once set, makes every subsequent Read/Write fail with that error.
 	poison    atomic.Pointer[error]
 	closeOnce sync.Once
@@ -104,6 +128,22 @@ func (c *trackedConn) effects(n int, isRead bool) error {
 		if c.bucket != nil && n > 0 {
 			c.bucket.take(int64(n))
 		}
+	case KindQuotaFreeze:
+		// Counted per direction and per connection, which is what makes the failure
+		// look like a working server: the quota is spent by whatever this connection
+		// has already carried, and the next connection starts again from zero.
+		if c.written.Load() >= c.upQuota || c.read.Load() >= c.downQuota {
+			c.frozen.Store(true)
+		}
+		// The operation that CROSSES the quota still completes. Its bytes are on the
+		// wire before the middlebox decides to stop forwarding, so failing it would
+		// put the stall one operation too early and give the caller an error at the
+		// exact moment a real connection is still behaving normally. n == 0 marks the
+		// call made before a transfer; the post-transfer call only sets the flag.
+		if n == 0 && c.frozen.Load() {
+			return c.freeze(isRead)
+		}
+
 	case KindResetAfter:
 		total := c.read.Load() + c.written.Load()
 		hitBytes := c.resetAfter > 0 && total >= c.resetAfter
@@ -117,6 +157,27 @@ func (c *trackedConn) effects(n int, isRead bool) error {
 		}
 	}
 	return nil
+}
+
+// freeze blocks the way the middlebox makes a connection block: nothing arrives, no
+// error is delivered, and the caller waits.
+//
+// It ends in a timeout rather than blocking forever. The real thing never recovers and
+// the client gives up on its own deadline; reproducing "forever" literally would pin a
+// goroutine for the life of the process, and the error the caller finally sees would be
+// the same timeout either way.
+func (c *trackedConn) freeze(isRead bool) error {
+	timer := time.NewTimer(c.freezeFor)
+	defer timer.Stop()
+	select {
+	case <-c.gone:
+	case <-timer.C:
+	}
+	op := "write"
+	if isRead {
+		op = "read"
+	}
+	return errIOTimeout(op, c.LocalAddr().Network(), c.RemoteAddr())
 }
 
 func (c *trackedConn) Read(b []byte) (int, error) {
@@ -156,6 +217,9 @@ func (c *trackedConn) Close() error {
 		if c.reg != nil {
 			c.reg.forget(c)
 		}
+		// Release anything parked in freeze() before the underlying close, so a
+		// frozen reader returns promptly instead of waiting out its cap.
+		c.goneOnce.Do(func() { close(c.gone) })
 		err = c.Conn.Close()
 	})
 	return err
