@@ -3,6 +3,7 @@ import { effectiveConfigPath, useApp } from '../store/app'
 import { natural, splitTag } from '../lib/tags'
 
 import type { Selection } from './Inspector'
+import { strList } from '../lib/coerce'
 
 interface Node {
   id: string
@@ -657,7 +658,7 @@ function buildModel(raw: string, snap: ReturnType<typeof useApp.getState>['snap'
       sel: { kind: 'rule', index: i },
     })
 
-    const inTags = (r['inboundTag'] as string[]) ?? []
+    const inTags = strList(r['inboundTag'])
     for (const it of inTags) edges.push({ from: `in:${it}`, to: id, kind: 'route' })
 
     if (r['balancerTag']) edges.push({ from: id, to: `bal:${r['balancerTag']}`, kind: 'route' })
@@ -674,7 +675,7 @@ function buildModel(raw: string, snap: ReturnType<typeof useApp.getState>['snap'
   let brow = 0
   balancers.forEach((b, i) => {
     const tag = String(b['tag'] ?? '')
-    const selectors = (b['selector'] as string[]) ?? []
+    const selectors = strList(b['selector'])
     const strategy = String((b['strategy'] as Record<string, unknown>)?.['type'] ?? 'random')
     const live = snap.balancers.find((x) => x.tag === tag)
     const matched = outTags.filter((t) => t && selectors.some((s) => t.startsWith(s)))
@@ -748,7 +749,7 @@ function buildModel(raw: string, snap: ReturnType<typeof useApp.getState>['snap'
   })
 
   if (obs) {
-    const selectors = (obs['subjectSelector'] as string[]) ?? []
+    const selectors = strList(obs['subjectSelector'])
     const subjects = outTags.filter((t) => t && selectors.some((s) => t.startsWith(s)))
     nodes.push({
       id: 'obs',
@@ -772,7 +773,7 @@ function buildModel(raw: string, snap: ReturnType<typeof useApp.getState>['snap'
     // The high-value cross-check: candidates a balancer can pick but the observatory
     // never probes are invisible to leastPing and leastLoad.
     for (const b of balancers) {
-      const bsel = (b['selector'] as string[]) ?? []
+      const bsel = strList(b['selector'])
       const cands = outTags.filter((t) => t && bsel.some((s) => t.startsWith(s)))
       const uncovered = cands.filter((t) => !subjects.includes(t))
       if (uncovered.length > 0) {
@@ -815,7 +816,7 @@ function buildModel(raw: string, snap: ReturnType<typeof useApp.getState>['snap'
     if (dnsTag) {
       const matched = rules
         .map((r, i) => ({ r, i }))
-        .filter(({ r }) => ((r['inboundTag'] as string[]) ?? []).includes(dnsTag))
+        .filter(({ r }) => strList(r['inboundTag']).includes(dnsTag))
       for (const { i } of matched) edges.push({ from: 'dns', to: `rule:${i}`, kind: 'observe' })
       if (matched.length === 0) {
         warnings.push(

@@ -1207,3 +1207,19 @@ button.ghost.on { border-color: var(--bad); color: var(--bad); }
 /* The entry the Reference tab was sent to, so the reader can see which of the matches
    answered the question they arrived with. */
 .card.diag.hit { border-color: var(--accent); }
+
+/* A panel that threw. Deliberately plain and deliberately not alarming-red: the tool
+   still works, and the message is an admission rather than a warning about the config. */
+.panel-crash { padding: 28px 24px; max-width: 60em; }
+.panel-crash h3 { font-size: 15px; margin: 0 0 10px; }
+.panel-crash pre {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--bad);
+  font-size: 12px;
+  margin: 14px 0;
+  overflow-x: auto;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+}

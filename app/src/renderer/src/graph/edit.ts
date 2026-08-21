@@ -9,6 +9,10 @@ import {
   type JSONPath,
   type ParseError,
 } from 'jsonc-parser'
+// With the .ts extension, because this module is also loaded directly by Node for
+// test/edit-indent.test.mts — Node's ESM resolver does not guess extensions, and the
+// test imports this file the same way.
+import { optDuration, optNum, optStr, strList } from '../lib/coerce.ts'
 
 /**
  * Surgical edits to a config's TEXT.
@@ -323,21 +327,21 @@ function readObservatory(doc: Record<string, unknown>): ObservatorySettings | nu
     const ping = (burst['pingConfig'] ?? {}) as Record<string, unknown>
     return {
       burst: true,
-      subjectSelector: (burst['subjectSelector'] as string[]) ?? [],
-      destination: ping['destination'] as string | undefined,
-      interval: ping['interval'] as string | undefined,
-      sampling: ping['sampling'] as number | undefined,
-      timeout: ping['timeout'] as string | undefined,
-      connectivity: ping['connectivity'] as string | undefined,
+      subjectSelector: strList(burst['subjectSelector']),
+      destination: optStr(ping['destination']),
+      interval: optDuration(ping['interval']),
+      sampling: optNum(ping['sampling']),
+      timeout: optDuration(ping['timeout']),
+      connectivity: optStr(ping['connectivity']),
     }
   }
   const plain = doc['observatory'] as Record<string, unknown> | undefined
   if (!plain) return null
   return {
     burst: false,
-    subjectSelector: (plain['subjectSelector'] as string[]) ?? [],
-    probeUrl: plain['probeUrl'] as string | undefined,
-    probeInterval: plain['probeInterval'] as string | undefined,
+    subjectSelector: strList(plain['subjectSelector']),
+    probeUrl: optStr(plain['probeUrl']),
+    probeInterval: optDuration(plain['probeInterval']),
     enableConcurrency: plain['enableConcurrency'] as boolean | undefined,
   }
 }
@@ -389,10 +393,10 @@ function readDns(doc: Record<string, unknown>): DnsSettings | null {
       address: String(o['address'] ?? ''),
       port: o['port'] as number | undefined,
       tag: o['tag'] as string | undefined,
-      domains: o['domains'] as string[] | undefined,
+      domains: strList(o['domains']),
       // Both spellings exist in the parser; expectedIPs is the current one and
       // expectIPs the legacy alias, so read whichever the config actually uses.
-      expectedIPs: (o['expectedIPs'] ?? o['expectIPs']) as string[] | undefined,
+      expectedIPs: strList(o['expectedIPs'] ?? o['expectIPs']),
       skipFallback: o['skipFallback'] as boolean | undefined,
       queryStrategy: o['queryStrategy'] as string | undefined,
     }

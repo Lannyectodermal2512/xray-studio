@@ -18,6 +18,10 @@
     "skipLibCheck": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
+    // Nothing is emitted, so an import may name the .ts file it actually resolves to.
+    // The app test loads graph/edit.ts directly under Node, whose ESM resolver does not
+    // guess extensions, and this lets the source say the same thing the test does.
+    "allowImportingTsExtensions": true,
 
     "types": ["node", "electron-vite/node"],
     // TypeScript 7 removed `baseUrl`; path targets must now be relative.

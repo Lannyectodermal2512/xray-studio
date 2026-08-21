@@ -13,6 +13,7 @@ import { LogPanel } from './panels/LogPanel'
 import { Build } from './panels/Build'
 import { Editor } from './panels/Editor'
 import { DocLangSwitch } from './components/DocLangSwitch'
+import { PanelBoundary } from './components/PanelBoundary'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'observe', label: 'Observe' },
@@ -162,7 +163,11 @@ export function App(): React.JSX.Element {
           {/* The graph is a canvas: it fills the window and navigates internally, so the
               tab body must not also scroll. Every other tab is a document and keeps the
               default scrolling behaviour. */}
+          {/* Per tab, not once around the whole body: the boundary resets when its
+              children change, and one wrapper for every tab would clear the error on
+              the next tab switch and lose it. */}
           <div className={tab === 'build' ? 'tab-body tab-body-fill' : 'tab-body'}>
+            <PanelBoundary what={tab}>
             {tab === 'observe' && <Observe />}
             {tab === 'build' && <Build />}
             {tab === 'editor' && <Editor />}
@@ -173,6 +178,7 @@ export function App(): React.JSX.Element {
             {tab === 'protocols' && <Protocols />}
             {tab === 'faults' && <Faults />}
             {tab === 'log' && <LogPanel />}
+            </PanelBoundary>
           </div>
         </main>
       </div>
