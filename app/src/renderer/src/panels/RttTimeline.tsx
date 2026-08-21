@@ -651,10 +651,34 @@ function ProbeLane({
       </div>
       {rows.map((r) => {
         const alive = aliveByTag[r.tag]
+
+        /* The two halves of this row come from different places, and when they
+           disagree that disagreement is the interesting part.
+        
+           The highlight is the OBSERVATORY's verdict; the marks are the individual
+           probes. A host stays "alive" while any sample inside interval x sampling
+           succeeded, so once it starts failing the verdict lags by up to a whole
+           window — with the defaults, a minute and a half. For that stretch the row
+           was tinted green with a run of red marks beside it, which reads as the lane
+           calling a dead host live.
+        
+           It is not wrong, and it is exactly what the balancer is acting on: an
+           outbound in this state will still be picked. So it gets its own state
+           rather than being smoothed into either neighbour. */
+        const lastMark = Math.max(r.ok[r.ok.length - 1] ?? -1, r.fail[r.fail.length - 1] ?? -1)
+        const lagging = alive === true && lastMark >= 0 && lastMark === (r.fail[r.fail.length - 1] ?? -1)
+
         return (
         <div
           key={r.tag}
-          className={`probe-row ${alive === true ? 'up' : alive === false ? 'down' : 'unknown'}`}
+          title={
+            lagging
+              ? 'The observatory still reports this outbound alive — a balancer will keep picking it — but its most recent probe failed. The verdict flips once every sample in the window has failed.'
+              : undefined
+          }
+          className={`probe-row ${
+            lagging ? 'lagging' : alive === true ? 'up' : alive === false ? 'down' : 'unknown'
+          }`}
         >
           {/* Name and counters share the chart's y-axis gutter, so the track still
               starts exactly where the plotting area does and every mark lines up with

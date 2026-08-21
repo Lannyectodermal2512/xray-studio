@@ -423,6 +423,12 @@ input:focus, select:focus { outline: 1px solid var(--accent); border-color: var(
 .probe-row.down .probe-track { background: rgb(248 81 73 / 7%); }
 .probe-row.unknown .probe-tag { color: var(--fg-faint); }
 
+/* Alive by the observatory, failing by the probes. Amber rather than red or green,
+   because it is neither: the outbound is still eligible and still being picked, and
+   the row should read as "about to turn" rather than as either settled state. */
+.probe-row.lagging .probe-tag { color: var(--warn); }
+.probe-row.lagging .probe-track { background: rgb(210 153 34 / 9%); box-shadow: inset 0 0 0 1px rgb(210 153 34 / 25%); }
+
 /* --- graph ----------------------------------------------------------------- */
 
 /* Fills its cell and lays out as head / canvas / warnings, so the canvas takes all the
