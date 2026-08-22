@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { lookup, useDocs } from '../lib/docs'
 import { Prose } from './Prose'
@@ -29,7 +29,13 @@ export function DocHint({ path }: { path: string }): React.JSX.Element | null {
   const anchorRef = useRef<HTMLSpanElement | null>(null)
   const popRef = useRef<HTMLDivElement | null>(null)
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
-  const doc = lookup(docs, path)
+  /* Memoised because lookup() builds a fresh object every call, and the layout effect
+     below depends on it. An unstable dependency there is not a wasted render — it is a
+     loop: effect -> setPos -> render -> new doc object -> effect. React stops it by
+     throwing "Maximum update depth exceeded", so hovering a (?) took the whole panel
+     down. It reached a release because the dialog that would have reported it was
+     clearing itself one frame later. */
+  const doc = useMemo(() => lookup(docs, path), [docs, path])
 
   // useLayoutEffect, not useEffect: measuring after paint would show the popup at its
   // unclamped position for one frame, which reads as a jump.
@@ -57,7 +63,9 @@ export function DocHint({ path }: { path: string }): React.JSX.Element | null {
       const above = anchor.top - GAP - height
       top = above >= MARGIN ? above : Math.max(MARGIN, vh - MARGIN - height)
     }
-    setPos({ left, top })
+    // Never re-set an identical position: one more way for a measurement that
+    // oscillates by a pixel to become a render loop.
+    setPos((prev) => (prev && prev.left === left && prev.top === top ? prev : { left, top }))
   }, [open, doc])
 
   if (!doc) return null

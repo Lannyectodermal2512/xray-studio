@@ -30,9 +30,18 @@ export class PanelBoundary extends Component<
     console.error(`panel "${this.props.what}" failed to render:`, err, info.componentStack)
   }
 
-  /** A different config, or a different tab, is a fresh chance for the panel to work. */
+  /**
+   * A different panel is a fresh chance; the same one re-rendering is not.
+   *
+   * This compared `children` by identity, which is a new element object on every
+   * render of the parent — and the parent re-renders thirty times a second from the
+   * telemetry snapshot. So the dialog cleared itself on the next frame: the crash
+   * report existed for about a millisecond, which is not long enough to read, let
+   * alone copy. It looked like a flicker rather than a crash, and hid a real bug for
+   * as long as it took someone to catch the flash on video.
+   */
   override componentDidUpdate(prev: { children: ReactNode; what: string }): void {
-    if (this.state.err && prev.children !== this.props.children) this.setState({ err: null })
+    if (this.state.err && prev.what !== this.props.what) this.setState({ err: null })
   }
 
   override render(): ReactNode {
